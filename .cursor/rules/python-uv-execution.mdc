@@ -1,0 +1,37 @@
+---
+description: Run Python tooling through uv-managed local environment
+globs:
+  - "**/*.py"
+  - "pyproject.toml"
+  - "uv.lock"
+  - "tests/**/*.py"
+alwaysApply: false
+---
+
+# Python Commands via uv
+
+- Use `uv` to execute all Python-related commands so tools run in the repo's local `.venv`.
+- Do not run `python`, `pip`, `pytest`, or similar commands directly.
+
+## Required command style
+
+```bash
+# Install / sync dependencies
+uv sync
+
+# Run Python scripts/modules
+uv run python main.py
+uv run python -m package.module
+
+# Run tests
+uv run pytest
+uv run pytest -k "pattern"
+```
+
+## Avoid
+
+```bash
+python main.py
+pytest
+pip install -r requirements.txt
+```
