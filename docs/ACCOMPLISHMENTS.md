@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-07 - Domain-driven v1 roadmap drafted
+- Requirement/Milestone: [M1, M2, M3, M4]
+- What shipped: Converted placeholders into a concrete project plan and added rough feature plan docs for core work blocks.
+- Evidence: `PROJECT_PLAN.md`, `docs/features/F01-domain-model-and-storage.md`, `docs/features/F02-excel-ingestion-and-race-merge.md`, `docs/features/F03-participant-and-team-matching.md`, `docs/features/F04-ranking-rules-and-standings.md`, `docs/features/F05-german-ui-and-review-workflow.md`
+- Impact: clear execution path from storage foundation to matching, ranking, and German UI review workflow
+- Follow-up: confirm official ranking rules and provide sample historical Excel files
+
 ### YYYY-MM-DD - Project planning scaffold created
 - Requirement/Milestone: [M1]
 - What shipped: Added project-level planning, feature template, and Cursor workflow rule.
