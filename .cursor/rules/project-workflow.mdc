@@ -1,0 +1,32 @@
+---
+description: Enforce global-to-feature planning workflow
+alwaysApply: true
+---
+
+# Project Workflow Rule
+
+Follow this workflow in all implementation conversations:
+
+1. Read `PROJECT_PLAN.md` before proposing or implementing major work.
+2. Ensure requested work maps to a requirement or milestone.
+3. For feature-level work, use or create a plan in `docs/features/`.
+4. Include assumptions, risks, implementation steps, and test plan in feature plans.
+5. If work appears out of scope, call it out and suggest options.
+
+## Completion checklist expectations
+
+Before considering significant work complete:
+
+- Confirm code changes are validated by appropriate tests.
+- Confirm docs are updated when behavior or workflow changes.
+- Add an outcome-focused entry to `docs/ACCOMPLISHMENTS.md`.
+- Update milestone/requirement progress in `PROJECT_PLAN.md` when relevant.
+
+## Suggested response pattern
+
+When asked to start a feature:
+
+- State which requirement/milestone it supports.
+- Provide or refine a concrete implementation plan.
+- Execute in small verifiable steps.
+- Report what should be logged in accomplishments after completion.
