@@ -10,7 +10,7 @@ from backend.domain.models import Couple, EntryResult, Person, ProjectDocument, 
 from backend.domain.validation import ValidationError
 from backend.storage.migrations import migrate_to_supported
 from backend.storage.repository import JsonProjectRepository
-from backend.storage.schema_v1 import SCHEMA_VERSION_V1, from_dict, to_dict
+from backend.storage.schema_v2 import SCHEMA_VERSION_V2, from_dict, to_dict
 
 
 def build_sample_document() -> ProjectDocument:
@@ -28,11 +28,12 @@ def build_sample_document() -> ProjectDocument:
         ),
     )
     return ProjectDocument(
-        schema_version=SCHEMA_VERSION_V1,
+        schema_version=SCHEMA_VERSION_V2,
         project_uid="project_1",
         people=(person, partner),
         couples=(team,),
         events=(event,),
+        matching_decisions=(),
     )
 
 
@@ -41,7 +42,7 @@ class TestF01Storage(unittest.TestCase):
         doc = build_sample_document()
         encoded = to_dict(doc)
         decoded = from_dict(encoded)
-        self.assertEqual(decoded.schema_version, SCHEMA_VERSION_V1)
+        self.assertEqual(decoded.schema_version, SCHEMA_VERSION_V2)
         self.assertEqual(decoded.project_uid, "project_1")
         self.assertEqual(decoded.events[0].entries[0].startnr, "17")
 
@@ -49,10 +50,11 @@ class TestF01Storage(unittest.TestCase):
         with self.assertRaises(ValidationError):
             from_dict({"schema_version": 999})
 
-    def test_migration_noop_v1(self) -> None:
+    def test_migration_v1_to_v2(self) -> None:
         payload = {"schema_version": 1, "people": [], "couples": [], "events": []}
         migrated = migrate_to_supported(payload)
-        self.assertEqual(migrated, payload)
+        self.assertEqual(migrated["schema_version"], 2)
+        self.assertEqual(migrated["matching_decisions"], [])
 
     def test_save_load_roundtrip_preserves_uids(self) -> None:
         doc = build_sample_document()
@@ -98,7 +100,7 @@ class TestF01Storage(unittest.TestCase):
             repo = JsonProjectRepository(path)
             repo.save(doc)
             data = json.loads(path.read_text(encoding="utf-8"))
-            self.assertEqual(data["schema_version"], 1)
+            self.assertEqual(data["schema_version"], 2)
             self.assertFalse((Path(temp_dir) / "project.json.tmp").exists())
 
 

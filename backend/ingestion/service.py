@@ -7,6 +7,8 @@ from backend.ingestion.adapters.couples import parse_couples_workbook
 from backend.ingestion.adapters.singles import parse_singles_workbook
 from backend.ingestion.mapping import map_couples_section, map_singles_section
 from backend.ingestion.types import ImportResult
+from backend.matching.report import MatchingReport, aggregate_matching_reports
+from backend.ranking.engine import recompute_project_standings
 from backend.storage.repository import JsonProjectRepository
 
 
@@ -25,6 +27,7 @@ def import_excel_into_project(project_file: Path, excel_file: Path, series_year:
             merged_event_uids=(),
             rows_imported=0,
             source_file=excel_file,
+            matching_report=None,
         )
 
     for event in document.events:
@@ -50,17 +53,21 @@ def import_excel_into_project(project_file: Path, excel_file: Path, series_year:
     }
     merged_uids: list[str] = []
     row_count = 0
+    reports: list[MatchingReport] = []
     if is_couples:
         for section in parsed.couples_sections:
-            document = map_couples_section(section, document, source_meta)
+            document, report = map_couples_section(section, document, source_meta)
             merged_uids.append(document.events[-1].race_event_uid)
             row_count += len(section.rows)
+            reports.append(report)
     else:
         for section in parsed.singles_sections:
-            document = map_singles_section(section, document, source_meta)
+            document, report = map_singles_section(section, document, source_meta)
             merged_uids.append(document.events[-1].race_event_uid)
             row_count += len(section.rows)
+            reports.append(report)
 
+    document = recompute_project_standings(document)
     repo.save(document)
     return ImportResult(
         noop=False,
@@ -68,4 +75,5 @@ def import_excel_into_project(project_file: Path, excel_file: Path, series_year:
         merged_event_uids=tuple(merged_uids),
         rows_imported=row_count,
         source_file=excel_file,
+        matching_report=aggregate_matching_reports(reports),
     )

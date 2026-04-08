@@ -4,7 +4,7 @@
 
 - Feature name: Ranking rules and standings
 - Owner: TBD
-- Status: Planned
+- Status: Implemented (backend)
 - Related requirement(s): R5
 - Related milestone(s): M3
 
@@ -57,11 +57,11 @@ Notes for implementation:
 
 ## Acceptance Criteria
 
-- [ ] Standings recalculate deterministically after each race import and merge.
-- [ ] v1 scoring follows the legacy baseline rules described above ("best 4 or all available").
-- [ ] Ranking order is deterministic using points first and distance as tie-break.
-- [ ] Output includes per-participant/team cumulative totals and enough detail to explain placement.
-- [ ] Ruleset version can be persisted and used for reproducible historical recalculation.
+- [x] Standings recalculate deterministically after each race import and merge.
+- [x] v1 scoring follows the legacy baseline rules described above ("best 4 or all available").
+- [x] Ranking order is deterministic using points first and distance as tie-break.
+- [x] Output includes per-participant/team cumulative totals and enough detail to explain placement.
+- [x] Ruleset version can be persisted and used for reproducible historical recalculation.
 
 ## Technical Plan
 
@@ -81,6 +81,15 @@ Notes for implementation:
   - Stable sort for deterministic placement under equal keys.
   - Explicit null handling for missing per-race values.
   - Recalculation target under KPI: < 2 seconds for typical season size (from project plan).
+
+## Implementation Notes (2026-04-08)
+
+- Code: `backend/ranking/` (`aggregation.py`, `rules.py`, `engine.py`); public API via `backend/ranking/__init__.py`.
+- Ruleset id: `v1_legacy_top4` (`RULESET_V1_LEGACY_TOP4`).
+- Domain: `StandingsSnapshot`, `CategoryStandingsTable`, `StandingsRow`, `RaceContribution` on `ProjectDocument.standings` in `backend/domain/models.py`.
+- Persistence: `backend/storage/schema_v2.py` (optional `standings` key); v1→v2 migration sets `standings` default in `backend/storage/migrations.py`.
+- Triggers: `recompute_project_standings` after successful import in `backend/ingestion/service.py`; after `mark_event_rolled_back` in `backend/storage/repository.py`. CLI: `uv run python main.py --project <file> --recompute-standings`.
+- Tests: `tests/test_f04_ranking.py`.
 
 ## Risks and Assumptions
 
@@ -178,11 +187,11 @@ Notes for implementation:
 
 ## Definition of Done
 
-- [ ] Code implemented
-- [ ] Tests added/updated and passing
-- [ ] Docs updated
-- [ ] Entry added to `docs/ACCOMPLISHMENTS.md`
-- [ ] Requirement/milestone status updated in `PROJECT_PLAN.md`
+- [x] Code implemented
+- [x] Tests added/updated and passing
+- [x] Docs updated
+- [x] Entry added to `docs/ACCOMPLISHMENTS.md`
+- [x] Requirement/milestone status updated in `PROJECT_PLAN.md`
 
 ## Links
 

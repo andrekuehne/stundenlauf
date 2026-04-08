@@ -13,7 +13,7 @@ All end-user UI text is German, while implementation and code artifacts remain E
 - [ ] R2: Support race categories: 30-minute and 60-minute races for men, women, and Paarlauf teams.
 - [ ] R3: Track participants and teams across non-consecutive races and partial participation.
 - [ ] R4: Implement robust participant/team matching with typo tolerance, name-order handling, and optional title handling.
-- [ ] R5: Compute cumulative distance/points and produce ranking tables using configurable rules.
+- [x] R5: Compute cumulative distance/points and produce ranking tables using configurable rules.
 - [ ] R6: Provide interactive review and override for suggested matches before merge.
 - [ ] R7: Keep data portable with file-based storage (no background server or remote DB).
 - [ ] R8: Provide German-language GUI for display and user workflows.
@@ -31,7 +31,7 @@ All end-user UI text is German, while implementation and code artifacts remain E
 |---|---|---|---|
 | M1 | Domain foundation and portable storage | 2026-05-15 | In progress (F01 domain/storage shipped) |
 | M2 | Excel ingestion and merge pipeline | 2026-06-15 | In progress (F02 backend ingestion implemented) |
-| M3 | Matching workflow and ranking engine | 2026-07-15 | Planned (implementation-ready) |
+| M3 | Matching workflow and ranking engine | 2026-07-15 | In progress (F03 matching + F04 ranking backend shipped; UI review workflow pending) |
 | M4 | German UI integration in desktop shell | 2026-08-15 | Planned (implementation-ready) |
 | M5 | Hardening, validation, and first production use | 2026-09-15 | Planned (implementation-ready) |
 
@@ -39,8 +39,8 @@ All end-user UI text is German, while implementation and code artifacts remain E
 
 - Phase: Build preparation complete, implementation phase starts next.
 - Planning status: Detailed feature plans completed and aligned across `F01` through `F05`.
-- Delivery status: F01 domain/storage implemented; F02 ingestion/merge backend and CLI path implemented with tests.
-- Immediate next step: Expand fixture coverage quality and proceed to F03 matching/review workflow integration.
+- Delivery status: F01 domain/storage implemented; F02 ingestion/merge backend and CLI path implemented with tests; F04 standings (`v1_legacy_top4`) computed on import and after rollback; persisted in project JSON.
+- Immediate next step: KPI tuning on fixture set; German review UI for match queue (F05); golden-master standings vs legacy spreadsheets when sample data is available.
 
 ## Success Metrics (KPIs)
 
@@ -82,3 +82,5 @@ All end-user UI text is German, while implementation and code artifacts remain E
 | 2026-04-08 | Marked feature planning as implementation-ready | Reflected completed detailed plans for F01-F05 and transition to build stage |
 | 2026-04-08 | Updated M1 status after F01 Python backend implementation | Reflected shipped domain/storage foundation and next-step shift to F02 |
 | 2026-04-08 | Updated M2 status after F02 ingestion implementation | Reflected shipped Excel ingestion, merge/idempotency flow, CLI import, and tests |
+| 2026-04-08 | Updated M3 after F03 matching backend | Reflected schema v2, matching pipeline, decision log, and tests |
+| 2026-04-08 | Shipped F04 ranking engine (backend) | Standings snapshot, ruleset id, import + rollback recompute, tests |

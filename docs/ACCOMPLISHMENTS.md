@@ -17,6 +17,20 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-08 - F04 ranking rules and standings (backend) shipped
+- Requirement/Milestone: [R5; M3]
+- What shipped: Versioned v1 ruleset (`v1_legacy_top4`) with top-4-or-all aggregation, deterministic sort (points then distance), sequential places, per-race contribution trace; `StandingsSnapshot` persisted in schema v2; automatic recompute on Excel import and on race rollback; optional CLI `--recompute-standings`.
+- Evidence: `backend/ranking/`, `backend/domain/models.py`, `backend/storage/schema_v2.py`, `backend/storage/migrations.py`, `backend/ingestion/service.py`, `backend/storage/repository.py`, `main.py`, `tests/test_f04_ranking.py`, `uv run python -m unittest discover -s tests -p "test_*.py"`
+- Impact: cumulative standings are explainable, reproducible for a stored ruleset id, and stay consistent when events are rolled back or re-imported.
+- Follow-up: golden-master comparison against legacy spreadsheet outputs when curated fixtures exist; future rulesets beyond v1; UI for standings drilldown (F05).
+
+### 2026-04-08 - F03 participant/team matching engine (backend) shipped
+- Requirement/Milestone: [R3, R4, R6; M3]
+- What shipped: Schema v2 with `matching_decisions` audit log and `RaceEntry.match_meta`; normalization + blocking + weighted scoring (typos, swap, title strip, YOB, club); order-insensitive Paarlauf team matching; fingerprint-based decision replay; conflict flags; aggregated `MatchingReport` on import; CLI prints matching summary.
+- Evidence: `backend/matching/`, `backend/domain/models.py`, `backend/storage/schema_v2.py`, `backend/storage/migrations.py`, `backend/ingestion/mapping.py`, `backend/ingestion/service.py`, `main.py`, `tests/test_f03_matching.py`, `uv run pytest`
+- Impact: imports no longer rely on exact string identity keys; uncertain matches surface as review metadata; manual decisions can be replayed deterministically by fingerprint.
+- Follow-up: German UI for review queue, manual merge API, field-level merge UI payloads, and KPI tuning on curated historical fixtures.
+
 ### 2026-04-08 - F02 Excel ingestion and race merge backend shipped
 - Requirement/Milestone: [R1, R2, R3; M2]
 - What shipped: Implemented template-based Excel ingestion adapters (singles/couples), validation and mapping pipeline, merge/idempotency service, and CLI import entrypoint with German output.

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Literal
 
 from backend.domain.enums import Division, RaceDuration
+from backend.matching.report import MatchingReport
 
 IssueSeverity = Literal["error", "warning"]
 
@@ -92,3 +93,4 @@ class ImportResult:
     merged_event_uids: tuple[str, ...]
     rows_imported: int
     source_file: Path
+    matching_report: MatchingReport | None = None

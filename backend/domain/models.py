@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Optional
+from typing import Literal, Optional
 from uuid import uuid4
 
 from backend.domain.enums import Division, Gender, RaceDuration, RaceEventState
@@ -13,12 +13,53 @@ def _new_uid(prefix: str) -> str:
 
 
 @dataclass(frozen=True)
+class FieldResolution:
+    """How a single field was resolved during merge (for audit / UI)."""
+
+    field_name: str
+    kept_from: Literal["incoming", "existing", "manual"]
+    value: str
+
+
+@dataclass(frozen=True)
+class MatchingDecision:
+    """Immutable audit entry for participant/team matching."""
+
+    decision_uid: str = field(default_factory=lambda: _new_uid("match_decision"))
+    decided_at: str = ""
+    kind: Literal["auto", "manual_accept", "manual_reject", "manual_link", "replay"] = "auto"
+    row_fingerprint: str = ""
+    race_event_uid: str = ""
+    entry_uid: str = ""
+    target_participant_uid: Optional[str] = None
+    target_team_uid: Optional[str] = None
+    rationale: str = ""
+    field_resolutions: tuple[FieldResolution, ...] = ()
+    feature_scores: dict[str, float] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class RaceEntryMatchMeta:
+    """Explainability + routing metadata attached to an imported entry."""
+
+    route: Literal["auto", "review", "new_identity"] = "new_identity"
+    confidence: float = 0.0
+    top_candidate_uid: Optional[str] = None
+    candidate_uids: tuple[str, ...] = ()
+    features: dict[str, float] = field(default_factory=dict)
+    conflict_flags: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class Person:
     uid: str = field(default_factory=lambda: _new_uid("participant"))
     name: str = ""
     yob: int = 0
     gender: Gender = Gender.X
     club: Optional[str] = None
+    canonical_given: str = ""
+    canonical_family: str = ""
+    club_normalized: str = ""
 
 
 @dataclass(frozen=True)
@@ -52,6 +93,7 @@ class RaceEntry:
     participant_uid: Optional[str] = None
     team_uid: Optional[str] = None
     result: EntryResult = field(default_factory=lambda: EntryResult(distance_km=0.0, points=0.0))
+    match_meta: Optional[RaceEntryMatchMeta] = None
 
 
 @dataclass(frozen=True)
@@ -60,6 +102,45 @@ class RollbackMetadata:
     rolled_back_by: str = ""
     rolled_back_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     reason: str = ""
+
+
+@dataclass(frozen=True)
+class RaceContribution:
+    """One race's points/distance toward standings, with selection flag for top-N."""
+
+    race_event_uid: str
+    points: float
+    distance_km: float
+    counts_toward_total: bool
+
+
+@dataclass(frozen=True)
+class StandingsRow:
+    """One row in a category standings table."""
+
+    entity_kind: Literal["participant", "team"]
+    entity_uid: str
+    punkte_gesamt: float
+    distanz_gesamt: float
+    platz: int
+    race_contributions: tuple[RaceContribution, ...] = ()
+
+
+@dataclass(frozen=True)
+class CategoryStandingsTable:
+    """Standings for a single series category (same key as RaceSeriesCategory.key)."""
+
+    category_key: str
+    rows: tuple[StandingsRow, ...] = ()
+
+
+@dataclass(frozen=True)
+class StandingsSnapshot:
+    """Full computed standings for the project at a point in time."""
+
+    ruleset_version: str = ""
+    calculated_at: str = ""
+    category_tables: tuple[CategoryStandingsTable, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -87,3 +168,5 @@ class ProjectDocument:
     people: tuple[Person, ...] = ()
     couples: tuple[Couple, ...] = ()
     events: tuple[RaceEvent, ...] = ()
+    matching_decisions: tuple[MatchingDecision, ...] = ()
+    standings: StandingsSnapshot | None = None

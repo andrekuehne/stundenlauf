@@ -8,8 +8,9 @@ from pathlib import Path
 from backend.domain.enums import RaceEventState
 from backend.domain.models import ProjectDocument, RaceEvent, RollbackMetadata
 from backend.domain.validation import ValidationError
+from backend.ranking.engine import recompute_project_standings
 from backend.storage.migrations import migrate_to_supported
-from backend.storage.schema_v1 import SCHEMA_VERSION_V1, from_dict, to_dict
+from backend.storage.schema_v2 import SCHEMA_VERSION_V2, from_dict, to_dict
 
 
 class JsonProjectRepository:
@@ -18,7 +19,7 @@ class JsonProjectRepository:
 
     def load(self) -> ProjectDocument:
         if not self.path.exists():
-            return ProjectDocument(schema_version=SCHEMA_VERSION_V1)
+            return ProjectDocument(schema_version=SCHEMA_VERSION_V2)
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
@@ -64,10 +65,11 @@ class JsonProjectRepository:
                 updated_events.append(event)
         if not found:
             raise ValidationError(f"Unknown race_event_uid: {race_event_uid}")
-        return replace(document, events=tuple(updated_events))
+        updated = replace(document, events=tuple(updated_events))
+        return recompute_project_standings(updated)
 
     def _validate_document(self, document: ProjectDocument) -> None:
-        if document.schema_version != SCHEMA_VERSION_V1:
+        if document.schema_version != SCHEMA_VERSION_V2:
             raise ValidationError(
-                f"Document schema_version={document.schema_version} does not match repository version {SCHEMA_VERSION_V1}."
+                f"Document schema_version={document.schema_version} does not match repository version {SCHEMA_VERSION_V2}."
             )

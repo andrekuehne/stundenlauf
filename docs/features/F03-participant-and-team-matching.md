@@ -4,7 +4,7 @@
 
 - Feature name: Participant and team matching engine
 - Owner: TBD
-- Status: Planned
+- Status: Implemented (backend matching, schema v2, import integration); interactive German review UI deferred to M4/F05
 - Related requirement(s): R3, R4, R6
 - Related milestone(s): M3
 
@@ -43,12 +43,12 @@ Without robust matching and human review support, cumulative rankings become unr
 
 ## Acceptance Criteria
 
-- [ ] Known typo and swapped-name scenarios are resolved or surfaced as review candidates.
-- [ ] Pair teams match regardless of participant order where appropriate.
-- [ ] Manual decision overrides persist and are reapplied on recalculation.
-- [ ] Title/no-title variants do not create separate identities by default.
-- [ ] Club similarity contributes to scoring without forcing false merges.
-- [ ] Records with multiple simultaneous errors are still surfaced with useful top candidates.
+- [x] Known typo and swapped-name scenarios are resolved or surfaced as review candidates (backend scoring + `match_meta.route`).
+- [x] Pair teams match regardless of participant order where appropriate (bipartite alignment in team scorer).
+- [x] Manual decision overrides persist and are reapplied on recalculation (fingerprint index + `MatchingDecision` replay; UI to author decisions still pending).
+- [x] Title/no-title variants do not create separate identities by default (title stripping in normalization).
+- [x] Club similarity contributes to scoring without forcing false merges (low-weight club feature).
+- [x] Records with multiple simultaneous errors are still surfaced with useful top candidates (blocking + ranked candidates + review band).
 
 ## Technical Plan
 
@@ -189,11 +189,11 @@ Without robust matching and human review support, cumulative rankings become unr
 
 ## Definition of Done
 
-- [ ] Code implemented
-- [ ] Tests added/updated and passing
-- [ ] Docs updated
-- [ ] Entry added to `docs/ACCOMPLISHMENTS.md`
-- [ ] Requirement/milestone status updated in `PROJECT_PLAN.md`
+- [x] Code implemented
+- [x] Tests added/updated and passing
+- [x] Docs updated
+- [x] Entry added to `docs/ACCOMPLISHMENTS.md`
+- [x] Requirement/milestone status updated in `PROJECT_PLAN.md`
 
 ## Links
 
