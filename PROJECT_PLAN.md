@@ -29,11 +29,18 @@ All end-user UI text is German, while implementation and code artifacts remain E
 
 | Milestone | Description | Target Date | Status |
 |---|---|---|---|
-| M1 | Domain foundation and portable storage | 2026-05-15 | Planned |
-| M2 | Excel ingestion and merge pipeline | 2026-06-15 | Planned |
-| M3 | Matching workflow and ranking engine | 2026-07-15 | Planned |
-| M4 | German UI integration in desktop shell | 2026-08-15 | Planned |
-| M5 | Hardening, validation, and first production use | 2026-09-15 | Planned |
+| M1 | Domain foundation and portable storage | 2026-05-15 | Planned (implementation-ready) |
+| M2 | Excel ingestion and merge pipeline | 2026-06-15 | Planned (implementation-ready) |
+| M3 | Matching workflow and ranking engine | 2026-07-15 | Planned (implementation-ready) |
+| M4 | German UI integration in desktop shell | 2026-08-15 | Planned (implementation-ready) |
+| M5 | Hardening, validation, and first production use | 2026-09-15 | Planned (implementation-ready) |
+
+## Current Phase
+
+- Phase: Build preparation complete, implementation phase starts next.
+- Planning status: Detailed feature plans completed and aligned across `F01` through `F05`.
+- Delivery status: No requirements marked complete yet; build/test/doc execution is next.
+- Immediate next step: Start implementation in milestone order (M1 -> M2 -> M3 -> M4 -> M5) with verifiable increments.
 
 ## Success Metrics (KPIs)
 
@@ -72,3 +79,4 @@ All end-user UI text is German, while implementation and code artifacts remain E
 | Date | Change | Why |
 |---|---|---|
 | 2026-04-07 | Replaced placeholders with v1 project plan | Captured domain, milestones, and measurable goals |
+| 2026-04-08 | Marked feature planning as implementation-ready | Reflected completed detailed plans for F01-F05 and transition to build stage |

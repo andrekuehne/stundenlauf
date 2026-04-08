@@ -5,59 +5,165 @@
 - Feature name: German UI and match review workflow
 - Owner: TBD
 - Status: Planned
-- Related requirement(s): R6, R8
-- Related milestone(s): M4
+- Related requirement(s): R1, R3, R4, R6, R8
+- Related milestone(s): M4, M5
 
 ## Problem Statement
 
 Users need a clear German-language interface to import races, inspect standings, and resolve uncertain participant/team matches.
-This review flow is critical for trust in cumulative results.
+This review flow is critical for trust in cumulative results and for correcting data safely when new information arrives after races were already merged.
 
 ## Scope
 
 ### In Scope
 
 - German UI labels/messages for primary app workflows.
-- Views for race history, current standings, and pending match reviews.
-- Interactive match resolution (accept/reject/manual-link) and audit visibility.
+- Two primary workflow views:
+  - **Aktuelle Wertung** (current rankings): category-aware standings with transparent totals.
+  - **Lauf hinzufügen** (add race): import + validation + merge review entrypoint.
+- Interactive merge-candidate resolution with highlighted likely matches.
+- User-controlled field resolution for duplicates:
+  - choose value to keep from candidate A/B per field (`Name`, `Verein`, optional `Jahrgang`),
+  - optionally enter a new manual value when both source values contain typos.
+- Stable UID visibility and traceability for participants/teams and race events.
+- Audit timeline for imports, merge decisions, recalculations, and rollbacks.
+- Race rollback/reapply workflow (revert one race and re-import corrected results).
 - Desktop embedding in pywebview with reactive frontend architecture.
 
 ### Out of Scope
 
 - Full multilingual localization framework beyond German in v1.
 - Remote collaboration/commenting features.
+- Arbitrary historical undo across many races in one click (v1 supports explicit race-level rollback actions).
 
 ## Acceptance Criteria
 
 - [ ] All end-user visible strings in core workflows are German.
+- [ ] Users can switch between **Aktuelle Wertung** and **Lauf hinzufügen** without losing draft review work.
 - [ ] Users can resolve uncertain matches without editing raw files.
+- [ ] In merge resolution, users can choose A/B field values or enter a manual replacement value.
+- [ ] Every participant/team and every race event has a stable UID visible in detailed views.
 - [ ] Match decision history is visible and understandable in UI.
+- [ ] User can roll back race `N` (for example race 3), and standings and audit trail reflect that rollback deterministically.
+- [ ] Corrected race `N` can be re-imported and re-reviewed with full audit trace continuity.
 
 ## Technical Plan
 
-- Architecture/approach: frontend in modern reactive JS with Python backend API via pywebview bridge.
-- Data model/API changes: endpoints/commands for match candidate retrieval and decision submission.
-- Migration needs: none expected.
-- Performance/reliability concerns: responsive filtering/sorting in review lists for larger datasets.
+- Architecture/approach:
+  - frontend in modern reactive JS with Python backend API via pywebview bridge.
+  - event-driven UI state model for import, review, rollback, and standings recalculation status.
+- UI modules:
+  - `StandingsView` (Aktuelle Wertung): standings table, category selector, per-entry detail drawer.
+  - `AddRaceView` (Lauf hinzufügen): file import, validation summary, candidate review queue, apply action.
+  - `MergeResolutionDialog`: side-by-side field chooser + manual override input.
+  - `RaceHistoryPanel`: imported races, UIDs, timestamps, rollback/reapply actions.
+- Data model/API changes:
+  - query current standings snapshot and trace metadata (`ruleset_version`, recalculated_at, source races).
+  - retrieve match candidates with explanation details and confidence buckets.
+  - submit merge decisions including field-level picks and optional manual values.
+  - expose stable ids: `participant_uid`, `team_uid`, `race_event_uid`, `decision_uid`.
+  - execute `rollback_race(race_event_uid)` and `reimport_race(...)` commands with audit outputs.
+- Migration needs:
+  - if older datasets lack stable UIDs, add one-time UID backfill migration.
+- Performance/reliability concerns:
+  - responsive filtering/sorting in review lists for larger datasets.
+  - optimistic UI with safe command retries and clear conflict messaging.
+  - rollback and reapply must be atomic and produce deterministic recalculation.
 
 ## Risks and Assumptions
 
 - Assumption: Desktop runtime setup for pywebview is acceptable on target machines.
 - Risk: Inconsistent terminology in German UI confuses users.
   - Mitigation: maintain a glossary and central string catalog.
+- Risk: User accidentally confirms wrong merge candidate.
+  - Mitigation: preview + explicit confirmation + visible audit + reversible race-level rollback.
+- Risk: Rollback of one race leaves stale derived standings.
+  - Mitigation: enforce full recomputation from persisted event history after rollback/reapply.
 
 ## Implementation Steps
 
-1. Define UI information architecture and German terminology glossary.
-2. Implement standings and import screens, then match review screen.
-3. Connect decision actions to backend and verify audit visibility.
+1. Define German information architecture and terminology
+   - lock navigation terms (`Aktuelle Wertung`, `Lauf hinzufügen`, `Zusammenführen prüfen`, `Rückgängig`).
+   - define user-safe language for confidence and conflict states.
+2. Implement shell navigation and shared app state
+   - add top-level route/state switcher between the two primary views.
+   - preserve unsaved review progress when switching views.
+3. Build `Aktuelle Wertung` view
+   - category selector + standings table with points/distance totals.
+   - row detail drawer with UID, source races, and decision trace snippets.
+4. Build `Lauf hinzufügen` view
+   - file picker/import trigger + validation summary in German.
+   - candidate queue with confidence groups (hoch/mittel/niedrig).
+5. Build merge resolution interaction
+   - side-by-side values from candidate A/B per field.
+   - per-field controls: keep left, keep right, manual value.
+   - apply decision and update queue immediately.
+6. Integrate audit timeline
+   - display import, decision, recalculation, rollback, and reimport events.
+   - support filtering by UID (participant/team/race).
+7. Implement rollback and reapply flow
+   - race history list with rollback action for a selected race event.
+   - confirmation dialog with impact summary (entities affected).
+   - after rollback: recompute standings and keep immutable audit record.
+   - reimport corrected race file and restart merge review flow.
+8. Harden UX edge cases
+   - stale data conflicts, duplicate submits, and command retry behavior.
+   - loading/empty/error states across both primary views.
+9. Final integration and documentation
+   - verify API contracts with F01-F04 outputs.
+   - document screenshots/workflow notes for domain users.
 
 ## Test Plan
 
-- Unit: frontend state and input validation behavior.
-- Integration: end-to-end flow (import -> review -> recalc standings).
-- Manual checks: terminology review with domain users in German.
-- Rollback strategy: keep reversible decision actions where possible.
+### Unit Tests (Frontend State + Components)
+
+- `navigation_preserves_add_race_draft_state`
+  - switching from `Lauf hinzufügen` to `Aktuelle Wertung` and back keeps unresolved queue and form state.
+- `standings_view_renders_category_specific_rows`
+  - selected category changes table content deterministically.
+- `merge_dialog_supports_left_right_manual_per_field`
+  - for each field, left/right/manual selection updates the pending decision payload.
+- `manual_value_validation_blocks_empty_required_name`
+  - manual override enforces required constraints before submit.
+- `audit_list_filters_by_uid`
+  - filtering by participant/team/race UID narrows events correctly.
+
+### Integration Tests (UI + API Contracts)
+
+- `import_review_apply_updates_current_rankings`
+  - flow: import -> candidate review -> decisions submit -> standings refresh.
+- `candidate_highlighting_prioritizes_best_match_first`
+  - best confidence candidate is pre-highlighted but not auto-applied when review required.
+- `field_level_manual_correction_persists_in_identity_cluster`
+  - manual typo fix is persisted and reflected in subsequent races.
+- `rollback_race_recomputes_standings_and_marks_event_reverted`
+  - rollback of race N removes its contribution and marks event state in history.
+- `reimport_corrected_race_after_rollback_restarts_review`
+  - corrected race can be imported again with a new event UID and linked audit trail.
+- `decision_and_race_uid_trace_is_visible_in_ui`
+  - user can inspect UIDs tied to a standing entry and originating race actions.
+
+### End-to-End Scenarios (Critical User Journeys)
+
+1. **Baseline season workflow**
+   - import races 1..3, resolve medium-confidence matches, verify standings in `Aktuelle Wertung`.
+2. **Typo correction with manual merge value**
+   - both candidate names contain typo; user enters corrected name manually; future imports reuse corrected identity.
+3. **Race 3 correction workflow**
+   - rollback race 3, verify standings drop race-3 effects, import corrected race 3 file, resolve candidates, verify recomputed standings.
+4. **Pair/team ambiguity workflow**
+   - team candidate list shows member-level uncertainty; user selects field-level values and confirms result with team UID continuity.
+
+### Manual/UAT Checks
+
+- German terminology review with organizers for all major buttons/messages/dialog titles.
+- Time-to-complete check: import + review + apply should remain aligned with KPI target (< 5 min typical case).
+- Auditability check: for any ranking row, user can trace to participant/team UID and race event history.
+
+### Rollback Strategy
+
+- Rollback is race-event scoped and append-only in audit history (no destructive deletion of audit records).
+- Recalculation always runs from remaining active race events to guarantee deterministic recovery.
 
 ## Definition of Done
 

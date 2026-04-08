@@ -31,6 +31,8 @@ Storage must remain local, file-based, portable, and versioned.
 - Define invariants and validation rules for category composition and gender constraints.
 - Define JSON project file schema with versioning and migration hooks.
 - Define repository interface and atomic file save/load semantics.
+- Define stable UIDs for auditable entities (`participant_uid`, `team_uid`, `race_event_uid`, `decision_uid`).
+- Define race event lifecycle state to support rollback (`active`, `rolled_back`) without deleting history.
 
 ### Out of Scope
 
@@ -68,6 +70,16 @@ Storage must remain local, file-based, portable, and versioned.
    - Keep person gender enum extensible.
    - Keep division eligibility in configuration metadata so new individual divisions can be introduced without schema redesign.
 
+6. **Stable UID policy**
+   - Every participant/team master entity has an immutable UID.
+   - Every imported race event has an immutable UID, independent of race number.
+   - Every manual merge/review action is persisted with a decision UID.
+
+7. **Rollback-safe race event lifecycle**
+   - Race rollback marks an event as `rolled_back` instead of deleting it.
+   - Rolled-back events remain available for audit views and trace reconstruction.
+   - Computation consumers (matching/ranking) must ignore non-active race events by default.
+
 ## Acceptance Criteria
 
 - [ ] Canonical schema documented for person, couple, category, race entry, and season bucket.
@@ -76,6 +88,8 @@ Storage must remain local, file-based, portable, and versioned.
 - [ ] Race-specific start numbers are persisted without affecting identity resolution.
 - [ ] Project file can be saved/loaded on another machine with schema version validation.
 - [ ] Invalid schema/data combinations fail with clear validation errors.
+- [ ] Stable UIDs persist unchanged across save/load cycles.
+- [ ] Rolled-back races remain auditable and excluded from active computations.
 
 ## Technical Plan
 
@@ -142,7 +156,11 @@ Storage must remain local, file-based, portable, and versioned.
    - Expose stable IDs and lookup interfaces used by ingestion/matching/ranking.
    - Document which fields are identity-defining versus race-instance-only metadata.
 
-8. **Documentation updates**
+8. **Implement rollback-safe repository semantics**
+   - Add lifecycle state handling for race events and rollback metadata (who/when/why).
+   - Expose active-only and include-rolled-back query modes.
+
+9. **Documentation updates**
    - Update model documentation with glossary and German display label mapping.
    - Add accomplishment entry after implementation.
    - Update milestone progress in `PROJECT_PLAN.md` when delivered.
@@ -196,6 +214,9 @@ Storage must remain local, file-based, portable, and versioned.
 18. `backup_created_before_overwrite`
 19. `load_from_other_machine_path_encoding_works`
 20. `invalid_file_returns_user_friendly_error`
+21. `uid_roundtrip_remains_stable`
+22. `rollback_marks_event_rolled_back_without_data_loss`
+23. `active_queries_exclude_rolled_back_events_by_default`
 
 ### Scenario Tests (Business Semantics)
 

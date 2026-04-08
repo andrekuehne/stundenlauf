@@ -32,6 +32,9 @@ Without robust matching and human review support, cumulative rankings become unr
 - Team (Paarlauf) matching including member order insensitivity.
 - Confidence thresholds and uncertain-match review queue.
 - Manual override decisions persisted with audit trail.
+- Field-level merge resolution payloads for UI:
+  - choose source A/B value per field,
+  - allow manual replacement value when both source values are incorrect.
 
 ### Out of Scope
 
@@ -51,6 +54,7 @@ Without robust matching and human review support, cumulative rankings become unr
 
 - Architecture/approach: normalization + rule-based matching + configurable scoring weights.
 - Data model/API changes: add `identity_clusters`, `match_candidates`, and decision log entries.
+- Data model/API changes: add immutable decision identifiers and structured field-level merge actions.
 - Migration needs: compatible with base project schema through version bump if required.
 - Performance/reliability concerns: avoid O(n^2) blowups with indexing/blocking strategy.
 
@@ -113,6 +117,7 @@ Without robust matching and human review support, cumulative rankings become unr
    - Persist accepted/rejected/manual-link decisions with timestamp and rationale.
    - Ensure re-import/recalculation reuses prior decisions deterministically.
    - Deliverable: decision log API and replay logic.
+   - Persist field resolution details (`kept_from`, `manual_value`) for name/club/yob where applicable.
 7. Build uncertain-match review queue contract.
    - Return ranked candidates with feature explanations for UI integration.
    - Include conflict flags (same candidate suggested for multiple new rows).
@@ -158,6 +163,7 @@ Without robust matching and human review support, cumulative rankings become unr
 - Decision persistence
   - Manual accept/reject in race N remains applied after race N+1 import and full recalculation.
   - Rejected candidate is not re-proposed unless source data materially changes.
+  - Field-level manual correction values are reused in later candidate generation and scoring.
 
 ### Edge-Case/Regression Suite
 
@@ -173,6 +179,7 @@ Without robust matching and human review support, cumulative rankings become unr
   - explanation is sufficient for fast human decision.
 - Auditability check:
   - for any merged participant/team, user can inspect decision reason and source records.
+  - audit view includes decision UID and related participant/team UID references.
 
 ### Exit Criteria for F03
 

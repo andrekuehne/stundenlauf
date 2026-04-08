@@ -24,6 +24,7 @@ The system needs a repeatable import pipeline that validates input, converts it 
 - Idempotency/duplicate protection (avoid accidentally importing the same file/race twice).
 - Strict Excel template validation via header/schema fingerprinting (fail fast on format drift).
 - Derive section split rules from legacy `split_race_data` behavior for singles plus verified marker rows from current singles/couples files.
+- Support explicit race replacement workflow via F05 orchestration: rollback prior race event, then import corrected file as a new race event UID.
 
 ### Out of Scope
 
@@ -81,8 +82,10 @@ The system needs a repeatable import pipeline that validates input, converts it 
   - Compute `source_sha256` for idempotency.
   - If the same `source_sha256` was already imported into the project: return a no-op result.
   - Prevent collisions on `(category_key, race_no)` unless an explicit “replace” mode is introduced later.
+  - For correction workflow, allow import after rollback of the previous conflicting race event and preserve both events in audit history.
 - Data model/API changes:
   - Add import metadata on the stored race event (at minimum `source_file`, `source_sha256`, `imported_at`, `parser_version`, `schema_fingerprint`).
+  - Ensure created race event always carries `race_event_uid`.
 - Migration needs: none expected beyond base schema support (F01 schema/versioning).
 - Performance/reliability concerns:
   - Deterministic parsing; strict schema checks to avoid silent wrong mapping.
@@ -133,7 +136,11 @@ The system needs a repeatable import pipeline that validates input, converts it 
    - Reject `(category_key, race_no)` collisions.
    - Save project atomically (repository responsibility).
 
-6. **Add a runnable entrypoint**
+6. **Correction flow support (rollback + reimport)**
+   - If collision exists because of corrected results, require prior race rollback before accepting replacement import.
+   - Emit merge response with old/new race event references for audit timeline.
+
+7. **Add a runnable entrypoint**
    - Provide a CLI/script entrypoint (German output) to import a given excel file into a project file.
    - Ensure correct Windows path handling (spaces in filenames).
 
@@ -174,6 +181,8 @@ Use the example datasets under `data/2023`:
   - Import a fixture twice; second import returns no-op and project contents are unchanged.
 - `category_race_number_collision_is_rejected`
   - Attempt to import a different file that maps to same `(category_key, race_no)`; import fails with an actionable error.
+- `reimport_after_rollback_is_accepted_and_auditable`
+  - Roll back existing race event, then import corrected file for same race number; verify new `race_event_uid` is persisted and old event remains in rolled-back state.
 
 ### Manual Checks
 
