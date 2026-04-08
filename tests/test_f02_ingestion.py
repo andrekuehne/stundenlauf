@@ -15,25 +15,37 @@ from backend.storage.repository import JsonProjectRepository
 
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
-DATA_2023 = WORKSPACE_ROOT / "data" / "2023"
+DATA_2023_EINZEL = WORKSPACE_ROOT / "data" / "2023" / "einzel"
+DATA_2023_PAARE = WORKSPACE_ROOT / "data" / "2023" / "paare"
 
 
 def has_local_fixtures() -> bool:
-    return DATA_2023.exists() and any(DATA_2023.glob("*.xlsx"))
+    """True when singles Excel files live under data/2023/einzel and couples under data/2023/paare."""
+    if not DATA_2023_EINZEL.is_dir() or not DATA_2023_PAARE.is_dir():
+        return False
+    for idx in range(1, 6):
+        if not (DATA_2023_EINZEL / f"Ergebnisliste MW Lauf {idx}.xlsx").is_file():
+            return False
+        if not (DATA_2023_PAARE / f"Ergebnisliste MW_Paare Lauf {idx}.xlsx").is_file():
+            return False
+    return True
 
 
-@unittest.skipUnless(has_local_fixtures(), "Local Excel fixtures under data/2023 are required for fixture-driven tests.")
+@unittest.skipUnless(
+    has_local_fixtures(),
+    "Local Excel fixtures under data/2023/einzel and data/2023/paare are required for fixture-driven tests.",
+)
 class TestF02AdaptersWithFixtures(unittest.TestCase):
     def test_singles_adapter_parses_known_good_files(self) -> None:
         for idx in range(1, 6):
-            path = DATA_2023 / f"Ergebnisliste MW Lauf {idx}.xlsx"
+            path = DATA_2023_EINZEL / f"Ergebnisliste MW Lauf {idx}.xlsx"
             parsed = parse_singles_workbook(path, series_year=2023)
             self.assertTrue(parsed.singles_sections)
             self.assertGreater(sum(len(section.rows) for section in parsed.singles_sections), 0)
 
     def test_couples_adapter_parses_known_good_files(self) -> None:
         for idx in range(1, 6):
-            path = DATA_2023 / f"Ergebnisliste MW_Paare Lauf {idx}.xlsx"
+            path = DATA_2023_PAARE / f"Ergebnisliste MW_Paare Lauf {idx}.xlsx"
             parsed = parse_couples_workbook(path, series_year=2023)
             self.assertTrue(parsed.couples_sections)
             self.assertGreater(sum(len(section.rows) for section in parsed.couples_sections), 0)
@@ -41,7 +53,7 @@ class TestF02AdaptersWithFixtures(unittest.TestCase):
     def test_reimport_same_file_is_noop(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project_path = Path(temp_dir) / "project.json"
-            excel_file = DATA_2023 / "Ergebnisliste MW Lauf 1.xlsx"
+            excel_file = DATA_2023_EINZEL / "Ergebnisliste MW Lauf 1.xlsx"
             first = import_excel_into_project(project_path, excel_file, series_year=2023)
             second = import_excel_into_project(project_path, excel_file, series_year=2023)
             self.assertFalse(first.noop)
@@ -50,8 +62,8 @@ class TestF02AdaptersWithFixtures(unittest.TestCase):
     def test_import_singles_and_couples_do_not_collide(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project_path = Path(temp_dir) / "project.json"
-            import_excel_into_project(project_path, DATA_2023 / "Ergebnisliste MW Lauf 1.xlsx", series_year=2023)
-            import_excel_into_project(project_path, DATA_2023 / "Ergebnisliste MW_Paare Lauf 1.xlsx", series_year=2023)
+            import_excel_into_project(project_path, DATA_2023_EINZEL / "Ergebnisliste MW Lauf 1.xlsx", series_year=2023)
+            import_excel_into_project(project_path, DATA_2023_PAARE / "Ergebnisliste MW_Paare Lauf 1.xlsx", series_year=2023)
             repo = JsonProjectRepository(project_path)
             doc = repo.load()
             self.assertTrue(any(event.category.division in {Division.MEN, Division.WOMEN} for event in doc.events))

@@ -8,4 +8,16 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Excel workbooks (binary; not tracked by default)
 *.xlsx
+# Ground-truth and source workbooks under 2023 einzel/paare (not under exports/)
+!data/2023/einzel/**/*.xlsx
+!data/2023/paare/**/*.xlsx
+data/2023/einzel/exports/**/*.xlsx
+data/2023/paare/exports/**/*.xlsx
+
+# data/2023: session state, exports, backups — not versioned (Excel exceptions above)
+data/2023/**/*.csv
+data/2023/**/*.json
+data/2023/**/*.json.bak

@@ -17,6 +17,20 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-08 - F07 Gesamtwertung ground-truth comparison (Excel)
+- Requirement/Milestone: [R1, R5; M5 validation]
+- What shipped: `backend/tools/gesamtwertung_compare.py` parses Gesamtwertung Einzel blocks (half/hour × W/M), aggregates like `v1_legacy_top4`, merges duplicate GT rows, aligns to `StandingsSnapshot`, and writes comparison workbooks; `scripts/compare_gesamtwertung.py` supports single-section or `--all-sections --series-year`; `scripts/compare_2023_einzel_halbstunden_w.py` wraps 2023 defaults; tests in `tests/test_gesamtwertung_compare.py`; documented in `docs/features/F07-gesamtwertung-ground-truth-comparison.md`.
+- Evidence: `uv run pytest tests/test_gesamtwertung_compare.py`
+- Impact: repeatable organizer-vs-project totals for HITL review before promoting automated golden tests.
+- Follow-up: optional pytest pass/fail on comparison when fixtures are stable; extend layout for Paare if needed.
+
+### 2026-04-08 - F06 fixture HITL import script and standings export
+- Requirement/Milestone: [R1, R5; M5 KPI prep]
+- What shipped: `scripts/fixture_import_session.py` discovers local `.xlsx` fixtures under `--data-dir`, imports them in Lauf order (singles then couples per run), prints matching/review details, optional pause between files, and exports cumulative standings CSV (stdout or `--out-dir`); helpers in `backend/tools/fixture_session.py` with `tests/test_fixture_session.py`.
+- Evidence: `backend/tools/fixture_session.py`, `scripts/fixture_import_session.py`, `tests/test_fixture_session.py`, `docs/features/F06-fixture-hitl-import-script.md`, `uv run pytest`
+- Impact: enables ground-truth comparison of scoring and sorting against external spreadsheets before the German review UI is wired up.
+- Follow-up: optional golden-master CSV diff; integrate review/rollback flows when F05 UI lands.
+
 ### 2026-04-08 - F04 ranking rules and standings (backend) shipped
 - Requirement/Milestone: [R5; M3]
 - What shipped: Versioned v1 ruleset (`v1_legacy_top4`) with top-4-or-all aggregation, deterministic sort (points then distance), sequential places, per-race contribution trace; `StandingsSnapshot` persisted in schema v2; automatic recompute on Excel import and on race rollback; optional CLI `--recompute-standings`.
