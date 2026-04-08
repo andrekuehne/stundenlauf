@@ -129,6 +129,7 @@ uv run pytest tests/test_gesamtwertung_compare.py
 
 ## Related
 
+- **Roadmap**: [PROJECT_PLAN.md](../../PROJECT_PLAN.md) — F06/F07 validation track before F05 GUI.
 - Import pipeline and per-step CSV: [F06](F06-fixture-hitl-import-script.md)
 - Ranking rules: [F04](F04-ranking-rules-and-standings.md)
 

@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-08 - PROJECT_PLAN and feature doc sync (pre-GUI handoff)
+- Requirement/Milestone: [Working agreements; M3/M4 narrative]
+- What shipped: `PROJECT_PLAN.md` now states backend-vs-GUI requirement rule, marks R1–R5 and R7 complete where met, sets M1/M2 complete, documents delivery order F01–F04 then F06/F07 before F05, and lists F03 in delivery status. `F01`/`F02` feature plans updated to implemented with acceptance and Definition of Done checked; F01 scenario test numbering deduplicated. `F05` notes intentional deferral after validation tooling. Stale follow-ups on older accomplishment entries corrected.
+- Evidence: `PROJECT_PLAN.md`, `docs/features/F01-domain-model-and-storage.md`, `docs/features/F02-excel-ingestion-and-race-merge.md`, `docs/features/F05-german-ui-and-review-workflow.md`, `docs/ACCOMPLISHMENTS.md`
+- Impact: stable documentation baseline for F05 GUI implementation.
+- Follow-up: keep requirement R6/R8 and F05 docs updated when the desktop shell ships.
+
 ### 2026-04-08 - F07 Gesamtwertung ground-truth comparison (Excel)
 - Requirement/Milestone: [R1, R5; M5 validation]
 - What shipped: `backend/tools/gesamtwertung_compare.py` parses Gesamtwertung Einzel blocks (half/hour × W/M), aggregates like `v1_legacy_top4`, merges duplicate GT rows, aligns to `StandingsSnapshot`, and writes comparison workbooks; `scripts/compare_gesamtwertung.py` supports single-section or `--all-sections --series-year`; `scripts/compare_2023_einzel_halbstunden_w.py` wraps 2023 defaults; tests in `tests/test_gesamtwertung_compare.py`; documented in `docs/features/F07-gesamtwertung-ground-truth-comparison.md`.
@@ -57,14 +64,14 @@ Copy this block for each notable accomplishment:
 - What shipped: Implemented backend Python domain entities, identity/validation rules, versioned JSON storage repository with atomic save and rollback-safe event lifecycle, plus automated F01 tests.
 - Evidence: `backend/domain/enums.py`, `backend/domain/models.py`, `backend/domain/identity.py`, `backend/domain/validation.py`, `backend/storage/schema_v1.py`, `backend/storage/repository.py`, `backend/storage/migrations.py`, `tests/test_f01_domain.py`, `tests/test_f01_storage.py`, `python -m unittest discover -s tests -p "test_f01_*.py"`
 - Impact: establishes portable, auditable core data contracts required for reliable cross-race participant/team tracking and future ingestion/matching/ranking features.
-- Follow-up: implement F02 Excel ingestion and race merge pipeline on top of the new repository contracts.
+- Follow-up: (historical) F02 shipped same day; see F02 accomplishment entry.
 
 ### 2026-04-08 - Detailed feature specs finalized for build start
 - Requirement/Milestone: [R1, R2, R3, R4, R5, R6, R7, R8; M1, M2, M3, M4, M5]
 - What shipped: Expanded and aligned all feature plans (`F01`-`F05`) with implementation tasks, acceptance criteria, UID/auditability requirements, rollback/reimport workflow, and concrete test cases.
 - Evidence: `docs/features/F01-domain-model-and-storage.md`, `docs/features/F02-excel-ingestion-and-race-merge.md`, `docs/features/F03-participant-and-team-matching.md`, `docs/features/F04-ranking-rules-and-standings.md`, `docs/features/F05-german-ui-and-review-workflow.md`, `PROJECT_PLAN.md`
 - Impact: project is now implementation-ready with consistent cross-feature contracts and a traceable path from import through review, rollback, and standings recalculation.
-- Follow-up: begin M1 implementation and keep requirement/milestone checkboxes updated as code and tests ship.
+- Follow-up: (historical) M1–M2 backend and F01–F04 shipped in the same period; F06/F07 added for validation before F05 GUI; keep `PROJECT_PLAN.md` in sync with shipped work.
 
 ### 2026-04-07 - Domain-driven v1 roadmap drafted
 - Requirement/Milestone: [M1, M2, M3, M4]

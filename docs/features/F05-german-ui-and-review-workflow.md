@@ -4,9 +4,13 @@
 
 - Feature name: German UI and match review workflow
 - Owner: TBD
-- Status: Planned
+- Status: Planned (next major track after F01–F04 backend and F06/F07 validation tooling)
 - Related requirement(s): R1, R3, R4, R6, R8
 - Related milestone(s): M4, M5
+
+## Delivery order note
+
+F01–F04 were implemented first. **F06** (fixture HITL import) and **F07** (Gesamtwertung comparison) were added to tighten test-driven validation and CLI workflows before investing in the pywebview desktop shell. This document remains the specification for **F05** when GUI work starts.
 
 ## Problem Statement
 

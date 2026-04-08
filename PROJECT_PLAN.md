@@ -9,13 +9,15 @@ All end-user UI text is German, while implementation and code artifacts remain E
 
 ## Core Requirements
 
-- [ ] R1: Import race data from fixed-structure Excel files and persist race-by-race history.
-- [ ] R2: Support race categories: 30-minute and 60-minute races for men, women, and Paarlauf teams.
-- [ ] R3: Track participants and teams across non-consecutive races and partial participation.
-- [ ] R4: Implement robust participant/team matching with typo tolerance, name-order handling, and optional title handling.
+Checkboxes mark **product-level** satisfaction. Capabilities delivered only via CLI/backend (no desktop GUI yet) still count toward R1–R5 and R7. **R6** (interactive review) and **R8** (German GUI) stay open until F05 ships.
+
+- [x] R1: Import race data from fixed-structure Excel files and persist race-by-race history.
+- [x] R2: Support race categories: 30-minute and 60-minute races for men, women, and Paarlauf teams.
+- [x] R3: Track participants and teams across non-consecutive races and partial participation.
+- [x] R4: Implement robust participant/team matching with typo tolerance, name-order handling, and optional title handling.
 - [x] R5: Compute cumulative distance/points and produce ranking tables using configurable rules.
 - [ ] R6: Provide interactive review and override for suggested matches before merge.
-- [ ] R7: Keep data portable with file-based storage (no background server or remote DB).
+- [x] R7: Keep data portable with file-based storage (no background server or remote DB).
 - [ ] R8: Provide German-language GUI for display and user workflows.
 
 ## Non-Goals
@@ -29,18 +31,18 @@ All end-user UI text is German, while implementation and code artifacts remain E
 
 | Milestone | Description | Target Date | Status |
 |---|---|---|---|
-| M1 | Domain foundation and portable storage | 2026-05-15 | In progress (F01 domain/storage shipped) |
-| M2 | Excel ingestion and merge pipeline | 2026-06-15 | In progress (F02 backend ingestion implemented) |
-| M3 | Matching workflow and ranking engine | 2026-07-15 | In progress (F03 matching + F04 ranking backend shipped; UI review workflow pending) |
-| M4 | German UI integration in desktop shell | 2026-08-15 | Planned (implementation-ready) |
-| M5 | Hardening, validation, and first production use | 2026-09-15 | Planned (implementation-ready) |
+| M1 | Domain foundation and portable storage | 2026-05-15 | Complete (F01 shipped) |
+| M2 | Excel ingestion and merge pipeline | 2026-06-15 | Complete (F02 backend + CLI shipped) |
+| M3 | Matching workflow and ranking engine | 2026-07-15 | In progress (F03/F04 backend shipped; F05 interactive review deferred; F06/F07 validation tooling landed first) |
+| M4 | German UI integration in desktop shell | 2026-08-15 | Planned (next: F05 after validation baseline) |
+| M5 | Hardening, validation, and first production use | 2026-09-15 | Planned (F06/F07 support KPI and golden-test prep) |
 
 ## Current Phase
 
-- Phase: Build preparation complete, implementation phase starts next.
-- Planning status: Detailed feature plans completed and aligned across `F01` through `F05`.
-- Delivery status: F01 domain/storage implemented; F02 ingestion/merge backend and CLI path implemented with tests; F04 standings (`v1_legacy_top4`) computed on import and after rollback; persisted in project JSON.
-- Immediate next step: KPI tuning on fixture set using `scripts/fixture_import_session.py` and Gesamtwertung comparison (`scripts/compare_gesamtwertung.py`, see F07); German review UI for match queue (F05); golden-master standings vs legacy spreadsheets when sample data is available.
+- Phase: Backend stack F01–F04 is shipped; F06/F07 CLI validation tooling shipped ahead of the desktop GUI; **F05 (German UI + match review)** is the next implementation track.
+- Planning status: Core plans for `F01`–`F05`; additional plans `F06` (fixture HITL import) and `F07` (Gesamtwertung ground-truth comparison) document test-driven helpers used before GUI hardening.
+- Delivery status: **F01** domain/storage; **F02** Excel ingestion, merge, CLI import; **F03** matching pipeline, audit, and decision replay; **F04** standings (`v1_legacy_top4`) on import and rollback; **F06** sequential fixture import + standings export; **F07** organizer-vs-project comparison workbooks. Details: `docs/ACCOMPLISHMENTS.md`.
+- Immediate next step: Implement **F05** (pywebview shell, German copy, review queue, rollback/reapply UX). Until golden tests stabilize, continue KPI work with `scripts/fixture_import_session.py` (F06) and `scripts/compare_gesamtwertung.py` (F07).
 
 ## Success Metrics (KPIs)
 
@@ -86,3 +88,4 @@ All end-user UI text is German, while implementation and code artifacts remain E
 | 2026-04-08 | Updated M3 after F03 matching backend | Reflected schema v2, matching pipeline, decision log, and tests |
 | 2026-04-08 | Shipped F04 ranking engine (backend) | Standings snapshot, ruleset id, import + rollback recompute, tests |
 | 2026-04-08 | Added F06 fixture HITL import script | Sequential fixture import + standings CSV export for manual ground-truth comparison vs GUI |
+| 2026-04-08 | Doc sync: requirements, milestones, F01/F02 status, delivery order F01–04 then F06/07 before F05 GUI | Align plan and feature docs with shipped backend and validation tooling |

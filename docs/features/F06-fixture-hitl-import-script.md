@@ -57,4 +57,5 @@ Before the German GUI exists, we need a repeatable way to import real Excel fixt
 
 ## Related
 
+- **Roadmap**: [PROJECT_PLAN.md](../../PROJECT_PLAN.md) — validation tooling (F06/F07) shipped before the F05 desktop GUI.
 - **Gesamtwertung Excel vs merged standings** (side-by-side comparison workbook, all four Einzel blocks): [F07](F07-gesamtwertung-ground-truth-comparison.md).

@@ -4,9 +4,13 @@
 
 - Feature name: Excel ingestion and race merge pipeline
 - Owner: TBD
-- Status: Planned
+- Status: Implemented (backend adapters, merge service, CLI; GUI import deferred to F05)
 - Related requirement(s): R1, R2, R3
 - Related milestone(s): M2
+
+## Implementation notes (2026-04-08)
+
+Shipped under `backend/ingestion/` with CLI entrypoint in `main.py`. See `docs/ACCOMPLISHMENTS.md` (F02 entry). German user-facing strings for CLI are in place; **R8** (German GUI) remains F05.
 
 ## Problem Statement
 
@@ -33,9 +37,9 @@ The system needs a repeatable import pipeline that validates input, converts it 
 
 ## Acceptance Criteria
 
-- [ ] Import for known-good files succeeds without manual fixes.
-- [ ] Invalid files produce actionable validation error messages.
-- [ ] Added race appears in stored project history with import metadata.
+- [x] Import for known-good files succeeds without manual fixes.
+- [x] Invalid files produce actionable validation error messages.
+- [x] Added race appears in stored project history with import metadata.
 
 ## Technical Plan
 
@@ -196,11 +200,11 @@ Use the example datasets under `data/2023`:
 
 ## Definition of Done
 
-- [ ] Code implemented
-- [ ] Tests added/updated and passing
-- [ ] Docs updated
-- [ ] Entry added to `docs/ACCOMPLISHMENTS.md`
-- [ ] Requirement/milestone status updated in `PROJECT_PLAN.md`
+- [x] Code implemented
+- [x] Tests added/updated and passing
+- [x] Docs updated
+- [x] Entry added to `docs/ACCOMPLISHMENTS.md`
+- [x] Requirement/milestone status updated in `PROJECT_PLAN.md`
 
 ## Links
 

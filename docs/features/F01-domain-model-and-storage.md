@@ -4,9 +4,13 @@
 
 - Feature name: Domain model and portable storage
 - Owner: TBD
-- Status: Planned
+- Status: Implemented (Python backend; extended via schema v2 migrations in F03/F04)
 - Related requirement(s): R2, R3, R7
 - Related milestone(s): M1
+
+## Implementation notes (2026-04-08)
+
+Shipped in the backend repository layer (`backend/domain/`, `backend/storage/`). See `docs/ACCOMPLISHMENTS.md` (F01 entry). Later features bump `schema_version` and add migrations without changing this document’s domain concepts.
 
 ## Problem Statement
 
@@ -82,14 +86,14 @@ Storage must remain local, file-based, portable, and versioned.
 
 ## Acceptance Criteria
 
-- [ ] Canonical schema documented for person, couple, category, race entry, and season bucket.
-- [ ] All required categories for half-hour and hour races are representable.
-- [ ] Couple identity stability guaranteed across races with order-insensitive member matching.
-- [ ] Race-specific start numbers are persisted without affecting identity resolution.
-- [ ] Project file can be saved/loaded on another machine with schema version validation.
-- [ ] Invalid schema/data combinations fail with clear validation errors.
-- [ ] Stable UIDs persist unchanged across save/load cycles.
-- [ ] Rolled-back races remain auditable and excluded from active computations.
+- [x] Canonical schema documented for person, couple, category, race entry, and season bucket.
+- [x] All required categories for half-hour and hour races are representable.
+- [x] Couple identity stability guaranteed across races with order-insensitive member matching.
+- [x] Race-specific start numbers are persisted without affecting identity resolution.
+- [x] Project file can be saved/loaded on another machine with schema version validation.
+- [x] Invalid schema/data combinations fail with clear validation errors.
+- [x] Stable UIDs persist unchanged across save/load cycles.
+- [x] Rolled-back races remain auditable and excluded from active computations.
 
 ## Technical Plan
 
@@ -220,29 +224,29 @@ Storage must remain local, file-based, portable, and versioned.
 
 ### Scenario Tests (Business Semantics)
 
-21. **Season accumulation bucket separation**
+24. **Season accumulation bucket separation**
     - Results in `Stundenlauf Männer 2026` do not mix with `Stundenlauf Männer 2025`.
 
-22. **Duration separation**
+25. **Duration separation**
     - Half-hour and hour results for same person stay in distinct category buckets.
 
-23. **Couple stability across races**
+26. **Couple stability across races**
     - Same pair over multiple races accumulates as one couple.
 
-24. **Couple member change**
+27. **Couple member change**
     - One-member replacement starts a new couple accumulation bucket.
 
-25. **Mixed couple categorization**
+28. **Mixed couple categorization**
     - One `M` + one `F` is valid in `couples_mixed`.
 
 ## Definition of Done
 
-- [ ] Domain entities and validators implemented.
-- [ ] JSON schema v1 and repository implemented with atomic save.
-- [ ] Test suite for domain, serialization, and repository passing.
-- [ ] Feature docs updated with examples and invariants.
-- [ ] Entry added to `docs/ACCOMPLISHMENTS.md`.
-- [ ] Relevant progress reflected in `PROJECT_PLAN.md` (R2/R3/R7, M1).
+- [x] Domain entities and validators implemented.
+- [x] JSON schema v1 and repository implemented with atomic save.
+- [x] Test suite for domain, serialization, and repository passing.
+- [x] Feature docs updated with examples and invariants.
+- [x] Entry added to `docs/ACCOMPLISHMENTS.md`.
+- [x] Relevant progress reflected in `PROJECT_PLAN.md` (R2/R3/R7, M1).
 
 ## Links
 
