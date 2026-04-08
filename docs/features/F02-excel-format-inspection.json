@@ -1,0 +1,271 @@
+{
+  "singles": {
+    "file": "data\\2023\\Ergebnisliste MW Lauf 1.xlsx",
+    "sheet": "Sheet1",
+    "max_row": 50,
+    "max_col": 8,
+    "non_empty_row_count": 50,
+    "matched_rows": [
+      {
+        "row": 1,
+        "values": [
+          "Platz",
+          "Startnr.",
+          "Name",
+          "Jahrg.",
+          "Verein",
+          "Distanz",
+          "R\u00fcckstand",
+          "Punkte"
+        ],
+        "joined": "Platz | Startnr. | Name | Jahrg. | Verein | Distanz | R\u00fcckstand | Punkte"
+      },
+      {
+        "row": 2,
+        "values": [
+          "1/2 h-Lauf",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "joined": "1/2 h-Lauf"
+      },
+      {
+        "row": 3,
+        "values": [
+          "Frauen",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "joined": "Frauen"
+      },
+      {
+        "row": 16,
+        "values": [
+          "M\u00e4nner",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "joined": "M\u00e4nner"
+      },
+      {
+        "row": 31,
+        "values": [
+          "h-Lauf",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "joined": "h-Lauf"
+      },
+      {
+        "row": 32,
+        "values": [
+          "Frauen",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "joined": "Frauen"
+      },
+      {
+        "row": 37,
+        "values": [
+          "M\u00e4nner",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "joined": "M\u00e4nner"
+      }
+    ]
+  },
+  "couples": {
+    "file": "data\\2023\\Ergebnisliste MW_Paare Lauf 1.xlsx",
+    "sheet": "Sheet1",
+    "max_row": 36,
+    "max_col": 11,
+    "non_empty_row_count": 36,
+    "matched_rows": [
+      {
+        "row": 1,
+        "values": [
+          "Platz",
+          "Startnr.",
+          "Name",
+          "Jahrg.",
+          "Verein",
+          "Name",
+          "Jahrg.",
+          "Verein",
+          "Distanz",
+          "R\u00fcckstand",
+          "Punkte"
+        ],
+        "joined": "Platz | Startnr. | Name | Jahrg. | Verein | Name | Jahrg. | Verein | Distanz | R\u00fcckstand | Punkte"
+      },
+      {
+        "row": 2,
+        "values": [
+          "1/2 h-Lauf",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "joined": "1/2 h-Lauf"
+      },
+      {
+        "row": 3,
+        "values": [
+          "Paare Frauen",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "joined": "Paare Frauen"
+      },
+      {
+        "row": 9,
+        "values": [
+          "Paare M\u00e4nner",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "joined": "Paare M\u00e4nner"
+      },
+      {
+        "row": 18,
+        "values": [
+          "Paare Mix",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "joined": "Paare Mix"
+      },
+      {
+        "row": 27,
+        "values": [
+          "h-Lauf",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "joined": "h-Lauf"
+      },
+      {
+        "row": 28,
+        "values": [
+          "Paare Frauen",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "joined": "Paare Frauen"
+      },
+      {
+        "row": 31,
+        "values": [
+          "Paare M\u00e4nner",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "joined": "Paare M\u00e4nner"
+      },
+      {
+        "row": 35,
+        "values": [
+          "Paare Mix",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "joined": "Paare Mix"
+      }
+    ]
+  }
+}
