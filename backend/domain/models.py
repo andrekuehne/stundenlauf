@@ -69,7 +69,12 @@ class RaceEvent:
         default_factory=lambda: RaceSeriesCategory(year=1970, duration=RaceDuration.HOUR, division=Division.MEN)
     )
     race_date: str = ""
+    race_no: int = 0
     source_file: str = ""
+    source_sha256: str = ""
+    imported_at: str = ""
+    parser_version: str = ""
+    schema_fingerprint: str = ""
     state: RaceEventState = RaceEventState.ACTIVE
     entries: tuple[RaceEntry, ...] = ()
     rollback: Optional[RollbackMetadata] = None

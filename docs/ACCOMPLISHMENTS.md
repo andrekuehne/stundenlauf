@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-08 - F02 Excel ingestion and race merge backend shipped
+- Requirement/Milestone: [R1, R2, R3; M2]
+- What shipped: Implemented template-based Excel ingestion adapters (singles/couples), validation and mapping pipeline, merge/idempotency service, and CLI import entrypoint with German output.
+- Evidence: `backend/ingestion/types.py`, `backend/ingestion/adapters/singles.py`, `backend/ingestion/adapters/couples.py`, `backend/ingestion/mapping.py`, `backend/ingestion/service.py`, `main.py`, `tests/test_f02_ingestion.py`, `uv run pytest`
+- Impact: enables deterministic race-by-race import into canonical project storage with duplicate protection and ready integration boundary for F03 matching.
+- Follow-up: tighten fixture parity with organizer-provided files and add rollback/reimport integration scenario coverage.
+
 ### 2026-04-08 - F01 Python domain and portable storage foundation implemented
 - Requirement/Milestone: [R2, R3, R7; M1]
 - What shipped: Implemented backend Python domain entities, identity/validation rules, versioned JSON storage repository with atomic save and rollback-safe event lifecycle, plus automated F01 tests.
