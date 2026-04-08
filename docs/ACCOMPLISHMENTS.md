@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-08 - F01 Python domain and portable storage foundation implemented
+- Requirement/Milestone: [R2, R3, R7; M1]
+- What shipped: Implemented backend Python domain entities, identity/validation rules, versioned JSON storage repository with atomic save and rollback-safe event lifecycle, plus automated F01 tests.
+- Evidence: `backend/domain/enums.py`, `backend/domain/models.py`, `backend/domain/identity.py`, `backend/domain/validation.py`, `backend/storage/schema_v1.py`, `backend/storage/repository.py`, `backend/storage/migrations.py`, `tests/test_f01_domain.py`, `tests/test_f01_storage.py`, `python -m unittest discover -s tests -p "test_f01_*.py"`
+- Impact: establishes portable, auditable core data contracts required for reliable cross-race participant/team tracking and future ingestion/matching/ranking features.
+- Follow-up: implement F02 Excel ingestion and race merge pipeline on top of the new repository contracts.
+
 ### 2026-04-08 - Detailed feature specs finalized for build start
 - Requirement/Milestone: [R1, R2, R3, R4, R5, R6, R7, R8; M1, M2, M3, M4, M5]
 - What shipped: Expanded and aligned all feature plans (`F01`-`F05`) with implementation tasks, acceptance criteria, UID/auditability requirements, rollback/reimport workflow, and concrete test cases.
