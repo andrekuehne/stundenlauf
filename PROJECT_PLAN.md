@@ -34,15 +34,15 @@ Checkboxes mark **product-level** satisfaction. Capabilities delivered only via 
 | M1 | Domain foundation and portable storage | 2026-05-15 | Complete (F01 shipped) |
 | M2 | Excel ingestion and merge pipeline | 2026-06-15 | Complete (F02 backend + CLI shipped) |
 | M3 | Matching workflow and ranking engine | 2026-07-15 | In progress (F03/F04 backend shipped; F05 interactive review deferred; F06/F07 validation tooling landed first) |
-| M4 | German UI integration in desktop shell | 2026-08-15 | Planned (next: F05 after validation baseline) |
-| M5 | Hardening, validation, and first production use | 2026-09-15 | Planned (F06/F07 support KPI and golden-test prep) |
+| M4 | German UI integration in desktop shell | 2026-08-15 | In progress (F08 UI API boundary shipped; F05 frontend workflows next) |
+| M5 | Hardening, validation, and first production use | 2026-09-15 | In progress (F06/F07 tooling and F08 API contract/regression tests landed) |
 
 ## Current Phase
 
-- Phase: Backend stack F01–F04 is shipped; F06/F07 CLI validation tooling shipped ahead of the desktop GUI; **F05 (German UI + match review)** is the next implementation track.
+- Phase: Backend stack F01–F04 is shipped; F06/F07 CLI validation tooling and F08 API contract layer are shipped ahead of the desktop GUI; **F05 (German UI + match review)** is the next implementation track.
 - Planning status: Core plans for `F01`–`F05`; additional plans `F06` (fixture HITL import) and `F07` (Gesamtwertung ground-truth comparison) document test-driven helpers used before GUI hardening.
-- Delivery status: **F01** domain/storage; **F02** Excel ingestion, merge, CLI import; **F03** matching pipeline, audit, and decision replay; **F04** standings (`v1_legacy_top4`) on import and rollback; **F06** sequential fixture import + standings export; **F07** organizer-vs-project comparison workbooks. Details: `docs/ACCOMPLISHMENTS.md`.
-- Immediate next step: Implement **F05** (pywebview shell, German copy, review queue, rollback/reapply UX). Until golden tests stabilize, continue KPI work with `scripts/fixture_import_session.py` (F06) and `scripts/compare_gesamtwertung.py` (F07).
+- Delivery status: **F01** domain/storage; **F02** Excel ingestion, merge, CLI import; **F03** matching pipeline, audit, and decision replay; **F04** standings (`v1_legacy_top4`) on import and rollback; **F06** sequential fixture import + standings export; **F07** organizer-vs-project comparison workbooks; **F08** versioned Python frontend API layer (`backend/ui_api`, `docs/api/ui-api-v1.md`, pywebview bridge + tests). Details: `docs/ACCOMPLISHMENTS.md`.
+- Immediate next step: Implement **F05** UI workflows against `ui-api-v1` (pywebview shell, German copy, review queue, rollback/reapply UX). Until golden tests stabilize, continue KPI work with `scripts/fixture_import_session.py` (F06) and `scripts/compare_gesamtwertung.py` (F07).
 
 ## Success Metrics (KPIs)
 
@@ -89,3 +89,4 @@ Checkboxes mark **product-level** satisfaction. Capabilities delivered only via 
 | 2026-04-08 | Shipped F04 ranking engine (backend) | Standings snapshot, ruleset id, import + rollback recompute, tests |
 | 2026-04-08 | Added F06 fixture HITL import script | Sequential fixture import + standings CSV export for manual ground-truth comparison vs GUI |
 | 2026-04-08 | Doc sync: requirements, milestones, F01/F02 status, delivery order F01–04 then F06/07 before F05 GUI | Align plan and feature docs with shipped backend and validation tooling |
+| 2026-04-09 | Shipped F08 Python frontend API layer (v1) | Added `backend/ui_api`, pywebview bridge adapter, API contract docs, and backend API tests to unblock F05 UI |

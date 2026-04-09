@@ -12,6 +12,8 @@
 
 F01–F04 were implemented first. **F06** (fixture HITL import) and **F07** (Gesamtwertung comparison) were added to tighten test-driven validation and CLI workflows before investing in the pywebview desktop shell. This document remains the specification for **F05** when GUI work starts.
 
+Backend integration boundary prerequisite is now available via `backend/ui_api/` and documented in `docs/api/ui-api-v1.md` (F08 implementation).
+
 ## Problem Statement
 
 Users need a clear German-language interface to import races, inspect standings, and resolve uncertain participant/team matches.

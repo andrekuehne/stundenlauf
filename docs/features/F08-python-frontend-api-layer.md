@@ -4,7 +4,7 @@
 
 - Feature name: Python-frontend API layer
 - Owner: TBD
-- Status: Planned
+- Status: Implemented (v1)
 - Related requirement(s): R1, R3, R4, R5, R6, R8
 - Related milestone(s): M4, M5
 
@@ -44,13 +44,13 @@ Without a formal API layer, frontend work risks tight coupling to internal backe
 
 ## Acceptance Criteria
 
-- [ ] A dedicated backend API package exists (for example `backend/ui_api/`) with clear module boundaries.
-- [ ] API methods cover all F05 data/command flows without importing internal backend modules directly from frontend glue code.
-- [ ] Every API method uses a documented request/response schema with `api_version`, `request_id`, `status`, and typed payload/error.
-- [ ] A read method returns a category-specific current results table payload (for example "Halbstundenlauf - W") with fixed race columns (`lauf_1` ... `lauf_n`: km + punkte per race, nullable when absent) and Gesamt columns (`distanz_gesamt`, `punkte_gesamt`, `platz`).
-- [ ] UI-relevant domain errors map to stable error codes (for example `VALIDATION_ERROR`, `MATCH_CONFLICT`, `RACE_NOT_FOUND`) plus contextual details.
-- [ ] At least one end-to-end pywebview bridge test validates import -> review -> apply -> standings refresh.
-- [ ] Contract docs are published in repository and referenced by F05.
+- [x] A dedicated backend API package exists (for example `backend/ui_api/`) with clear module boundaries.
+- [x] API methods cover all F05 data/command flows without importing internal backend modules directly from frontend glue code.
+- [x] Every API method uses a documented request/response schema with `api_version`, `request_id`, `status`, and typed payload/error.
+- [x] A read method returns a category-specific current results table payload (for example "Halbstundenlauf - W") with fixed race columns (`lauf_1` ... `lauf_n`: km + punkte per race, nullable when absent) and Gesamt columns (`distanz_gesamt`, `punkte_gesamt`, `platz`).
+- [x] UI-relevant domain errors map to stable error codes (for example `VALIDATION_ERROR`, `MATCH_CONFLICT`, `RACE_NOT_FOUND`) plus contextual details.
+- [x] At least one end-to-end pywebview bridge test validates import -> review -> apply -> standings refresh.
+- [x] Contract docs are published in repository and referenced by F05.
 
 ## Technical Plan
 
@@ -178,11 +178,11 @@ Without a formal API layer, frontend work risks tight coupling to internal backe
 
 ## Definition of Done
 
-- [ ] Code implemented
-- [ ] Tests added/updated and passing
-- [ ] Docs updated
-- [ ] Entry added to `docs/ACCOMPLISHMENTS.md`
-- [ ] Requirement/milestone status updated in `PROJECT_PLAN.md`
+- [x] Code implemented
+- [x] Tests added/updated and passing
+- [x] Docs updated
+- [x] Entry added to `docs/ACCOMPLISHMENTS.md`
+- [x] Requirement/milestone status updated in `PROJECT_PLAN.md`
 
 ## Links
 

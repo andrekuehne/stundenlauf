@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-09 - F08 Python frontend API layer shipped (v1)
+- Requirement/Milestone: [R1, R3, R4, R5, R6, R8; M4, M5]
+- What shipped: Added a dedicated `backend/ui_api/` package with versioned envelopes, query/command handlers, DTO/error mapping, and a pywebview-compatible bridge (`PywebviewApiBridge`); published contract doc `docs/api/ui-api-v1.md`; added API tests in `tests/test_f08_ui_api.py`.
+- Evidence: `backend/ui_api/`, `docs/api/ui-api-v1.md`, `tests/test_f08_ui_api.py`, `uv run pytest tests/test_f08_ui_api.py`
+- Impact: F05 frontend can integrate against a stable backend contract without direct coupling to internal domain modules, with request-level traceability and deterministic command/query payloads.
+- Follow-up: build the F05 German UI workflows on top of `ui-api-v1` and expand bridge tests to include real Excel import fixtures in frontend integration runs.
+
 ### 2026-04-08 - PROJECT_PLAN and feature doc sync (pre-GUI handoff)
 - Requirement/Milestone: [Working agreements; M3/M4 narrative]
 - What shipped: `PROJECT_PLAN.md` now states backend-vs-GUI requirement rule, marks R1–R5 and R7 complete where met, sets M1/M2 complete, documents delivery order F01–F04 then F06/F07 before F05, and lists F03 in delivery status. `F01`/`F02` feature plans updated to implemented with acceptance and Definition of Done checked; F01 scenario test numbering deduplicated. `F05` notes intentional deferral after validation tooling. Stale follow-ups on older accomplishment entries corrected.
