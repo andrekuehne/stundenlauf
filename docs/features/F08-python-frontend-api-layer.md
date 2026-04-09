@@ -23,6 +23,7 @@ Without a formal API layer, frontend work risks tight coupling to internal backe
 - Expose read APIs needed by F05 core views:
   - project summary and health,
   - standings snapshot and metadata,
+  - category "Gesamtwertung" table view (per-race km/points columns plus cumulative totals),
   - match-review queue and candidate details,
   - race/audit history and UID trace.
 - Expose write/command APIs needed by F05 workflows:
@@ -46,6 +47,7 @@ Without a formal API layer, frontend work risks tight coupling to internal backe
 - [ ] A dedicated backend API package exists (for example `backend/ui_api/`) with clear module boundaries.
 - [ ] API methods cover all F05 data/command flows without importing internal backend modules directly from frontend glue code.
 - [ ] Every API method uses a documented request/response schema with `api_version`, `request_id`, `status`, and typed payload/error.
+- [ ] A read method returns a category-specific current results table payload (for example "Halbstundenlauf - W") with fixed race columns (`lauf_1` ... `lauf_n`: km + punkte per race, nullable when absent) and Gesamt columns (`distanz_gesamt`, `punkte_gesamt`, `platz`).
 - [ ] UI-relevant domain errors map to stable error codes (for example `VALIDATION_ERROR`, `MATCH_CONFLICT`, `RACE_NOT_FOUND`) plus contextual details.
 - [ ] At least one end-to-end pywebview bridge test validates import -> review -> apply -> standings refresh.
 - [ ] Contract docs are published in repository and referenced by F05.
@@ -69,6 +71,7 @@ Without a formal API layer, frontend work risks tight coupling to internal backe
 - API surface proposal (v1):
   - `get_project_state`
   - `get_standings(category, ruleset_id?)`
+  - `get_category_current_results_table(category_key, max_races?)`
   - `get_review_queue(race_event_uid?)`
   - `get_match_candidate(candidate_uid)`
   - `get_audit_timeline(filters)`
@@ -79,11 +82,16 @@ Without a formal API layer, frontend work risks tight coupling to internal backe
 
 - Data model/API changes:
   - Define DTOs decoupled from internal domain models:
-    - `StandingsRowDTO`, `ReviewCandidateDTO`, `DecisionTraceDTO`, `RaceHistoryDTO`.
+    - `StandingsRowDTO`, `CategoryCurrentResultsRowDTO`, `RaceCellDTO`, `ReviewCandidateDTO`, `DecisionTraceDTO`, `RaceHistoryDTO`.
   - Define command result DTOs:
     - `ImportResultDTO`, `DecisionResultDTO`, `RollbackResultDTO`, `ReimportResultDTO`.
   - Add explicit error-code catalog and mapping layer.
   - Add API schema docs with field-level examples and required/optional markers.
+  - `get_category_current_results_table` payload shape:
+    - table metadata: `category_key`, `category_label`, `race_headers[]` (for example `1. Lauf`, `2. Lauf`, ...), `max_races`.
+    - row identity columns: `platz`, `display_name`, `yob`, `club`.
+    - row race cells: `race_cells[]` where each item is `{ race_no, distance_km | null, points | null, counts_toward_total }`.
+    - row totals: `distanz_gesamt`, `punkte_gesamt`.
 
 - Migration needs:
   - No storage schema migration required for initial API layer.
@@ -117,7 +125,7 @@ Without a formal API layer, frontend work risks tight coupling to internal backe
    - Add `backend/ui_api/` with modules for envelopes, DTOs, mappers, queries, commands, and errors.
    - Add one pywebview bridge adapter module that delegates to `ui_api`.
 3. Implement read/query methods
-   - Project state, standings, review queue, candidate detail, audit timeline.
+   - Project state, standings, category current-results table, review queue, candidate detail, audit timeline.
 4. Implement command methods
    - Import, apply decision, rollback, reimport with deterministic result payloads.
 5. Add validation and error mapping
@@ -137,6 +145,7 @@ Without a formal API layer, frontend work risks tight coupling to internal backe
 
 - Envelope validation (`requires_api_version_and_request_id`)
 - DTO mapping (`domain_to_standings_row_dto`)
+- DTO mapping (`domain_to_category_current_results_row_dto`)
 - Error mapping (`domain_conflict_maps_to_match_conflict_code`)
 - Input validation (`apply_match_decision_rejects_missing_required_fields`)
 - Idempotency helpers (`duplicate_import_token_returns_existing_result`)
@@ -148,6 +157,7 @@ Without a formal API layer, frontend work risks tight coupling to internal backe
 - `rollback_race_recomputes_standings_snapshot`
 - `reimport_after_rollback_links_audit_chain_correctly`
 - `get_standings_matches_backend_reference_ruleset_v1`
+- `get_category_current_results_table_returns_per_race_cells_and_gesamt`
 
 ### Contract Tests (Backend <-> Frontend)
 
