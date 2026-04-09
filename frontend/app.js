@@ -670,6 +670,7 @@
             <label for="filePathInput">Ergebnisdatei</label>
             <input id="filePathInput" type="text" placeholder="Bitte Datei auswählen..." />
             <button id="pickFileBtn" class="secondary">Datei auswählen</button>
+            <button id="importRaceBtn" class="primary">Lauf importieren</button>
           </div>
           <div class="row">
             <label for="sourceTypeSelect">Lauftyp</label>
@@ -696,7 +697,6 @@
             </div>
             <p class="hint">Standard: Nur perfekte Treffer werden automatisch zusammengeführt.</p>
           </div>
-          <div class="row"><button id="importRaceBtn" class="primary">Lauf importieren</button></div>
         </aside>
         <section class="card import-review-column">
         <h3>Zusammenführungen prüfen</h3>
