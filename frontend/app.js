@@ -1,4 +1,41 @@
 (function () {
+  const STR = window.UIStrings;
+  const FMT = window.UIFormat;
+
+  function applyShellChrome() {
+    const sh = STR.shell;
+    document.title = sh.appTitle;
+    const h1 = document.querySelector(".app-header h1");
+    if (h1) {
+      h1.textContent = sh.appTitle;
+    }
+    const tabLabels = {
+      standings: sh.tabStandings,
+      import: sh.tabImport,
+      history: sh.tabHistory,
+    };
+    for (const tab of document.querySelectorAll(".tab[data-view]")) {
+      const key = tab.dataset.view;
+      if (tabLabels[key]) {
+        tab.textContent = tabLabels[key];
+      }
+    }
+    const switchBtn = document.getElementById("switchSeasonBtn");
+    if (switchBtn) {
+      switchBtn.textContent = sh.switchSeason;
+    }
+    const seasonEl = document.getElementById("seasonLabel");
+    const reviewEl = document.getElementById("reviewLabel");
+    if (seasonEl) {
+      seasonEl.textContent = sh.seasonLabelPlaceholder;
+    }
+    if (reviewEl) {
+      reviewEl.textContent = sh.reviewLabelPlaceholder;
+    }
+  }
+
+  applyShellChrome();
+
   const state = {
     seriesYear: null,
     categories: [],
@@ -49,7 +86,7 @@
     if (window.pywebview && window.pywebview.api && window.pywebview.api.invoke) {
       return window.pywebview.api.invoke(request);
     }
-    throw new Error("pywebview bridge nicht verfügbar.");
+    throw new Error(STR.errors.bridgeUnavailable);
   }
 
   async function waitForBridge() {
@@ -82,8 +119,9 @@
   }
 
   function setStatus(text, isError) {
-    const message = text && String(text).trim() ? String(text).trim() : "Bereit";
-    globalStatus.textContent = `Status: ${message}`;
+    const st = STR.status;
+    const message = text && String(text).trim() ? String(text).trim() : st.defaultReady;
+    globalStatus.textContent = st.prefix + message;
     globalStatus.className = isError ? "status-line danger-text" : "status-line";
   }
 
@@ -114,7 +152,7 @@
       perfect_match_auto_merge: perfectMatchAutoMerge,
     });
     if (response.status !== "ok") {
-      setStatus("Matching-Einstellungen konnten nicht gespeichert werden.", true);
+      setStatus(STR.status.matchingSaveFailed, true);
       return false;
     }
     state.matchingConfig = {
@@ -128,15 +166,16 @@
   function getApiErrorMessage(error, fallbackMessage) {
     const code = (error && error.code) || "";
     if (code === "IMPORT_DUPLICATE") {
-      return "Diese Datei ist bereits aktiv importiert. Bitte nehmen Sie den bisherigen Import zuerst in der Historie zurück.";
+      return STR.errors.importDuplicate;
     }
     if (code === "REIMPORT_PARTIAL_ROLLBACK_REQUIRED") {
-      return "Import abgebrochen: Es wurde nichts importiert. Korrektur nur teilweise zurückgenommen. Bitte zuerst alle noch aktiven Läufe dieser Quelle zurücknehmen und dann erneut importieren.";
+      return STR.errors.reimportPartialRollback;
     }
     return (error && error.details && error.details.message) || fallbackMessage;
   }
 
   function renderSeasonEntry(items) {
+    const se = STR.seasonEntry;
     const rows = items
       .map(
         (item) =>
@@ -147,38 +186,38 @@
             <td>${item.latest_imported_at || "-"}</td>
             <td>
               <div class="row">
-                <button class="secondary" data-open-year="${item.series_year}">Saison öffnen</button>
-                <button class="danger" data-delete-year="${item.series_year}" title="Saison löschen">🗑 Saison löschen</button>
+                <button class="secondary" data-open-year="${item.series_year}">${se.openSeason}</button>
+                <button class="danger" data-delete-year="${item.series_year}" title="${se.deleteSeasonTitle}">🗑 ${se.deleteSeason}</button>
               </div>
             </td>
           </tr>`
       )
       .join("");
     seasonEntryView.innerHTML = `
-      <h2>Saison öffnen oder neu anlegen</h2>
-      <p class="hint">Wählen Sie eine vorhandene Saison oder legen Sie eine neue Saison an.</p>
+      <h2>${se.pageTitle}</h2>
+      <p class="hint">${se.intro}</p>
       <div class="grid-2">
         <div class="card">
-          <h3>Bestehende Saison öffnen</h3>
+          <h3>${se.existingHeading}</h3>
           ${
             items.length === 0
-              ? `<p class="hint">Noch keine Saison vorhanden.</p>`
-              : `<div class="table-wrap"><table><thead><tr><th>Jahr</th><th>Läufe</th><th>Prüfungen offen</th><th>Letzter Import</th><th>Aktion</th></tr></thead><tbody>${rows}</tbody></table></div>`
+              ? `<p class="hint">${se.noSeasonsYet}</p>`
+              : `<div class="table-wrap"><table><thead><tr><th>${se.tableYear}</th><th>${se.tableRaces}</th><th>${se.tableReview}</th><th>${se.tableLastImport}</th><th>${se.tableAction}</th></tr></thead><tbody>${rows}</tbody></table></div>`
           }
         </div>
         <div class="card">
-          <h3>Neue Saison anlegen</h3>
-          <p class="hint">Legen Sie eine Saison an und starten Sie mit dem ersten Import.</p>
+          <h3>${se.newHeading}</h3>
+          <p class="hint">${se.newHint}</p>
           <div class="row">
-            <label for="newYearInput">Jahr</label>
-            <input id="newYearInput" type="number" placeholder="Beispiel: 2026" />
+            <label for="newYearInput">${se.labelYear}</label>
+            <input id="newYearInput" type="number" placeholder="${se.placeholderYear}" />
           </div>
           <div class="row">
-            <label for="newNameInput">Bezeichnung (optional)</label>
-            <input id="newNameInput" type="text" placeholder="z. B. Stundenlauf 2026" />
+            <label for="newNameInput">${se.labelDisplayName}</label>
+            <input id="newNameInput" type="text" placeholder="${se.placeholderDisplayName}" />
           </div>
           <div class="row">
-            <button id="createSeasonBtn" class="primary">Neue Saison erstellen</button>
+            <button id="createSeasonBtn" class="primary">${se.createSeason}</button>
           </div>
         </div>
       </div>
@@ -193,24 +232,17 @@
     for (const button of seasonEntryView.querySelectorAll("button[data-delete-year]")) {
       button.addEventListener("click", async () => {
         const year = Number(button.getAttribute("data-delete-year"));
-        const warningAccepted = window.confirm(
-          `Achtung: Die Saison ${year} wird dauerhaft gelöscht.\n` +
-            "Alle Läufe, Prüfdaten und Wertungen dieser Saison gehen verloren.\n\n" +
-            "Möchten Sie fortfahren?"
-        );
+        const warningAccepted = window.confirm(se.deleteConfirm(year));
         if (!warningAccepted) {
           return;
         }
-        const typed = window.prompt(
-          `Sicherheitsabfrage: Bitte geben Sie ${year} ein, um die Löschung zu bestätigen.`,
-          ""
-        );
+        const typed = window.prompt(se.deletePrompt(year), "");
         if (typed === null) {
           return;
         }
         const confirmedYear = Number(String(typed).trim());
         if (!Number.isInteger(confirmedYear) || confirmedYear !== year) {
-          setStatus(`Löschung abgebrochen: Die Eingabe muss exakt ${year} sein.`, true);
+          setStatus(se.deleteInputMismatch(year), true);
           return;
         }
         const deleted = await api("delete_series_year", {
@@ -218,10 +250,10 @@
           confirm_series_year: confirmedYear,
         });
         if (deleted.status === "error") {
-          setStatus(deleted.error.details.message || "Saison konnte nicht gelöscht werden.", true);
+          setStatus(deleted.error.details.message || se.deleteFailed, true);
           return;
         }
-        setStatus(`Saison ${year} wurde gelöscht.`);
+        setStatus(se.deleteDone(year));
         await showSeasonEntry();
       });
     }
@@ -230,54 +262,56 @@
       const nameInput = document.getElementById("newNameInput");
       const year = Number(yearInput.value);
       if (!Number.isInteger(year)) {
-        setStatus("Bitte geben Sie ein gültiges Jahr ein.", true);
+        setStatus(se.invalidYear, true);
         return;
       }
       const created = await api("create_series_year", { series_year: year, display_name: nameInput.value });
       if (created.status === "error") {
-        setStatus(created.error.details.message || "Saison konnte nicht angelegt werden.", true);
+        setStatus(created.error.details.message || se.createFailed, true);
         return;
       }
-      setStatus("Saison wurde angelegt. Sie können jetzt den ersten Lauf importieren.");
+      setStatus(se.createDone);
       await openSeason(year);
       switchView("import");
     });
   }
 
   async function showSeasonEntry() {
+    const se = STR.seasonEntry;
     shellView.classList.add("hidden");
     seasonEntryView.classList.remove("hidden");
     headerContext.classList.add("hidden");
     seasonEntryView.innerHTML = `
-      <h2>Saison öffnen oder neu anlegen</h2>
-      <p class="hint">Lädt...</p>
+      <h2>${se.pageTitle}</h2>
+      <p class="hint">${se.loading}</p>
     `;
     try {
       const response = await api("list_series_years", {});
       if (response.status === "error") {
         seasonEntryView.innerHTML = `
-          <h2>Saison öffnen oder neu anlegen</h2>
-          <p class="danger-text">Saisonliste konnte nicht geladen werden.</p>
-          <p class="hint">Bitte starten Sie die Anwendung neu.</p>
+          <h2>${se.pageTitle}</h2>
+          <p class="danger-text">${se.listLoadFailed}</p>
+          <p class="hint">${se.listLoadHint}</p>
         `;
-        setStatus("Saisonliste konnte nicht geladen werden.", true);
+        setStatus(se.listLoadFailed, true);
         return;
       }
       renderSeasonEntry(response.payload.items || []);
     } catch (error) {
       seasonEntryView.innerHTML = `
-        <h2>Saison öffnen oder neu anlegen</h2>
-        <p class="danger-text">Verbindung zur Desktop-API ist noch nicht bereit.</p>
-        <p class="hint">Bitte warten Sie kurz oder starten Sie die Anwendung neu.</p>
+        <h2>${se.pageTitle}</h2>
+        <p class="danger-text">${se.apiNotReady}</p>
+        <p class="hint">${se.apiNotReadyHint}</p>
       `;
-      setStatus(error.message || "Desktop-API nicht verfügbar.", true);
+      setStatus(error.message || STR.errors.desktopApiUnavailable, true);
     }
   }
 
   async function openSeason(year) {
+    const se = STR.seasonEntry;
     const opened = await api("open_series_year", { series_year: year });
     if (opened.status === "error") {
-      setStatus("Saison konnte nicht geöffnet werden.", true);
+      setStatus(se.openFailed, true);
       return;
     }
     const seasonChanged = state.seriesYear !== year;
@@ -286,7 +320,7 @@
       state.selectedCategory = "";
       resetImportDraft();
     }
-    seasonLabel.textContent = `Saison: ${year}`;
+    seasonLabel.textContent = FMT.seasonLabel(year);
     await loadMatchingConfig();
     await loadOverview();
     seasonEntryView.classList.add("hidden");
@@ -298,7 +332,7 @@
   async function loadOverview() {
     const response = await api("get_year_overview", { series_year: state.seriesYear });
     if (response.status === "error") {
-      setStatus("Übersicht konnte nicht geladen werden.", true);
+      setStatus(STR.overview.loadFailed, true);
       return;
     }
     state.categories = response.payload.categories || [];
@@ -306,7 +340,7 @@
     if (!state.categories.some((category) => category.category_key === state.selectedCategory)) {
       state.selectedCategory = state.categories[0] ? state.categories[0].category_key : "";
     }
-    reviewLabel.textContent = `Prüfungen offen: ${response.payload.totals.review_queue}`;
+    reviewLabel.textContent = FMT.reviewOpenCount(response.payload.totals.review_queue);
     await Promise.all([renderStandingsView(), renderImportView(), renderHistoryView()]);
   }
 
@@ -326,43 +360,44 @@
   }
 
   function buildCategoryQuickSelectModel() {
+    const cs = STR.categorySlots;
     const categoriesByKey = new Map(state.categories.map((category) => [category.category_key, category]));
     const slots = {
       einzel: [
-        { key: "half_men", label: "1/2 h - M", match: (category) => durationSortKey(category.duration) === 0 && normalizeDivision(category.division) === "men" },
-        { key: "half_women", label: "1/2 h - F", match: (category) => durationSortKey(category.duration) === 0 && normalizeDivision(category.division) === "women" },
-        { key: "hour_men", label: "1 h - M", match: (category) => durationSortKey(category.duration) === 1 && normalizeDivision(category.division) === "men" },
-        { key: "hour_women", label: "1 h - F", match: (category) => durationSortKey(category.duration) === 1 && normalizeDivision(category.division) === "women" },
+        { key: "half_men", label: cs.half_men, match: (category) => durationSortKey(category.duration) === 0 && normalizeDivision(category.division) === "men" },
+        { key: "half_women", label: cs.half_women, match: (category) => durationSortKey(category.duration) === 0 && normalizeDivision(category.division) === "women" },
+        { key: "hour_men", label: cs.hour_men, match: (category) => durationSortKey(category.duration) === 1 && normalizeDivision(category.division) === "men" },
+        { key: "hour_women", label: cs.hour_women, match: (category) => durationSortKey(category.duration) === 1 && normalizeDivision(category.division) === "women" },
       ],
       paare: [
         {
           key: "half_couples_men",
-          label: "1/2 h - M",
+          label: cs.half_couples_men,
           match: (category) => durationSortKey(category.duration) === 0 && normalizeDivision(category.division) === "couples_men",
         },
         {
           key: "half_couples_women",
-          label: "1/2 h - F",
+          label: cs.half_couples_women,
           match: (category) => durationSortKey(category.duration) === 0 && normalizeDivision(category.division) === "couples_women",
         },
         {
           key: "half_couples_mixed",
-          label: "1/2 h - Mix",
+          label: cs.half_couples_mixed,
           match: (category) => durationSortKey(category.duration) === 0 && normalizeDivision(category.division) === "couples_mixed",
         },
         {
           key: "hour_couples_men",
-          label: "1 h - M",
+          label: cs.hour_couples_men,
           match: (category) => durationSortKey(category.duration) === 1 && normalizeDivision(category.division) === "couples_men",
         },
         {
           key: "hour_couples_women",
-          label: "1 h - F",
+          label: cs.hour_couples_women,
           match: (category) => durationSortKey(category.duration) === 1 && normalizeDivision(category.division) === "couples_women",
         },
         {
           key: "hour_couples_mixed",
-          label: "1 h - Mix",
+          label: cs.hour_couples_mixed,
           match: (category) => durationSortKey(category.duration) === 1 && normalizeDivision(category.division) === "couples_mixed",
         },
       ],
@@ -386,6 +421,7 @@
   }
 
   function buildImportedRaceInfo() {
+    const mx = STR.matrix;
     const categoryByKey = new Map(state.categories.map((category) => [category.category_key, category]));
     const singlesRaceNumbers = new Set();
     const couplesRaceNumbers = new Set();
@@ -429,19 +465,20 @@
       byCategory,
       raceColumns,
       matrixRows: [
-        { label: "Einzel", raceNumbers: singlesRaceList },
-        { label: "Paare", raceNumbers: couplesRaceList },
+        { label: mx.rowSingles, raceNumbers: singlesRaceList },
+        { label: mx.rowCouples, raceNumbers: couplesRaceList },
       ],
     };
   }
 
   function renderImportedRunsMatrix(importedRaceInfo) {
+    const mx = STR.matrix;
     const headers = importedRaceInfo.raceColumns.map((raceNo) => `<th>${raceNo}</th>`).join("");
     const rows = importedRaceInfo.matrixRows
       .map((row) => {
         const raceNumberSet = new Set(row.raceNumbers || []);
         const cells = importedRaceInfo.raceColumns
-          .map((raceNo) => `<td class="imported-runs-matrix-cell">${raceNumberSet.has(raceNo) ? "x" : "—"}</td>`)
+          .map((raceNo) => `<td class="imported-runs-matrix-cell">${raceNumberSet.has(raceNo) ? mx.cellYes : mx.cellNo}</td>`)
           .join("");
         return `<tr><th scope="row">${row.label}</th>${cells}</tr>`;
       })
@@ -449,7 +486,7 @@
     return `
       <div class="imported-runs-matrix-wrap">
         <table class="imported-runs-matrix">
-          <thead><tr><th>Lauf</th>${headers}</tr></thead>
+          <thead><tr><th>${mx.colRun}</th>${headers}</tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
@@ -467,6 +504,7 @@
   }
 
   async function renderStandingsView() {
+    const st = STR.standings;
     const importedRaceInfo = buildImportedRaceInfo();
     const quickSelectModel = buildCategoryQuickSelectModel();
     const renderQuickGrid = (groupKey) =>
@@ -474,7 +512,7 @@
         .map((slot) => {
           const activeClass = slot.isActive ? " active" : "";
           return `<button class="category-quick-btn${activeClass}" data-category-btn="${slot.categoryKey}" ${slot.disabled ? "disabled" : ""} title="${
-            slot.categoryLabel || "Nicht verfügbar"
+            slot.categoryLabel || st.categoryUnavailable
           }">${slot.label}</button>`;
         })
         .join("");
@@ -484,20 +522,20 @@
         <div class="standings-layout">
           <aside class="card standings-sidebar">
             <div class="sidebar-section">
-              <h3>Importierte Läufe</h3>
+              <h3>${st.sidebarImportedRuns}</h3>
               ${renderImportedRunsMatrix(importedRaceInfo)}
             </div>
             <div class="sidebar-section">
-              <h3>Einzel</h3>
+              <h3>${st.sidebarSingles}</h3>
               <div class="category-grid">${renderQuickGrid("einzel")}</div>
             </div>
             <div class="sidebar-section">
-              <h3>Paare</h3>
+              <h3>${st.sidebarCouples}</h3>
               <div class="category-grid">${renderQuickGrid("paare")}</div>
             </div>
           </aside>
           <div class="standings-content">
-            <div class="card"><h2>Aktuelle Wertung</h2><p class="hint">Noch keine Ergebnisse vorhanden.</p></div>
+            <div class="card"><h2>${st.titleCurrent}</h2><p class="hint">${st.emptyNoCategory}</p></div>
           </div>
         </div>
       `;
@@ -517,7 +555,7 @@
     const standingsResponse = await api("get_standings", { category_key: state.selectedCategory });
     const resultsResponse = await api("get_category_current_results_table", { category_key: state.selectedCategory });
     if (standingsResponse.status === "error" || resultsResponse.status === "error") {
-      standingsView.innerHTML = `<div class="card"><p class="danger-text">Wertung konnte nicht geladen werden.</p></div>`;
+      standingsView.innerHTML = `<div class="card"><p class="danger-text">${st.loadFailed}</p></div>`;
       return;
     }
 
@@ -534,9 +572,9 @@
         const cells = row.race_cells
           .map((cell) => {
             if (cell.distance_km == null) {
-              return "<td>—</td>";
+              return `<td>${STR.matrix.cellNo}</td>`;
             }
-            return `<td>${cell.distance_km} km / ${cell.points} P</td>`;
+            return `<td>${STR.units.raceCell(cell.distance_km, cell.points)}</td>`;
           })
           .join("");
         return `<tr><td>${row.platz}</td><td>${row.display_name}</td>${cells}<td>${row.distanz_gesamt}</td><td>${row.punkte_gesamt}</td></tr>`;
@@ -546,36 +584,36 @@
       <div class="standings-layout">
         <aside class="card standings-sidebar">
           <div class="sidebar-section">
-            <h3>Importierte Läufe</h3>
+            <h3>${st.sidebarImportedRuns}</h3>
             ${renderImportedRunsMatrix(importedRaceInfo)}
           </div>
           <div class="sidebar-section">
-            <h3>Einzel</h3>
+            <h3>${st.sidebarSingles}</h3>
             <div class="category-grid">${renderQuickGrid("einzel")}</div>
           </div>
           <div class="sidebar-section">
-            <h3>Paare</h3>
+            <h3>${st.sidebarCouples}</h3>
             <div class="category-grid">${renderQuickGrid("paare")}</div>
           </div>
         </aside>
         <div class="standings-content">
           <div class="card">
-            <h2>Aktuelle Wertung</h2>
-            <p class="hint">Ausgewählte Kategorie: ${quickSelectModel.selectedCategoryLabel || "-"}</p>
-            <p class="hint">Die Gesamtwertung basiert auf den importierten Läufen und dem aktuellen Regelwerk.</p>
+            <h2>${st.titleCurrent}</h2>
+            <p class="hint">${st.selectedCategory(quickSelectModel.selectedCategoryLabel || "-")}</p>
+            <p class="hint">${st.rulesHint}</p>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>Platz</th><th>Name</th><th>Jahrgang</th><th>Verein</th><th>Gesamtdistanz (km)</th><th>Gesamtpunkte</th></tr></thead>
-                <tbody>${standingsRows || `<tr><td colspan="6">Noch keine Ergebnisse vorhanden</td></tr>`}</tbody>
+                <thead><tr><th>${st.thPlatz}</th><th>${st.thName}</th><th>${st.thYob}</th><th>${st.thClub}</th><th>${st.thDistanceTotal}</th><th>${st.thPointsTotal}</th></tr></thead>
+                <tbody>${standingsRows || `<tr><td colspan="6">${st.emptyStandings}</td></tr>`}</tbody>
               </table>
             </div>
           </div>
           <div class="card">
-            <h3>Laufübersicht je Kategorie</h3>
+            <h3>${st.perRaceTitle}</h3>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>Platz</th><th>Name</th>${resultHeaders}<th>Gesamtdistanz</th><th>Gesamtpunkte</th></tr></thead>
-                <tbody>${resultRows || `<tr><td colspan="5">Noch keine Laufdaten vorhanden</td></tr>`}</tbody>
+                <thead><tr><th>${st.thPlatz}</th><th>${st.thName}</th>${resultHeaders}<th>${st.thDistanceShort}</th><th>${st.thPointsTotal}</th></tr></thead>
+                <tbody>${resultRows || `<tr><td colspan="5">${st.emptyRaceRows}</td></tr>`}</tbody>
               </table>
             </div>
           </div>
@@ -630,23 +668,24 @@
   }
 
   function buildImportInferenceLine(basename) {
+    const iv = STR.importView;
     if (!basename) {
       return "";
     }
     const inferredType = inferImportSourceTypeFromBasename(basename);
     const inferredRace = inferImportRaceNoFromBasename(basename);
-    const typeLabel = inferredType === "singles" ? "Einzel" : inferredType === "couples" ? "Paare" : null;
-    const racePart = inferredRace != null ? `Lauf ${inferredRace}` : null;
+    const typeLabel = inferredType === "singles" ? iv.singles : inferredType === "couples" ? iv.couples : null;
+    const racePart = inferredRace != null ? `${iv.raceWord} ${inferredRace}` : null;
     if (typeLabel && racePart) {
-      return `Erkannt: ${typeLabel} · ${racePart}`;
+      return iv.inferenceDetectedBoth(typeLabel, racePart);
     }
     if (typeLabel && !racePart) {
-      return `Erkannt: ${typeLabel} · Laufnummer nicht im Dateinamen – bitte Laufnummer wählen.`;
+      return iv.inferenceDetectedTypeOnly(typeLabel);
     }
     if (!typeLabel && racePart) {
-      return `Erkannt: ${racePart} · Lauftyp nicht aus dem Dateinamen – bitte Einzel oder Paare wählen.`;
+      return iv.inferenceDetectedRaceOnly(racePart);
     }
-    return "Keine Erkennung aus dem Dateinamen – bitte Lauftyp und Laufnummer wählen.";
+    return iv.inferenceNone;
   }
 
   function isImportReady() {
@@ -674,12 +713,13 @@
   }
 
   function formatEntityPreview(preview) {
+    const pr = STR.preview;
     if (!preview) {
-      return "Unbekannt";
+      return pr.unknown;
     }
-    const parts = [preview.display_name || "Unbekannt"];
+    const parts = [preview.display_name || pr.unknown];
     if (preview.yob) {
-      parts.push(`Jg. ${preview.yob}`);
+      parts.push(pr.yob(preview.yob));
     }
     if (preview.club) {
       parts.push(preview.club);
@@ -699,14 +739,15 @@
   }
 
   function confidenceLabel(confidence) {
+    const c = STR.confidence;
     const value = Number(confidence || 0);
     if (value >= 0.85) {
-      return "hoch";
+      return c.high;
     }
     if (value >= 0.65) {
-      return "mittel";
+      return c.medium;
     }
-    return "niedrig";
+    return c.low;
   }
 
   function reviewSelectionKey(review) {
@@ -717,12 +758,13 @@
     if (distanceKm == null) {
       return "-";
     }
-    return `${distanceKm} km`;
+    return `${distanceKm}${STR.units.kmSuffix}`;
   }
 
   function renderIncomingTableRow(preview, resultPreview, startnr) {
+    const pr = STR.preview;
     return `<tr class="incoming-row">
-      <td>${preview?.display_name || "Unbekannt"}</td>
+      <td>${preview?.display_name || pr.unknown}</td>
       <td>${preview?.yob || "-"}</td>
       <td>${preview?.club || "-"}</td>
       <td>${startnr || "-"}</td>
@@ -732,24 +774,26 @@
   }
 
   function renderCandidateTableRows(review, selectedCandidateUid) {
+    const rt = STR.reviewTable;
+    const iv = STR.importView;
     const previewByUid = new Map((review.candidate_previews || []).filter(Boolean).map((item) => [item.uid, item]));
     const candidateUids = review.candidate_uids || [];
     if (!candidateUids.length) {
-      return `<tr><td colspan="6">Keine Kandidaten vorhanden</td></tr>`;
+      return `<tr><td colspan="6">${rt.noCandidates}</td></tr>`;
     }
     return candidateUids
       .map((candidateUid, index) => {
         const preview = previewByUid.get(candidateUid);
         const rank = index + 1;
         const selectedClass = selectedCandidateUid === candidateUid ? " selected-candidate-row" : "";
-        const selectedText = selectedCandidateUid === candidateUid ? " (ausgewählt)" : "";
+        const selectedText = selectedCandidateUid === candidateUid ? rt.selectedSuffix : "";
         return `<tr class="candidate-row${selectedClass}" data-candidate-row="${candidateUid}">
           <td>${rank}${selectedText}</td>
-          <td>${preview?.display_name || "Unbekannt"}</td>
+          <td>${preview?.display_name || STR.preview.unknown}</td>
           <td>${preview?.yob || "-"}</td>
           <td>${preview?.club || "-"}</td>
           <td>${confidenceLabel(review.confidence)}</td>
-          <td><button class="secondary select-candidate-btn" data-candidate-uid="${candidateUid}">Diesen wählen</button></td>
+          <td><button class="secondary select-candidate-btn" data-candidate-uid="${candidateUid}">${iv.selectCandidate}</button></td>
         </tr>`;
       })
       .join("");
@@ -759,6 +803,8 @@
     if (!state.seriesYear) {
       return;
     }
+    const iv = STR.importView;
+    const stStandings = STR.standings;
     const importedRaceInfo = buildImportedRaceInfo();
     const queueResponse = await api("get_review_queue", {});
     if (queueResponse.status === "ok") {
@@ -778,79 +824,78 @@
     const importReady = isImportReady();
     const inferenceText = importBasename
       ? buildImportInferenceLine(importBasename)
-      : "Bitte eine Ergebnisdatei auswählen.";
+      : iv.pickResultFile;
+    const confidencePct = Math.round((review && review.confidence ? review.confidence : 0) * 100);
     importView.innerHTML = `
       <div class="import-view-layout">
         <aside class="card import-controls-column">
           <div class="sidebar-section">
-            <h3>Importierte Läufe</h3>
+            <h3>${iv.sidebarImportedRuns}</h3>
             ${renderImportedRunsMatrix(importedRaceInfo)}
           </div>
           <div class="import-file-row">
-            <button id="pickFileBtn" class="secondary" type="button">Datei auswählen</button>
+            <button id="pickFileBtn" class="secondary" type="button">${iv.pickFile}</button>
             <input id="filePathInput" type="text" class="import-file-name" readonly value="${escapeHtml(
               importBasename
-            )}" placeholder="Keine Datei" />
+            )}" placeholder="${iv.noFilePlaceholder}" />
           </div>
           <p class="import-inference-hint">${escapeHtml(inferenceText)}</p>
           <div class="import-type-toggle">
-            <button type="button" id="sourceTypeSinglesBtn" class="secondary${singlesActive}">Einzel</button>
-            <button type="button" id="sourceTypeCouplesBtn" class="secondary${couplesActive}">Paare</button>
+            <button type="button" id="sourceTypeSinglesBtn" class="secondary${singlesActive}">${iv.singles}</button>
+            <button type="button" id="sourceTypeCouplesBtn" class="secondary${couplesActive}">${iv.couples}</button>
           </div>
           <div class="import-race-row">
-            <label for="raceNoSelect">Laufnummer</label>
+            <label for="raceNoSelect">${iv.raceNumber}</label>
             <select id="raceNoSelect">
-              <option value=""${state.importRaceNo == null ? " selected" : ""}>Bitte wählen…</option>
+              <option value=""${state.importRaceNo == null ? " selected" : ""}>${iv.raceSelectPlaceholder}</option>
               ${raceOptions}
             </select>
           </div>
           <div class="row">
-            <button id="importRaceBtn" class="primary"${importReady ? "" : " disabled"}>Lauf importieren</button>
+            <button id="importRaceBtn" class="primary"${importReady ? "" : " disabled"}>${iv.importRace}</button>
           </div>
           <div class="import-settings-panel">
-            <h4>Matching-Einstellungen</h4>
+            <h4>${iv.matchingSettings}</h4>
             <div class="row">
-              <label for="autoMergeEnabledInput">Automatisches Zusammenführen</label>
+              <label for="autoMergeEnabledInput">${iv.autoMerge}</label>
               <input id="autoMergeEnabledInput" type="checkbox" ${autoMergeEnabled ? "checked" : ""} />
             </div>
             <div class="row">
-              <label for="perfectAutoMergeInput">Perfekte Treffer automatisch</label>
+              <label for="perfectAutoMergeInput">${iv.perfectAutoMerge}</label>
               <input id="perfectAutoMergeInput" type="checkbox" ${perfectMatchAutoMerge ? "checked" : ""} />
             </div>
             <div class="row">
-              <label for="autoMergeThresholdRange">Auto-Merge-Schwelle</label>
+              <label for="autoMergeThresholdRange">${iv.autoMergeThreshold}</label>
               <input id="autoMergeThresholdRange" type="range" min="0.00" max="1.00" step="0.01" value="${autoMinValue.toFixed(2)}" />
               <input id="autoMergeThresholdInput" type="number" min="0.00" max="1.00" step="0.01" value="${autoMinValue.toFixed(2)}" />
             </div>
-            <p class="hint">Standard: Nur perfekte Treffer werden automatisch zusammengeführt.</p>
+            <p class="hint">${iv.matchingDefaultHint}</p>
           </div>
         </aside>
         <section class="card import-review-column">
-        <h3>Zusammenführungen prüfen</h3>
+        <h3>${iv.reviewTitle}</h3>
         ${
           !review
-            ? `<p class="ok">Keine offenen Prüfungen.</p>`
-            : `<p>Prüfung ${state.reviewIndex + 1} von ${state.reviewQueue.length}</p>
-               <p class="hint">Links sehen Sie den neu eingehenden Eintrag. Rechts sehen Sie nur bereits vorhandene Personen/Teams aus der Datenbasis.</p>
-               <p class="hint">Wenn rechts niemand dieselbe reale Person/dasselbe reale Team ist, wählen Sie unten "Keine passt: neue Person anlegen".</p>
-               <p class="hint">Treffersicherheit: <strong>${confidenceLabel(review.confidence)}</strong> (${Math.round(
-                (review.confidence || 0) * 100
-              )}%).</p>
+            ? `<p class="ok">${iv.noOpenReviews}</p>`
+            : `<p>${iv.reviewProgress(state.reviewIndex + 1, state.reviewQueue.length)}</p>
+               <p class="hint">${iv.reviewHintLeftRight}</p>
+               <p class="hint">${iv.reviewHintNoMatch}</p>
+               <p class="hint">${FMT.reviewConfidenceHtml(confidenceLabel(review.confidence), confidencePct)}</p>
                <div class="merge-review-layout">
                  <section class="merge-review-column">
-                   <h4>Neuer eingehender Eintrag</h4>
+                   <h4>${iv.incomingHeading}</h4>
                    <div class="table-wrap">
                      <table>
-                       <thead><tr><th>Name</th><th>Jahrgang</th><th>Verein</th><th>Startnr.</th><th>Distanz</th><th>Punkte</th></tr></thead>
+                       <thead><tr><th>${iv.thName}</th><th>${stStandings.thYob}</th><th>${stStandings.thClub}</th><th>${iv.thStartnr}</th><th>${iv.thDistance}</th><th>${iv.thPoints}</th></tr></thead>
                        <tbody>${renderIncomingTableRow(review.entry_preview, review.result_preview, review.startnr)}</tbody>
                      </table>
                    </div>
                  </section>
                  <section class="merge-review-column">
-                   <h4>Mögliche Treffer (beste Übereinstimmung zuerst)</h4>
+                   <h4>${iv.candidatesHeading}</h4>
                    <div class="table-wrap">
                      <table>
-                       <thead><tr><th>Rang</th><th>Name</th><th>Jahrgang</th><th>Verein</th><th>Treffer</th><th>Aktion</th></tr></thead>
+                       <thead><tr><th>${iv.thRank}</th><th>${iv.thName}</th><th>${stStandings.thYob}</th><th>${stStandings.thClub}</th><th>${iv.thMatch}</th><th>${iv.thAction}</th></tr></thead>
                        <tbody>${renderCandidateTableRows(
                          review,
                          state.reviewSelections[reviewSelectionKey(review)] || getDefaultCandidateUid(review)
@@ -859,11 +904,11 @@
                    </div>
                  </section>
                </div>
-               <p class="hint">Auswahl rechts verknüpft mit bestehender Person/Team; "neue Person anlegen" erstellt bewusst einen zusätzlichen Datensatz.</p>
+               <p class="hint">${iv.mergeHint}</p>
                <div class="row merge-actions-row">
-                 <button id="acceptReviewBtn" class="primary">Mit ausgewählter Person/Team zusammenführen</button>
-                 <button id="newIdentityReviewBtn" class="secondary">Keine passt: neue Person anlegen</button>
-                 <button id="skipReviewBtn" class="secondary">Überspringen</button>
+                 <button id="acceptReviewBtn" class="primary">${iv.mergeAccept}</button>
+                 <button id="newIdentityReviewBtn" class="secondary">${iv.mergeNewIdentity}</button>
+                 <button id="skipReviewBtn" class="secondary">${iv.skipReview}</button>
                </div>`
         }
         </section>
@@ -891,8 +936,8 @@
       if (ok) {
         setStatus(
           autoMergeEnabledInput.checked
-            ? "Auto-Merge ist aktiv."
-            : "Auto-Merge ist deaktiviert. Neue Importe landen bei Unsicherheit in der Prüfung."
+            ? STR.status.autoMergeOn
+            : STR.status.autoMergeOff
         );
       }
     });
@@ -902,15 +947,15 @@
       if (ok) {
         setStatus(
           perfectAutoMergeInput.checked
-            ? "Perfekte Treffer werden automatisch zusammengeführt."
-            : "Perfekte Treffer werden nicht mehr automatisch zusammengeführt."
+            ? STR.status.perfectAutoMergeOn
+            : STR.status.perfectAutoMergeOff
         );
       }
     });
     autoMergeThresholdInput.addEventListener("blur", async () => {
       const threshold = syncThresholdInputs(autoMergeThresholdInput.value);
       if (await saveMatchingConfig(threshold, autoMergeEnabledInput.checked, perfectAutoMergeInput.checked)) {
-        setStatus("Auto-Merge-Schwelle wurde aktualisiert.");
+        setStatus(STR.status.autoMergeThresholdUpdated);
       }
     });
     document.getElementById("sourceTypeSinglesBtn").addEventListener("click", async () => {
@@ -934,10 +979,10 @@
     document.getElementById("importRaceBtn").addEventListener("click", async () => {
       const filePath = state.importFilePath.trim();
       if (!isImportReady()) {
-        setStatus("Bitte Datei, Lauftyp und Laufnummer vollständig wählen.", true);
+        setStatus(STR.status.importIncomplete, true);
         return;
       }
-      setStatus("Import läuft...");
+      setStatus(STR.status.importRunning);
       const response = await api("import_race", {
         file_path: filePath,
         series_year: state.seriesYear,
@@ -945,17 +990,17 @@
         race_no: state.importRaceNo,
       });
       if (response.status === "error") {
-        setStatus(getApiErrorMessage(response.error, "Import konnte nicht abgeschlossen werden."), true);
+        setStatus(getApiErrorMessage(response.error, STR.status.importFailed), true);
         return;
       }
-      setStatus("Import abgeschlossen. Bitte prüfen Sie offene Zuordnungen.");
+      setStatus(STR.status.importDone);
       resetImportDraft();
       await loadOverview();
     });
     document.getElementById("pickFileBtn").addEventListener("click", async () => {
       const picked = await api("pick_file", {});
       if (picked.status !== "ok") {
-        setStatus("Dateiauswahl konnte nicht geöffnet werden.", true);
+        setStatus(STR.status.pickFileFailed, true);
         return;
       }
       const filePath = (picked.payload && picked.payload.file_path ? picked.payload.file_path : "").trim();
@@ -986,7 +1031,7 @@
       document.getElementById("acceptReviewBtn").addEventListener("click", async () => {
         const target = state.reviewSelections[reviewKey] || getDefaultCandidateUid(review);
         if (!target) {
-          setStatus("Für diesen Eintrag ist kein Kandidat verfügbar.", true);
+          setStatus(STR.status.noCandidate, true);
           return;
         }
         const response = await api("apply_match_decision", {
@@ -996,10 +1041,10 @@
           rationale: "manual review accept",
         });
         if (response.status === "error") {
-          setStatus("Zusammenführung konnte nicht gespeichert werden.", true);
+          setStatus(STR.status.mergeSaveFailed, true);
           return;
         }
-        setStatus("Zusammenführung wurde übernommen.");
+        setStatus(STR.status.mergeSaved);
         delete state.reviewSelections[reviewKey];
         state.reviewIndex = 0;
         await loadOverview();
@@ -1013,10 +1058,10 @@
           rationale: "manual review create new",
         });
         if (response.status === "error") {
-          setStatus(response.error.details.message || "Neue Person konnte nicht angelegt werden.", true);
+          setStatus(response.error.details.message || STR.status.newIdentityFailed, true);
           return;
         }
-        setStatus("Eintrag wurde als neue Person angelegt.");
+        setStatus(STR.status.newIdentitySaved);
         delete state.reviewSelections[reviewKey];
         state.reviewIndex = 0;
         await loadOverview();
@@ -1029,12 +1074,13 @@
     if (!state.seriesYear) {
       return;
     }
+    const hi = STR.history;
     const timelineResponse = await api("get_year_timeline", {
       series_year: state.seriesYear,
       limit: 1000,
     });
     if (timelineResponse.status === "error") {
-      historyView.innerHTML = `<div class="card"><p class="danger-text">Historie konnte nicht geladen werden.</p></div>`;
+      historyView.innerHTML = `<div class="card"><p class="danger-text">${hi.loadFailed}</p></div>`;
       return;
     }
     const timelineItems = timelineResponse.payload.items || [];
@@ -1069,9 +1115,9 @@
     const groupedRows = Array.from(groupedImports.values())
       .map((group) => {
         const categoryLabel = Array.from(group.categories).sort().join(", ") || "-";
-        const action = `<button class="danger" data-rollback-batch="${group.sourceSha256}" data-rollback-anchor="${group.anchorEventUid}" data-rollback-count="${group.count}">Datei zurücknehmen</button>`;
+        const action = `<button class="danger" data-rollback-batch="${group.sourceSha256}" data-rollback-anchor="${group.anchorEventUid}" data-rollback-count="${group.count}">${hi.rollbackButton}</button>`;
         return `<tr>
-          <td>Datei-Import</td>
+          <td>${hi.eventFileImport}</td>
           <td>${group.timestamp}</td>
           <td>${group.sourceFile}</td>
           <td>${categoryLabel}</td>
@@ -1082,12 +1128,12 @@
       .join("");
     historyView.innerHTML = `
       <div class="card">
-        <h2>Historie & Korrektur</h2>
-        <p class="hint">Alle Änderungen werden protokolliert. Rücknahme erfolgt für alle Läufe einer importierten Datei gemeinsam.</p>
+        <h2>${hi.title}</h2>
+        <p class="hint">${hi.hint}</p>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Ereignis</th><th>Zeitpunkt</th><th>Quelldatei</th><th>Kategorien</th><th>Läufe</th><th>Aktion</th></tr></thead>
-            <tbody>${groupedRows || `<tr><td colspan="6">Keine aktiven Datei-Importe vorhanden</td></tr>`}</tbody>
+            <thead><tr><th>${hi.thEvent}</th><th>${hi.thTime}</th><th>${hi.thSource}</th><th>${hi.thCategories}</th><th>${hi.thRaces}</th><th>${hi.thAction}</th></tr></thead>
+            <tbody>${groupedRows || `<tr><td colspan="6">${hi.emptyImports}</td></tr>`}</tbody>
           </table>
         </div>
       </div>
@@ -1097,9 +1143,7 @@
         const sourceSha = button.getAttribute("data-rollback-batch");
         const anchorUid = button.getAttribute("data-rollback-anchor");
         const count = Number(button.getAttribute("data-rollback-count") || "0");
-        const confirmed = window.confirm(
-          `Die Ergebnisse aller ${count} Läufe aus dieser Datei werden aus der Wertung entfernt und anschließend neu berechnet.`
-        );
+        const confirmed = window.confirm(hi.rollbackConfirm(count));
         if (!confirmed) {
           return;
         }
@@ -1109,17 +1153,17 @@
           reason: "ui.history.rollback_source_batch",
         });
         if (response.status === "error") {
-          setStatus(getApiErrorMessage(response.error, "Datei-Import konnte nicht zurückgenommen werden."), true);
+          setStatus(getApiErrorMessage(response.error, STR.errors.rollbackFailed), true);
           return;
         }
         const rolledBackCount = response.payload.rolled_back_event_count || 0;
-        setStatus(`Datei-Import wurde zurückgenommen (${rolledBackCount} Läufe).`);
+        setStatus(hi.rollbackDone(rolledBackCount));
         await loadOverview();
       });
     }
   }
 
   showSeasonEntry().catch((error) => {
-    setStatus(error.message || "Anwendung konnte nicht gestartet werden.", true);
+    setStatus(error.message || STR.errors.startupFailed, true);
   });
 })();
