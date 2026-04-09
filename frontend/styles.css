@@ -22,12 +22,15 @@ body {
   background: var(--bg);
   color: var(--text);
   font-size: var(--font-base);
+  height: 100vh;
+  overflow: hidden;
 }
 
 .app {
-  min-height: 100vh;
+  height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr;
+  overflow: hidden;
 }
 
 .app-header {
@@ -52,6 +55,8 @@ body {
 
 .app-main {
   padding: var(--space);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .hidden {
@@ -63,6 +68,11 @@ body {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: calc(var(--space) * 1.2);
+}
+
+#seasonEntryView {
+  max-height: 100%;
+  overflow: auto;
 }
 
 .row {
@@ -109,6 +119,20 @@ body {
   min-height: 28px;
   color: var(--muted);
   margin-bottom: var(--space);
+}
+
+#shellView {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.view {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 button.primary,
@@ -203,11 +227,15 @@ th {
   grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
   gap: var(--space);
   align-items: start;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .standings-sidebar {
   position: sticky;
-  top: var(--space);
+  top: 0;
+  align-self: start;
 }
 
 .sidebar-top-action {
@@ -258,6 +286,10 @@ th {
 .standings-content {
   display: grid;
   gap: var(--space);
+  align-self: stretch;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .ok {
@@ -310,17 +342,24 @@ th {
   grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
   gap: var(--space);
   align-items: start;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .import-controls-column {
   position: sticky;
-  top: var(--space);
+  top: 0;
   display: grid;
   gap: var(--space);
 }
 
 .import-review-column {
   min-width: 0;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .import-settings-panel {
