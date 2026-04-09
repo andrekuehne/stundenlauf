@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -76,3 +77,30 @@ def open_series_year(workspace_dir: Path, payload: dict[str, Any]) -> dict[str, 
     if not project_file.exists():
         raise not_found("series_year", str(series_year))
     return {"series_year": series_year, "project_file": str(project_file)}
+
+
+def delete_series_year(workspace_dir: Path, payload: dict[str, Any]) -> dict[str, Any]:
+    year_raw = payload.get("series_year")
+    confirm_raw = payload.get("confirm_series_year")
+    if year_raw is None:
+        raise validation_error("series_year is required")
+    if confirm_raw is None:
+        raise validation_error("confirm_series_year is required")
+    series_year = int(year_raw)
+    confirm_series_year = int(confirm_raw)
+    if confirm_series_year != series_year:
+        raise validation_error(
+            "confirm_series_year must match series_year",
+            series_year=series_year,
+            confirm_series_year=confirm_series_year,
+        )
+    project_file = project_file_for_year(workspace_dir, series_year)
+    if not project_file.exists():
+        raise not_found("series_year", str(series_year))
+    season_dir = project_file.parent
+    shutil.rmtree(season_dir)
+    return {
+        "series_year": series_year,
+        "deleted": True,
+        "deleted_path": str(season_dir),
+    }

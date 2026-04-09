@@ -43,6 +43,16 @@ This document defines the frontend-facing Python API contract for the pywebview 
 - Sets the active dataset in the UI API session and returns:
   - `series_year`, `project_file`, `active=true`
 
+### `delete_series_year`
+- Payload:
+  - `series_year` (required)
+  - `confirm_series_year` (required, must exactly match `series_year`)
+- Deletes the full season dataset directory under workspace storage and returns:
+  - `series_year`, `deleted=true`, `deleted_path`
+- Safety notes:
+  - mismatched confirmation returns `VALIDATION_ERROR`
+  - unknown year returns `NOT_FOUND`
+
 ### `get_matching_config`
 - Payload: none
 - Returns current matching configuration for the active UI session:

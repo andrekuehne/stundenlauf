@@ -140,7 +140,12 @@
             <td>${item.events_total}</td>
             <td>${item.review_queue_count}</td>
             <td>${item.latest_imported_at || "-"}</td>
-            <td><button class="secondary" data-open-year="${item.series_year}">Saison öffnen</button></td>
+            <td>
+              <div class="row">
+                <button class="secondary" data-open-year="${item.series_year}">Saison öffnen</button>
+                <button class="danger" data-delete-year="${item.series_year}" title="Saison löschen">🗑 Saison löschen</button>
+              </div>
+            </td>
           </tr>`
       )
       .join("");
@@ -178,6 +183,41 @@
       button.addEventListener("click", async () => {
         const year = Number(button.getAttribute("data-open-year"));
         await openSeason(year);
+      });
+    }
+    for (const button of seasonEntryView.querySelectorAll("button[data-delete-year]")) {
+      button.addEventListener("click", async () => {
+        const year = Number(button.getAttribute("data-delete-year"));
+        const warningAccepted = window.confirm(
+          `Achtung: Die Saison ${year} wird dauerhaft gelöscht.\n` +
+            "Alle Läufe, Prüfdaten und Wertungen dieser Saison gehen verloren.\n\n" +
+            "Möchten Sie fortfahren?"
+        );
+        if (!warningAccepted) {
+          return;
+        }
+        const typed = window.prompt(
+          `Sicherheitsabfrage: Bitte geben Sie ${year} ein, um die Löschung zu bestätigen.`,
+          ""
+        );
+        if (typed === null) {
+          return;
+        }
+        const confirmedYear = Number(String(typed).trim());
+        if (!Number.isInteger(confirmedYear) || confirmedYear !== year) {
+          setStatus(`Löschung abgebrochen: Die Eingabe muss exakt ${year} sein.`, true);
+          return;
+        }
+        const deleted = await api("delete_series_year", {
+          series_year: year,
+          confirm_series_year: confirmedYear,
+        });
+        if (deleted.status === "error") {
+          setStatus(deleted.error.details.message || "Saison konnte nicht gelöscht werden.", true);
+          return;
+        }
+        setStatus(`Saison ${year} wurde gelöscht.`);
+        await showSeasonEntry();
       });
     }
     document.getElementById("createSeasonBtn").addEventListener("click", async () => {

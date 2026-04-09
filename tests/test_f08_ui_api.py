@@ -208,6 +208,84 @@ class TestF08UiApi(unittest.TestCase):
             self.assertEqual(project_state["status"], "ok")
             self.assertEqual(project_state["payload"]["counts"]["events_total"], 0)
 
+    def test_delete_series_year_removes_workspace_season_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = Path(temp_dir)
+            service = UiApiService(workspace_dir=workspace)
+            created = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_series_create_delete_ok",
+                    "method": "create_series_year",
+                    "payload": {"series_year": 2026},
+                }
+            )
+            self.assertEqual(created["status"], "ok")
+            project_file = Path(created["payload"]["project_file"])
+            self.assertTrue(project_file.exists())
+
+            deleted = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_series_delete_ok",
+                    "method": "delete_series_year",
+                    "payload": {"series_year": 2026, "confirm_series_year": 2026},
+                }
+            )
+            self.assertEqual(deleted["status"], "ok")
+            self.assertTrue(deleted["payload"]["deleted"])
+            self.assertEqual(deleted["payload"]["series_year"], 2026)
+            self.assertFalse(project_file.parent.exists())
+
+            listed = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_series_list_after_delete",
+                    "method": "list_series_years",
+                    "payload": {},
+                }
+            )
+            self.assertEqual(listed["status"], "ok")
+            self.assertEqual(listed["payload"]["count"], 0)
+
+    def test_delete_series_year_rejects_confirmation_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = Path(temp_dir)
+            service = UiApiService(workspace_dir=workspace)
+            service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_series_create_delete_mismatch",
+                    "method": "create_series_year",
+                    "payload": {"series_year": 2026},
+                }
+            )
+            deleted = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_series_delete_mismatch",
+                    "method": "delete_series_year",
+                    "payload": {"series_year": 2026, "confirm_series_year": 2025},
+                }
+            )
+            self.assertEqual(deleted["status"], "error")
+            self.assertEqual(deleted["error"]["code"], "VALIDATION_ERROR")
+
+    def test_delete_series_year_rejects_unknown_year(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = Path(temp_dir)
+            service = UiApiService(workspace_dir=workspace)
+            deleted = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_series_delete_not_found",
+                    "method": "delete_series_year",
+                    "payload": {"series_year": 2040, "confirm_series_year": 2040},
+                }
+            )
+            self.assertEqual(deleted["status"], "error")
+            self.assertEqual(deleted["error"]["code"], "NOT_FOUND")
+
     def test_envelope_requires_api_version_and_request_id(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project_path = Path(temp_dir) / "project.json"

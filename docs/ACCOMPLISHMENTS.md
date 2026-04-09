@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-09 - Season deletion safeguard with typed-year confirmation
+- Requirement/Milestone: [R8; M5]
+- What shipped: Added a red season delete action in the season entry table with explicit warning plus mandatory exact-year input confirmation, and introduced `delete_series_year` in `ui-api-v1` with strict confirmation validation before removing season storage.
+- Evidence: `frontend/app.js`, `backend/ui_api/workspace.py`, `backend/ui_api/service.py`, `docs/api/ui-api-v1.md`, `tests/test_f08_ui_api.py`, `uv run pytest tests/test_f08_ui_api.py -q`
+- Impact: significantly reduces accidental season deletion risk while still allowing operators to clean up wrong/duplicate seasons directly in the GUI.
+- Follow-up: evaluate whether an additional safeguard should block deletion when a season is currently open in another desktop session.
+
 ### 2026-04-09 - GUI control for auto-merge threshold (default strict review)
 - Requirement/Milestone: [R4, R6, R8; M5]
 - What shipped: Added a `Lauf hinzufügen` matching control (auto-merge on/off + threshold slider/number input + perfect-match auto-merge toggle), introduced session-level API methods (`get_matching_config`, `set_matching_config`), and wired imports to use the active matching config; default keeps perfect-match auto-merge enabled.

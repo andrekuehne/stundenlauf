@@ -61,6 +61,15 @@ The API now also includes year-level workspace reads (`list_categories`, `get_ye
   - `set_matching_config`
 - Import commands now consume the active session matching config.
 
+## Increment 2026-04-09: Season delete safeguard
+
+- Season entry table now includes a red delete action per year (`🗑 Saison löschen`).
+- Deletion requires two explicit safeguards:
+  - warning confirmation prompt about permanent data loss,
+  - typed year confirmation that must exactly match the selected season year.
+- API alignment update:
+  - `delete_series_year(series_year, confirm_series_year)` added to `ui-api-v1` with strict confirmation validation and `NOT_FOUND` handling for unknown years.
+
 ## Problem Statement
 
 Users need a clear German-language interface to import races, inspect standings, and resolve uncertain participant/team matches.
