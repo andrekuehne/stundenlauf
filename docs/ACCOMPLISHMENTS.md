@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-09 - Import-Dialog: Layout, Erkennung und Laufnummer-API
+- Requirement/Milestone: [R8; M5]
+- What shipped: Enlarged main shell tabs, renamed the import tab to `Import`, removed the duplicate standings shortcut, reordered the import sidebar (matrix first, then filename row with basename-only display, inference hint, Einzel/Paare toggles, Laufnummer dropdown, import button, then matching settings), and added optional `race_no` on `import_race` so the GUI can set Laufnummer independently of the filename.
+- Evidence: `frontend/app.js`, `frontend/styles.css`, `frontend/index.html`, `backend/ingestion/service.py`, `backend/ingestion/adapters/singles.py`, `backend/ingestion/adapters/couples.py`, `backend/ui_api/commands.py`, `docs/api/ui-api-v1.md`, `tests/test_f08_ui_api.py`, `uv run pytest tests/test_f08_ui_api.py -q`
+- Impact: clearer import flow with explicit Lauftyp/Laufnummer choices aligned to filename heuristics, and operators can import files whose names omit `Lauf N` without losing correct race numbering.
+- Follow-up: optional extra filename heuristics for Lauftyp if real files often omit both markers.
+
 ### 2026-04-09 - Dateiweises Rollback in der GUI verknüpft
 - Requirement/Milestone: [R1, R6, R8; M5]
 - What shipped: Added a dedicated `rollback_source_batch` UI API command, exposed `source_sha256` in timeline items, and refactored `Historie` to group active imports by source batch with one `Datei zurücknehmen` action that rolls back all races from that file together.

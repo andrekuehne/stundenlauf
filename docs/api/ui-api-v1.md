@@ -145,6 +145,7 @@ This document defines the frontend-facing Python API contract for the pywebview 
   - `file_path` (required)
   - `series_year` (required)
   - `source_type` (optional, `singles` or `couples`; defaults to filename-based detection)
+  - `race_no` (optional integer `>= 1`; when set, overrides the Laufnummer normally inferred from the filename via `Lauf <n>` in the basename)
 - Returns import summary (`noop`, `rows_imported`, `merged_event_uids`, matching report).
 - Uses the active session matching configuration from `set_matching_config`.
 - Duplicate/reimport safety behavior:
@@ -190,6 +191,8 @@ This document defines the frontend-facing Python API contract for the pywebview 
   - `previous_race_event_uid` (required)
   - `file_path` (required)
   - `series_year` (required)
+  - `source_type` (optional; same semantics as `import_race`)
+  - `race_no` (optional; same semantics as `import_race`)
 - Behavior:
   - resolves the source hash from `previous_race_event_uid`
   - rolls back all active events sharing that source hash

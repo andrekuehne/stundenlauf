@@ -61,6 +61,12 @@ The API now also includes year-level workspace reads (`list_categories`, `get_ye
   - `set_matching_config`
 - Import commands now consume the active session matching config.
 
+## Increment 2026-04-09: Import view layout and explicit race metadata
+
+- Main shell tabs are larger; the second tab label is `Import` (replacing `Lauf hinzufügen`); the duplicate `Lauf hinzufügen` button was removed from `Aktuelle Wertung` because navigation uses the tab bar.
+- Import sidebar order: `Importierte Läufe` matrix first (aligned with standings), then `Datei auswählen` plus basename-only read-only display, an Erkennung line (filename heuristics for Einzel/Paare and `Lauf N`), mutually exclusive `Einzel`/`Paare` buttons, `Laufnummer` dropdown, then `Lauf importieren`, then matching settings.
+- `import_race` accepts optional `race_no` (`>= 1`) to override the Laufnummer that would otherwise come only from the `Lauf <n>` pattern in the filename during parsing.
+
 ## Increment 2026-04-09: Season delete safeguard
 
 - Season entry table now includes a red delete action per year (`🗑 Saison löschen`).

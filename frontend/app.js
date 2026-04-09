@@ -13,6 +13,9 @@
       auto_merge_enabled: false,
       perfect_match_auto_merge: true,
     },
+    importFilePath: "",
+    importSourceType: "",
+    importRaceNo: null,
   };
 
   let requestCounter = 0;
@@ -279,6 +282,7 @@
     state.seriesYear = year;
     if (seasonChanged) {
       state.selectedCategory = "";
+      resetImportDraft();
     }
     seasonLabel.textContent = `Saison: ${year}`;
     await loadMatchingConfig();
@@ -477,7 +481,6 @@
       standingsView.innerHTML = `
         <div class="standings-layout">
           <aside class="card standings-sidebar">
-            <button id="goToImportBtn" class="primary sidebar-top-action">Lauf hinzufügen</button>
             <div class="sidebar-section">
               <h3>Importierte Läufe</h3>
               ${renderImportedRunsMatrix(importedRaceInfo)}
@@ -496,7 +499,6 @@
           </div>
         </div>
       `;
-      document.getElementById("goToImportBtn").addEventListener("click", () => switchView("import"));
       for (const button of standingsView.querySelectorAll("button[data-category-btn]")) {
         button.addEventListener("click", async () => {
           const categoryKey = button.getAttribute("data-category-btn");
@@ -541,7 +543,6 @@
     standingsView.innerHTML = `
       <div class="standings-layout">
         <aside class="card standings-sidebar">
-          <button id="goToImportBtn" class="primary sidebar-top-action">Lauf hinzufügen</button>
           <div class="sidebar-section">
             <h3>Importierte Läufe</h3>
             ${renderImportedRunsMatrix(importedRaceInfo)}
@@ -579,7 +580,6 @@
         </div>
       </div>
     `;
-    document.getElementById("goToImportBtn").addEventListener("click", () => switchView("import"));
     for (const button of standingsView.querySelectorAll("button[data-category-btn]")) {
       button.addEventListener("click", async () => {
         const categoryKey = button.getAttribute("data-category-btn");
@@ -590,6 +590,85 @@
         await renderStandingsView();
       });
     }
+  }
+
+  function resetImportDraft() {
+    state.importFilePath = "";
+    state.importSourceType = "";
+    state.importRaceNo = null;
+  }
+
+  function basenameFromPath(path) {
+    if (!path) {
+      return "";
+    }
+    const normalized = String(path).replace(/\\/g, "/");
+    const idx = normalized.lastIndexOf("/");
+    return idx >= 0 ? normalized.slice(idx + 1) : normalized;
+  }
+
+  function inferImportRaceNoFromBasename(name) {
+    const m = String(name).match(/Lauf\s+(\d+)/i);
+    if (!m) {
+      return null;
+    }
+    const n = parseInt(m[1], 10);
+    return Number.isFinite(n) && n >= 1 ? n : null;
+  }
+
+  function inferImportSourceTypeFromBasename(name) {
+    const lower = String(name).toLowerCase();
+    if (lower.includes("paare")) {
+      return "couples";
+    }
+    if (lower.includes("einzel") || lower.includes("singles")) {
+      return "singles";
+    }
+    return null;
+  }
+
+  function buildImportInferenceLine(basename) {
+    if (!basename) {
+      return "";
+    }
+    const inferredType = inferImportSourceTypeFromBasename(basename);
+    const inferredRace = inferImportRaceNoFromBasename(basename);
+    const typeLabel = inferredType === "singles" ? "Einzel" : inferredType === "couples" ? "Paare" : null;
+    const racePart = inferredRace != null ? `Lauf ${inferredRace}` : null;
+    if (typeLabel && racePart) {
+      return `Erkannt: ${typeLabel} · ${racePart}`;
+    }
+    if (typeLabel && !racePart) {
+      return `Erkannt: ${typeLabel} · Laufnummer nicht im Dateinamen – bitte Laufnummer wählen.`;
+    }
+    if (!typeLabel && racePart) {
+      return `Erkannt: ${racePart} · Lauftyp nicht aus dem Dateinamen – bitte Einzel oder Paare wählen.`;
+    }
+    return "Keine Erkennung aus dem Dateinamen – bitte Lauftyp und Laufnummer wählen.";
+  }
+
+  function isImportReady() {
+    const path = state.importFilePath.trim();
+    const raceOk = state.importRaceNo != null && Number(state.importRaceNo) >= 1;
+    const typeOk = state.importSourceType === "singles" || state.importSourceType === "couples";
+    return Boolean(path && typeOk && raceOk);
+  }
+
+  function applyInferenceFromImportPath(filePath) {
+    state.importFilePath = filePath;
+    const base = basenameFromPath(filePath);
+    const inferredType = inferImportSourceTypeFromBasename(base);
+    const inferredRace = inferImportRaceNoFromBasename(base);
+    state.importSourceType = inferredType || "";
+    state.importRaceNo = inferredRace;
+  }
+
+  function escapeHtml(text) {
+    return String(text)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   }
 
   function formatEntityPreview(preview) {
@@ -688,28 +767,43 @@
     const autoMinValue = clampAutoMin(state.matchingConfig.auto_min);
     const autoMergeEnabled = Boolean(state.matchingConfig.auto_merge_enabled);
     const perfectMatchAutoMerge = Boolean(state.matchingConfig.perfect_match_auto_merge);
+    const importBasename = basenameFromPath(state.importFilePath);
+    const singlesActive = state.importSourceType === "singles" ? " import-type-btn-active" : "";
+    const couplesActive = state.importSourceType === "couples" ? " import-type-btn-active" : "";
+    const raceOptions = importedRaceInfo.raceColumns
+      .map((n) => `<option value="${n}"${state.importRaceNo === n ? " selected" : ""}>${n}</option>`)
+      .join("");
+    const importReady = isImportReady();
+    const inferenceText = importBasename
+      ? buildImportInferenceLine(importBasename)
+      : "Bitte eine Ergebnisdatei auswählen.";
     importView.innerHTML = `
       <div class="import-view-layout">
         <aside class="card import-controls-column">
-          <h2>Lauf hinzufügen</h2>
-          <p class="hint">Bitte wählen Sie die Ergebnisdatei des aktuellen Laufs aus.</p>
-          <div class="row">
-            <label for="filePathInput">Ergebnisdatei</label>
-            <input id="filePathInput" type="text" placeholder="Bitte Datei auswählen..." />
-            <button id="pickFileBtn" class="secondary">Datei auswählen</button>
-            <button id="importRaceBtn" class="primary">Lauf importieren</button>
-          </div>
-          <div class="row">
-            <label for="sourceTypeSelect">Lauftyp</label>
-            <select id="sourceTypeSelect">
-              <option value="">Automatisch erkennen</option>
-              <option value="singles">Einzel</option>
-              <option value="couples">Paare</option>
-            </select>
-          </div>
           <div class="sidebar-section">
             <h3>Importierte Läufe</h3>
             ${renderImportedRunsMatrix(importedRaceInfo)}
+          </div>
+          <div class="import-file-row">
+            <button id="pickFileBtn" class="secondary" type="button">Datei auswählen</button>
+            <input id="filePathInput" type="text" class="import-file-name" readonly value="${escapeHtml(
+              importBasename
+            )}" placeholder="Keine Datei" />
+          </div>
+          <p class="import-inference-hint">${escapeHtml(inferenceText)}</p>
+          <div class="import-type-toggle">
+            <button type="button" id="sourceTypeSinglesBtn" class="secondary${singlesActive}">Einzel</button>
+            <button type="button" id="sourceTypeCouplesBtn" class="secondary${couplesActive}">Paare</button>
+          </div>
+          <div class="import-race-row">
+            <label for="raceNoSelect">Laufnummer</label>
+            <select id="raceNoSelect">
+              <option value=""${state.importRaceNo == null ? " selected" : ""}>Bitte wählen…</option>
+              ${raceOptions}
+            </select>
+          </div>
+          <div class="row">
+            <button id="importRaceBtn" class="primary"${importReady ? "" : " disabled"}>Lauf importieren</button>
           </div>
           <div class="import-settings-panel">
             <h4>Matching-Einstellungen</h4>
@@ -817,26 +911,44 @@
         setStatus("Auto-Merge-Schwelle wurde aktualisiert.");
       }
     });
+    document.getElementById("sourceTypeSinglesBtn").addEventListener("click", async () => {
+      state.importSourceType = "singles";
+      await renderImportView();
+    });
+    document.getElementById("sourceTypeCouplesBtn").addEventListener("click", async () => {
+      state.importSourceType = "couples";
+      await renderImportView();
+    });
+    document.getElementById("raceNoSelect").addEventListener("change", async () => {
+      const raw = document.getElementById("raceNoSelect").value;
+      if (raw === "") {
+        state.importRaceNo = null;
+      } else {
+        const n = parseInt(raw, 10);
+        state.importRaceNo = Number.isFinite(n) ? n : null;
+      }
+      await renderImportView();
+    });
     document.getElementById("importRaceBtn").addEventListener("click", async () => {
-      const filePath = document.getElementById("filePathInput").value.trim();
-      const sourceType = document.getElementById("sourceTypeSelect").value || undefined;
-      if (!filePath) {
-        setStatus("Bitte wählen Sie eine Datei aus.", true);
+      const filePath = state.importFilePath.trim();
+      if (!isImportReady()) {
+        setStatus("Bitte Datei, Lauftyp und Laufnummer vollständig wählen.", true);
         return;
       }
       setStatus("Import läuft...");
       const response = await api("import_race", {
         file_path: filePath,
         series_year: state.seriesYear,
-        source_type: sourceType,
+        source_type: state.importSourceType,
+        race_no: state.importRaceNo,
       });
       if (response.status === "error") {
         setStatus(getApiErrorMessage(response.error, "Import konnte nicht abgeschlossen werden."), true);
         return;
       }
       setStatus("Import abgeschlossen. Bitte prüfen Sie offene Zuordnungen.");
+      resetImportDraft();
       await loadOverview();
-      await renderImportView();
     });
     document.getElementById("pickFileBtn").addEventListener("click", async () => {
       const picked = await api("pick_file", {});
@@ -846,7 +958,8 @@
       }
       const filePath = (picked.payload && picked.payload.file_path ? picked.payload.file_path : "").trim();
       if (filePath) {
-        document.getElementById("filePathInput").value = filePath;
+        applyInferenceFromImportPath(filePath);
+        await renderImportView();
       }
     });
     if (review) {

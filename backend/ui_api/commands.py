@@ -26,6 +26,7 @@ def import_race(
     file_path = str(payload.get("file_path", "")).strip()
     series_year_raw = payload.get("series_year")
     source_type = payload.get("source_type")
+    race_no_raw = payload.get("race_no")
     if not file_path:
         raise validation_error("file_path is required")
     if series_year_raw is None:
@@ -36,6 +37,15 @@ def import_race(
         if source_type_raw not in {"singles", "couples"}:
             raise validation_error("source_type must be 'singles' or 'couples'")
         source_type_value = cast(Literal["singles", "couples"], source_type_raw)
+    race_no_value: int | None = None
+    if race_no_raw is not None:
+        try:
+            race_no_parsed = int(race_no_raw)
+        except (TypeError, ValueError):
+            raise validation_error("race_no must be an integer") from None
+        if race_no_parsed < 1:
+            raise validation_error("race_no must be >= 1")
+        race_no_value = race_no_parsed
     series_year = int(series_year_raw)
     result = import_excel_into_project(
         project_file=project_file,
@@ -43,6 +53,7 @@ def import_race(
         series_year=series_year,
         source_type=source_type_value,
         matching_config=matching_config,
+        race_no=race_no_value,
     )
     return {
         "noop": result.noop,

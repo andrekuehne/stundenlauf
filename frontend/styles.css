@@ -91,17 +91,19 @@ body {
 
 .tabs {
   display: flex;
-  gap: 8px;
-  margin-bottom: var(--space);
+  gap: 10px;
+  margin-bottom: calc(var(--space) * 1.1);
+  align-items: stretch;
 }
 
 .tab {
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
-  font-size: var(--font-small);
-  padding: 10px 14px;
-  border-radius: 6px;
+  font-size: var(--font-base);
+  padding: 14px 22px;
+  min-height: 48px;
+  border-radius: 8px;
   cursor: pointer;
 }
 
@@ -116,8 +118,13 @@ body {
 }
 
 .status-line {
-  min-height: 28px;
+  min-height: 0;
   color: var(--muted);
+  margin-bottom: 0;
+}
+
+.status-line:not(:empty) {
+  min-height: 28px;
   margin-bottom: var(--space);
 }
 
@@ -388,6 +395,72 @@ th {
   top: 0;
   display: grid;
   gap: var(--space);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.import-file-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+}
+
+.import-file-name {
+  min-width: 0;
+  width: 100%;
+  flex: 1;
+}
+
+.import-inference-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-small);
+}
+
+.import-type-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+}
+
+.import-type-btn-active {
+  border-color: var(--accent) !important;
+  background: #e8f0ff !important;
+  color: var(--accent) !important;
+  font-weight: 600;
+}
+
+.import-race-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 160px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+}
+
+.import-race-row label {
+  font-size: var(--font-small);
+  color: var(--muted);
+}
+
+.import-race-row select {
+  min-width: 0;
+  width: 100%;
+}
+
+.import-controls-column .row {
+  width: 100%;
+}
+
+#importRaceBtn {
+  width: 100%;
+}
+
+#importRaceBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .import-review-column {

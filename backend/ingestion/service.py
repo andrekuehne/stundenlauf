@@ -20,6 +20,7 @@ def import_excel_into_project(
     series_year: int,
     source_type: Literal["singles", "couples"] | None = None,
     matching_config: MatchingConfig | None = None,
+    race_no: int | None = None,
 ) -> ImportResult:
     repo = JsonProjectRepository(project_file)
     document = repo.load()
@@ -29,7 +30,12 @@ def import_excel_into_project(
     else:
         is_couples = source_type == "couples"
 
-    parsed = parse_couples_workbook(excel_file, series_year) if is_couples else parse_singles_workbook(excel_file, series_year)
+    race_kw = {"race_no_override": race_no} if race_no is not None else {}
+    parsed = (
+        parse_couples_workbook(excel_file, series_year, **race_kw)
+        if is_couples
+        else parse_singles_workbook(excel_file, series_year, **race_kw)
+    )
 
     matching_source_events = [event for event in document.events if event.source_sha256 == parsed.meta.source_sha256]
     if matching_source_events:

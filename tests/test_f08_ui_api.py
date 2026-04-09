@@ -507,7 +507,63 @@ class TestF08UiApi(unittest.TestCase):
                 self.assertEqual(response["status"], "ok")
                 mock_import.assert_called_once()
                 self.assertEqual(mock_import.call_args.kwargs["source_type"], "singles")
+                self.assertIsNone(mock_import.call_args.kwargs.get("race_no"))
                 self.assertEqual(mock_import.call_args.kwargs["matching_config"].auto_min, 1.0)
+
+    def test_import_race_accepts_optional_race_no(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_project(project_path)
+            service = UiApiService(project_path)
+            with patch("backend.ui_api.commands.import_excel_into_project") as mock_import:
+                mock_import.return_value = type(
+                    "ImportResultStub",
+                    (),
+                    {
+                        "noop": False,
+                        "issues": (),
+                        "merged_event_uids": ("race_event_x",),
+                        "rows_imported": 0,
+                        "source_file": Path("dummy.xlsx"),
+                        "matching_report": None,
+                    },
+                )()
+                response = service.handle(
+                    {
+                        "api_version": API_VERSION_V1,
+                        "request_id": "req_import_race_no",
+                        "method": "import_race",
+                        "payload": {
+                            "file_path": "dummy.xlsx",
+                            "series_year": 2026,
+                            "source_type": "singles",
+                            "race_no": 4,
+                        },
+                    }
+                )
+                self.assertEqual(response["status"], "ok")
+                mock_import.assert_called_once()
+                self.assertEqual(mock_import.call_args.kwargs["race_no"], 4)
+
+    def test_import_race_rejects_invalid_race_no(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_project(project_path)
+            service = UiApiService(project_path)
+            response = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_import_bad_race_no",
+                    "method": "import_race",
+                    "payload": {
+                        "file_path": "dummy.xlsx",
+                        "series_year": 2026,
+                        "race_no": 0,
+                    },
+                }
+            )
+            self.assertEqual(response["status"], "error")
+            self.assertEqual(response["error"]["code"], "VALIDATION_ERROR")
 
     def test_import_race_rejects_invalid_source_type(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

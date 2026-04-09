@@ -20,7 +20,7 @@ DURATION_MARKERS = {"1/2 h-Lauf": RaceDuration.HALF_HOUR, "h-Lauf": RaceDuration
 DIVISION_MARKERS = {"Frauen": Division.WOMEN, "Männer": Division.MEN}
 
 
-def parse_singles_workbook(path: Path, series_year: int) -> ParsedWorkbook:
+def parse_singles_workbook(path: Path, series_year: int, *, race_no_override: int | None = None) -> ParsedWorkbook:
     wb = load_workbook(path, data_only=True, read_only=False)
     try:
         ws = wb[wb.sheetnames[0]]
@@ -42,6 +42,7 @@ def parse_singles_workbook(path: Path, series_year: int) -> ParsedWorkbook:
         current_duration: RaceDuration | None = None
         current_division: Division | None = None
         rows_buffer: list[ImportRowSingles] = []
+        resolved_race_no = race_no_override if race_no_override is not None else parse_race_no(path)
 
         def flush() -> None:
             nonlocal rows_buffer
@@ -51,7 +52,7 @@ def parse_singles_workbook(path: Path, series_year: int) -> ParsedWorkbook:
                 ParsedSectionSingles(
                     context=ImportRaceContext(
                         series_year=series_year,
-                        race_no=parse_race_no(path),
+                        race_no=resolved_race_no,
                         duration=current_duration,
                         division=current_division,
                     ),
