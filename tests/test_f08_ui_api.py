@@ -464,6 +464,121 @@ class TestF08UiApi(unittest.TestCase):
             kinds = [item["event_type"] for item in audit["payload"]["items"]]
             self.assertIn("matching_decision", kinds)
 
+    def test_apply_match_decision_can_create_new_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_project(project_path)
+            bridge = PywebviewApiBridge(str(project_path))
+
+            before_state = bridge.invoke(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_state_before_new_identity",
+                    "method": "get_project_state",
+                    "payload": {},
+                }
+            )
+            self.assertEqual(before_state["status"], "ok")
+            before_people = before_state["payload"]["counts"]["people"]
+
+            created = bridge.invoke(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_create_identity_1",
+                    "method": "apply_match_decision",
+                    "payload": {
+                        "race_event_uid": "race_event_1",
+                        "entry_uid": "entry_review_1",
+                        "decision_action": "create_new_identity",
+                        "rationale": "manuell als neu geführt",
+                    },
+                }
+            )
+            self.assertEqual(created["status"], "ok")
+
+            after_state = bridge.invoke(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_state_after_new_identity",
+                    "method": "get_project_state",
+                    "payload": {},
+                }
+            )
+            self.assertEqual(after_state["status"], "ok")
+            self.assertEqual(after_state["payload"]["counts"]["people"], before_people + 1)
+
+            queue_after = bridge.invoke(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_queue_after_new_identity",
+                    "method": "get_review_queue",
+                    "payload": {},
+                }
+            )
+            self.assertEqual(queue_after["status"], "ok")
+            self.assertEqual(queue_after["payload"]["count"], 0)
+
+    def test_get_review_queue_includes_confidence_label_and_sorted_desc(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.MEN)
+            high = Person(uid="participant_high", name="Alpha Beispiel", yob=1991, gender=Gender.M, club="TSV A")
+            low = Person(uid="participant_low", name="Beta Beispiel", yob=1992, gender=Gender.M, club="TSV B")
+            entry_high = RaceEntry(
+                entry_uid="entry_high",
+                participant_uid=high.uid,
+                startnr="1",
+                result=EntryResult(distance_km=11.0, points=22.0),
+                match_meta=RaceEntryMatchMeta(
+                    route="review",
+                    confidence=0.9,
+                    top_candidate_uid=high.uid,
+                    candidate_uids=(high.uid,),
+                    features={"name_similarity": 0.9},
+                ),
+            )
+            entry_low = RaceEntry(
+                entry_uid="entry_low",
+                participant_uid=low.uid,
+                startnr="2",
+                result=EntryResult(distance_km=10.0, points=20.0),
+                match_meta=RaceEntryMatchMeta(
+                    route="review",
+                    confidence=0.7,
+                    top_candidate_uid=low.uid,
+                    candidate_uids=(low.uid,),
+                    features={"name_similarity": 0.7},
+                ),
+            )
+            event = RaceEvent(
+                race_event_uid="race_event_2026_1",
+                category=category,
+                race_date="2026-02-01",
+                race_no=2,
+                source_file="fixture_sort.xlsx",
+                source_sha256="sha-sort",
+                imported_at="2026-02-01T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp-sort",
+                entries=(entry_low, entry_high),
+            )
+            doc = ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(high, low), events=(event,))
+            JsonProjectRepository(project_path).save(recompute_project_standings(doc))
+            service = UiApiService(project_path)
+            response = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_queue_sorted",
+                    "method": "get_review_queue",
+                    "payload": {},
+                }
+            )
+            self.assertEqual(response["status"], "ok")
+            items = response["payload"]["items"]
+            self.assertEqual([item["entry_uid"] for item in items], ["entry_high", "entry_low"])
+            self.assertEqual(items[0]["confidence_label"], "hoch")
+            self.assertEqual(items[1]["confidence_label"], "mittel")
+
     def test_get_audit_timeline_accepts_optional_year_filter(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project_path = Path(temp_dir) / "project.json"

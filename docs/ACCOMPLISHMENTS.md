@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-09 - Merge-Prüfung als Zwei-Spalten-Tabelle vereinfacht
+- Requirement/Milestone: [R6, R8; M5]
+- What shipped: Replaced the merge-review card with a side-by-side table view (`eingehender Eintrag` vs `mögliche Treffer`) including clear German guidance, ranked candidate selection, and explicit actions for `bestehende Person` vs `neue Person`.
+- Evidence: `frontend/app.js`, `frontend/styles.css`, `backend/ui_api/queries.py`, `backend/ui_api/commands.py`, `tests/test_f08_ui_api.py`, `uv run pytest tests/test_f08_ui_api.py`
+- Impact: users can now immediately distinguish incoming data from existing candidates and make safer merge decisions with less cognitive load.
+- Follow-up: validate with organizer UAT whether additional field-level merge controls are still needed for edge cases.
+
 ### 2026-04-09 - Konfliktprüfung mit Kandidatenauswahl
 - Requirement/Milestone: [R6, R8; M5]
 - What shipped: Extended the German merge-review card with a real candidate picker dropdown so users can explicitly choose the merge target before confirming instead of always accepting the top suggestion.

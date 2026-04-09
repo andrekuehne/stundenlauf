@@ -258,6 +258,30 @@ th {
   gap: var(--space);
 }
 
+.merge-review-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space);
+  margin-top: 10px;
+}
+
+.merge-review-column h4 {
+  margin: 0 0 10px;
+}
+
+.incoming-row td {
+  background: #eef6ff;
+  font-weight: 600;
+}
+
+.selected-candidate-row td {
+  background: #e9f7ee;
+}
+
+.merge-actions-row {
+  margin-top: 12px;
+}
+
 @media (max-width: 1200px) {
   .grid-2 {
     grid-template-columns: 1fr;
@@ -269,5 +293,9 @@ th {
 
   .standings-sidebar {
     position: static;
+  }
+
+  .merge-review-layout {
+    grid-template-columns: 1fr;
   }
 }

@@ -37,6 +37,19 @@ The API now also includes year-level workspace reads (`list_categories`, `get_ye
   - `create_series_year(series_year, display_name?)`
   - `open_series_year(series_year)`
 
+## Increment 2026-04-09: Merge review table redesign
+
+- Merge review in `Lauf hinzufügen` now uses a two-column table for faster visual comparison:
+  - left side shows the single incoming entry as reference,
+  - right side shows ranked existing candidates in descending likelihood.
+- The action flow is explicit and simple:
+  - choose a candidate and confirm `Als bestehende Person übernehmen`, or
+  - use `Als neue Person anlegen` to create a separate identity from review.
+- Technical IDs are removed from the main review surface; guidance is plain German (`Sie` form) with confidence buckets (`hoch/mittel/niedrig`).
+- API alignment updates:
+  - `get_review_queue` now returns `confidence_label` and is sorted by confidence descending.
+  - `apply_match_decision` now supports `decision_action: "create_new_identity"` in addition to linking an existing target.
+
 ## Problem Statement
 
 Users need a clear German-language interface to import races, inspect standings, and resolve uncertain participant/team matches.

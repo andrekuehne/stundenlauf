@@ -7,6 +7,7 @@
     currentView: "standings",
     reviewQueue: [],
     reviewIndex: 0,
+    reviewSelections: {},
   };
 
   let requestCounter = 0;
@@ -474,7 +475,7 @@
     if (!preview) {
       return "Unbekannt";
     }
-    const parts = [preview.display_name || preview.uid || "Unbekannt"];
+    const parts = [preview.display_name || "Unbekannt"];
     if (preview.yob) {
       parts.push(`Jg. ${preview.yob}`);
     }
@@ -484,28 +485,72 @@
     return parts.join(" | ");
   }
 
-  function formatCandidateList(review) {
-    const previews = review.candidate_previews || [];
-    if (!previews.length) {
-      const fallback = review.candidate_uids || [];
-      return fallback.length ? fallback.join(", ") : "Keine";
+  function getDefaultCandidateUid(review) {
+    const candidateUids = review.candidate_uids || [];
+    if (!candidateUids.length) {
+      return "";
     }
-    return previews.map((preview) => formatEntityPreview(preview)).join("<br/>");
+    if (review.top_candidate_uid && candidateUids.includes(review.top_candidate_uid)) {
+      return review.top_candidate_uid;
+    }
+    return candidateUids[0];
   }
 
-  function buildCandidateOptions(review) {
-    const candidateUids = review.candidate_uids || [];
+  function confidenceLabel(confidence) {
+    const value = Number(confidence || 0);
+    if (value >= 0.85) {
+      return "hoch";
+    }
+    if (value >= 0.65) {
+      return "mittel";
+    }
+    return "niedrig";
+  }
+
+  function reviewSelectionKey(review) {
+    return `${review.race_event_uid}::${review.entry_uid}`;
+  }
+
+  function displayDistance(distanceKm) {
+    if (distanceKm == null) {
+      return "-";
+    }
+    return `${distanceKm} km`;
+  }
+
+  function renderIncomingTableRow(preview, resultPreview, startnr) {
+    return `<tr class="incoming-row">
+      <td>${preview?.display_name || "Unbekannt"}</td>
+      <td>${preview?.yob || "-"}</td>
+      <td>${preview?.club || "-"}</td>
+      <td>${startnr || "-"}</td>
+      <td>${displayDistance(resultPreview?.distance_km)}</td>
+      <td>${resultPreview?.points ?? "-"}</td>
+    </tr>`;
+  }
+
+  function renderCandidateTableRows(review, selectedCandidateUid) {
     const previewByUid = new Map((review.candidate_previews || []).filter(Boolean).map((item) => [item.uid, item]));
-    const selectedUid =
-      review.top_candidate_uid && candidateUids.includes(review.top_candidate_uid)
-        ? review.top_candidate_uid
-        : candidateUids[0] || "";
-    return candidateUids.map((candidateUid) => {
-      const preview = previewByUid.get(candidateUid);
-      const label = preview ? formatEntityPreview(preview) : candidateUid;
-      const selected = candidateUid === selectedUid ? "selected" : "";
-      return `<option value="${candidateUid}" ${selected}>${label}</option>`;
-    });
+    const candidateUids = review.candidate_uids || [];
+    if (!candidateUids.length) {
+      return `<tr><td colspan="6">Keine Kandidaten vorhanden</td></tr>`;
+    }
+    return candidateUids
+      .map((candidateUid, index) => {
+        const preview = previewByUid.get(candidateUid);
+        const rank = index + 1;
+        const selectedClass = selectedCandidateUid === candidateUid ? " selected-candidate-row" : "";
+        const selectedText = selectedCandidateUid === candidateUid ? " (ausgewählt)" : "";
+        return `<tr class="candidate-row${selectedClass}" data-candidate-row="${candidateUid}">
+          <td>${rank}${selectedText}</td>
+          <td>${preview?.display_name || "Unbekannt"}</td>
+          <td>${preview?.yob || "-"}</td>
+          <td>${preview?.club || "-"}</td>
+          <td>${confidenceLabel(review.confidence)}</td>
+          <td><button class="secondary select-candidate-btn" data-candidate-uid="${candidateUid}">Diesen wählen</button></td>
+        </tr>`;
+      })
+      .join("");
   }
 
   async function renderImportView() {
@@ -543,20 +588,36 @@
           !review
             ? `<p class="ok">Keine offenen Prüfungen.</p>`
             : `<p>Prüfung ${state.reviewIndex + 1} von ${state.reviewQueue.length}</p>
-               <p class="hint">Übereinstimmung: ${Math.round((review.confidence || 0) * 100)}%</p>
-               <div class="row"><strong>Eintrag:</strong> ${formatEntityPreview(review.entry_preview)}</div>
-               <div class="row"><strong>Leistung:</strong> Startnr. ${review.startnr || "-"} | ${review.result_preview?.distance_km ?? "-"} km | ${
-                review.result_preview?.points ?? "-"
-              } Punkte</div>
-               <div class="row"><strong>Top-Vorschlag:</strong> ${formatEntityPreview(review.top_candidate_preview)}</div>
-               <div class="row">
-                 <label for="candidateSelect"><strong>Kandidat auswählen:</strong></label>
-                 <select id="candidateSelect">${buildCandidateOptions(review).join("")}</select>
+               <p class="hint">Wählen Sie rechts den besten vorhandenen Treffer. Falls niemand passt, legen Sie links eine neue Person an.</p>
+               <p class="hint">Treffersicherheit: <strong>${confidenceLabel(review.confidence)}</strong> (${Math.round(
+                (review.confidence || 0) * 100
+              )}%).</p>
+               <div class="merge-review-layout">
+                 <section class="merge-review-column">
+                   <h4>Neuer eingehender Eintrag</h4>
+                   <div class="table-wrap">
+                     <table>
+                       <thead><tr><th>Name</th><th>Jahrgang</th><th>Verein</th><th>Startnr.</th><th>Distanz</th><th>Punkte</th></tr></thead>
+                       <tbody>${renderIncomingTableRow(review.entry_preview, review.result_preview, review.startnr)}</tbody>
+                     </table>
+                   </div>
+                 </section>
+                 <section class="merge-review-column">
+                   <h4>Mögliche Treffer (beste Übereinstimmung zuerst)</h4>
+                   <div class="table-wrap">
+                     <table>
+                       <thead><tr><th>Rang</th><th>Name</th><th>Jahrgang</th><th>Verein</th><th>Treffer</th><th>Aktion</th></tr></thead>
+                       <tbody>${renderCandidateTableRows(
+                         review,
+                         state.reviewSelections[reviewSelectionKey(review)] || getDefaultCandidateUid(review)
+                       )}</tbody>
+                     </table>
+                   </div>
+                 </section>
                </div>
-               <div class="row"><strong>Kandidaten:</strong> <div>${formatCandidateList(review)}</div></div>
-               <p class="hint">Eintrag-ID: ${review.entry_uid} | Lauf-ID: ${review.race_event_uid}</p>
-               <div class="row">
-                 <button id="acceptReviewBtn" class="primary">Zusammenführung bestätigen</button>
+               <div class="row merge-actions-row">
+                 <button id="acceptReviewBtn" class="primary">Als bestehende Person übernehmen</button>
+                 <button id="newIdentityReviewBtn" class="secondary">Als neue Person anlegen</button>
                  <button id="skipReviewBtn" class="secondary">Überspringen</button>
                </div>`
         }
@@ -595,13 +656,26 @@
       }
     });
     if (review) {
+      const reviewKey = reviewSelectionKey(review);
+      if (!state.reviewSelections[reviewKey]) {
+        state.reviewSelections[reviewKey] = getDefaultCandidateUid(review);
+      }
+      for (const button of importView.querySelectorAll("button[data-candidate-uid]")) {
+        button.addEventListener("click", async () => {
+          const candidateUid = button.getAttribute("data-candidate-uid") || "";
+          if (!candidateUid) {
+            return;
+          }
+          state.reviewSelections[reviewKey] = candidateUid;
+          await renderImportView();
+        });
+      }
       document.getElementById("skipReviewBtn").addEventListener("click", async () => {
         state.reviewIndex = Math.min(state.reviewIndex + 1, state.reviewQueue.length - 1);
         await renderImportView();
       });
       document.getElementById("acceptReviewBtn").addEventListener("click", async () => {
-        const candidateSelect = document.getElementById("candidateSelect");
-        const target = candidateSelect ? candidateSelect.value : review.top_candidate_uid || (review.candidate_uids || [])[0];
+        const target = state.reviewSelections[reviewKey] || getDefaultCandidateUid(review);
         if (!target) {
           setStatus("Für diesen Eintrag ist kein Kandidat verfügbar.", true);
           return;
@@ -617,6 +691,25 @@
           return;
         }
         setStatus("Zusammenführung wurde übernommen.");
+        delete state.reviewSelections[reviewKey];
+        state.reviewIndex = 0;
+        await loadOverview();
+        await renderImportView();
+      });
+      document.getElementById("newIdentityReviewBtn").addEventListener("click", async () => {
+        const response = await api("apply_match_decision", {
+          race_event_uid: review.race_event_uid,
+          entry_uid: review.entry_uid,
+          decision_action: "create_new_identity",
+          rationale: "manual review create new",
+        });
+        if (response.status === "error") {
+          setStatus(response.error.details.message || "Neue Person konnte nicht angelegt werden.", true);
+          return;
+        }
+        setStatus("Eintrag wurde als neue Person angelegt.");
+        delete state.reviewSelections[reviewKey];
+        state.reviewIndex = 0;
         await loadOverview();
         await renderImportView();
       });

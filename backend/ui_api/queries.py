@@ -215,6 +215,14 @@ def _entity_preview(document: ProjectDocument, entity_uid: str | None) -> dict[s
     }
 
 
+def _confidence_label(confidence: float) -> str:
+    if confidence >= 0.85:
+        return "hoch"
+    if confidence >= 0.65:
+        return "mittel"
+    return "niedrig"
+
+
 def get_review_queue(document: ProjectDocument, payload: dict[str, Any]) -> dict[str, Any]:
     race_event_uid = str(payload.get("race_event_uid", "")).strip()
     rows: list[dict[str, Any]] = []
@@ -226,6 +234,7 @@ def get_review_queue(document: ProjectDocument, payload: dict[str, Any]) -> dict
         for entry in event.entries:
             if entry.match_meta is None or entry.match_meta.route != "review":
                 continue
+            confidence_value = float(entry.match_meta.confidence or 0.0)
             rows.append(
                 {
                     "race_event_uid": event.race_event_uid,
@@ -238,7 +247,8 @@ def get_review_queue(document: ProjectDocument, payload: dict[str, Any]) -> dict
                     ],
                     "top_candidate_uid": entry.match_meta.top_candidate_uid,
                     "top_candidate_preview": _entity_preview(document, entry.match_meta.top_candidate_uid),
-                    "confidence": entry.match_meta.confidence,
+                    "confidence": confidence_value,
+                    "confidence_label": _confidence_label(confidence_value),
                     "features": dict(entry.match_meta.features),
                     "conflict_flags": list(entry.match_meta.conflict_flags),
                     "entry_preview": (
@@ -253,6 +263,7 @@ def get_review_queue(document: ProjectDocument, payload: dict[str, Any]) -> dict
                     "event": race_event_identity(event),
                 }
             )
+    rows.sort(key=lambda item: item["confidence"], reverse=True)
     return {"items": rows, "count": len(rows)}
 
 

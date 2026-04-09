@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal, cast
 
-from backend.domain.models import FieldResolution, MatchingDecision, RaceEntryMatchMeta
+from backend.domain.models import Couple, FieldResolution, MatchingDecision, Person, RaceEntryMatchMeta
 from backend.ingestion.service import import_excel_into_project
 from backend.ranking.engine import recompute_project_standings
 from backend.storage.repository import JsonProjectRepository
@@ -62,12 +62,15 @@ def apply_match_decision(project_file: Path, payload: dict[str, Any]) -> dict[st
     row_fingerprint = str(payload.get("row_fingerprint", "")).strip()
     target_participant_uid = str(payload.get("target_participant_uid", "")).strip() or None
     target_team_uid = str(payload.get("target_team_uid", "")).strip() or None
+    decision_action = str(payload.get("decision_action", "link_existing")).strip() or "link_existing"
     rationale = str(payload.get("rationale", "")).strip()
     if not race_event_uid:
         raise validation_error("race_event_uid is required")
     if not entry_uid:
         raise validation_error("entry_uid is required")
-    if target_participant_uid is None and target_team_uid is None:
+    if decision_action not in {"link_existing", "create_new_identity"}:
+        raise validation_error("decision_action must be 'link_existing' or 'create_new_identity'")
+    if decision_action == "link_existing" and target_participant_uid is None and target_team_uid is None:
         raise validation_error("target_participant_uid or target_team_uid is required")
 
     repo = JsonProjectRepository(project_file)
@@ -81,14 +84,77 @@ def apply_match_decision(project_file: Path, payload: dict[str, Any]) -> dict[st
         raise not_found("entry_uid", entry_uid)
     entry = event.entries[entry_index]
     target_uid = target_participant_uid or target_team_uid
-    updated_meta = RaceEntryMatchMeta(
-        route="auto",
-        confidence=1.0,
-        top_candidate_uid=target_uid,
-        candidate_uids=(target_uid,) if target_uid else (),
-        features={"manual_link": 1.0},
-        conflict_flags=(),
-    )
+    if decision_action == "create_new_identity":
+        if entry.team_uid:
+            source_team = next((item for item in document.couples if item.uid == entry.team_uid), None)
+            if source_team is None:
+                raise validation_error("entry team candidate was not found")
+            member_a = Person(
+                name=source_team.member_a.name,
+                yob=source_team.member_a.yob,
+                gender=source_team.member_a.gender,
+                club=source_team.member_a.club,
+                canonical_given=source_team.member_a.canonical_given,
+                canonical_family=source_team.member_a.canonical_family,
+                club_normalized=source_team.member_a.club_normalized,
+            )
+            member_b = Person(
+                name=source_team.member_b.name,
+                yob=source_team.member_b.yob,
+                gender=source_team.member_b.gender,
+                club=source_team.member_b.club,
+                canonical_given=source_team.member_b.canonical_given,
+                canonical_family=source_team.member_b.canonical_family,
+                club_normalized=source_team.member_b.club_normalized,
+            )
+            created_team = Couple(member_a=member_a, member_b=member_b)
+            target_team_uid = created_team.uid
+            target_participant_uid = None
+            target_uid = created_team.uid
+            updated_people = tuple([*document.people, member_a, member_b])
+            updated_couples = tuple([*document.couples, created_team])
+        else:
+            source_person_uid = entry.participant_uid or target_participant_uid
+            source_person = next((item for item in document.people if item.uid == source_person_uid), None)
+            if source_person is None:
+                raise validation_error("entry participant candidate was not found")
+            created_person = Person(
+                name=source_person.name,
+                yob=source_person.yob,
+                gender=source_person.gender,
+                club=source_person.club,
+                canonical_given=source_person.canonical_given,
+                canonical_family=source_person.canonical_family,
+                club_normalized=source_person.club_normalized,
+            )
+            target_participant_uid = created_person.uid
+            target_team_uid = None
+            target_uid = created_person.uid
+            updated_people = tuple([*document.people, created_person])
+            updated_couples = document.couples
+        updated_meta = RaceEntryMatchMeta(
+            route="new_identity",
+            confidence=1.0,
+            top_candidate_uid=None,
+            candidate_uids=(),
+            features={"manual_new_identity": 1.0},
+            conflict_flags=(),
+        )
+        decision_kind = "manual_accept"
+        decision_features = {"manual_new_identity": 1.0}
+    else:
+        updated_people = document.people
+        updated_couples = document.couples
+        updated_meta = RaceEntryMatchMeta(
+            route="auto",
+            confidence=1.0,
+            top_candidate_uid=target_uid,
+            candidate_uids=(target_uid,) if target_uid else (),
+            features={"manual_link": 1.0},
+            conflict_flags=(),
+        )
+        decision_kind = "manual_link"
+        decision_features = {"manual_link": 1.0}
     updated_entry = replace(
         entry,
         participant_uid=target_participant_uid if target_participant_uid else entry.participant_uid,
@@ -109,7 +175,7 @@ def apply_match_decision(project_file: Path, payload: dict[str, Any]) -> dict[st
     )
     decision = MatchingDecision(
         decided_at=_iso_now(),
-        kind="manual_link",
+        kind=decision_kind,
         row_fingerprint=row_fingerprint,
         race_event_uid=race_event_uid,
         entry_uid=entry_uid,
@@ -117,12 +183,14 @@ def apply_match_decision(project_file: Path, payload: dict[str, Any]) -> dict[st
         target_team_uid=target_team_uid,
         rationale=rationale,
         field_resolutions=field_resolutions,
-        feature_scores={"manual_link": 1.0},
+        feature_scores=decision_features,
     )
     updated_events = list(document.events)
     updated_events[event_index] = updated_event
     updated_doc = replace(
         document,
+        people=updated_people,
+        couples=updated_couples,
         events=tuple(updated_events),
         matching_decisions=tuple([*document.matching_decisions, decision]),
     )

@@ -29,15 +29,22 @@ def import_excel_into_project(
 
     parsed = parse_couples_workbook(excel_file, series_year) if is_couples else parse_singles_workbook(excel_file, series_year)
 
-    if any(event.source_sha256 == parsed.meta.source_sha256 for event in document.events):
-        return ImportResult(
-            noop=True,
-            issues=(),
-            merged_event_uids=(),
-            rows_imported=0,
-            source_file=excel_file,
-            matching_report=None,
-        )
+    matching_source_events = [event for event in document.events if event.source_sha256 == parsed.meta.source_sha256]
+    if matching_source_events:
+        active_source_events = [event for event in matching_source_events if event.state == RaceEventState.ACTIVE]
+        rolled_back_source_events = [event for event in matching_source_events if event.state != RaceEventState.ACTIVE]
+        if active_source_events and rolled_back_source_events:
+            active_uids = ", ".join(event.race_event_uid for event in active_source_events)
+            raise ValueError(
+                "Teilweiser Reimport-Konflikt: Quelle ist nur teilweise zurückgenommen. "
+                f"Aktive Lauf-IDs: {active_uids}."
+            )
+        if active_source_events:
+            active_uids = ", ".join(event.race_event_uid for event in active_source_events)
+            raise ValueError(
+                "Doppelimport-Konflikt: Diese Datei wurde bereits importiert. "
+                f"Aktive Lauf-IDs: {active_uids}."
+            )
 
     for event in document.events:
         if event.state != RaceEventState.ACTIVE:
