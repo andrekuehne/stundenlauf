@@ -17,3 +17,4 @@ class MatchingConfig:
     max_candidates_per_row: int = 48
     member_mismatch_floor: float = 0.52
     pair_unsafe_cap: float = 0.78
+    strict_normalized_auto_only: bool = False

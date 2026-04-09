@@ -22,6 +22,9 @@
         "Auto-Zusammenführung ist deaktiviert. Neue Importe landen bei Unsicherheit in der Prüfung.",
       perfectAutoMergeOn: "Perfekte Treffer werden automatisch zusammengeführt.",
       perfectAutoMergeOff: "Perfekte Treffer werden nicht mehr automatisch zusammengeführt.",
+      strictNormalizedOn:
+        "Strenger Abgleich: Automatisch nur bei exakt gleicher normalisierter Identität (Name, Jahrgang, Verein).",
+      strictNormalizedOff: "Fuzzy-Matching mit Schwelle und Auto-Optionen ist wieder aktiv.",
       autoMergeThresholdUpdated: "Auto-Zusammenführung-Schwelle wurde aktualisiert.",
       importIncomplete: "Bitte Datei, Lauftyp und Laufnummer vollständig wählen.",
       importRunning: "Import läuft...",
@@ -128,6 +131,25 @@
       thDistanceShort: "Gesamtdistanz",
       emptyRaceRows: "Noch keine Laufdaten vorhanden",
       categoryUnavailable: "Nicht verfügbar",
+      identity: {
+        correctionOn: "Identität korrigieren",
+        correctionOff: "Korrekturmodus beenden",
+        correctionBanner:
+          "Korrekturmodus: Klicken Sie eine Zeile in der Wertungstabelle, um Name, Verein und Jahrgang zu bearbeiten.",
+        modalTitle: "Teilnehmerdaten korrigieren",
+        memberA: "Läufer A",
+        memberB: "Läufer B",
+        save: "Speichern",
+        cancel: "Schließen",
+        closeAria: "Dialog schließen",
+        successSaved: "Änderung gespeichert.",
+        excelHint:
+          "Hinweis: Die Excel-Quelle bleibt unverändert; künftige Imports können erneut prüfen, falls die Datei abweicht.",
+        errName: "Bitte einen Namen eingeben.",
+        errYob: "Bitte einen gültigen Jahrgang (Zahl) eingeben.",
+        errYobRange: (min, max) => `Jahrgang muss zwischen ${min} und ${max} liegen.`,
+        errTeamMembers: "Teammitglieder konnten nicht geladen werden.",
+      },
     },
     units: {
       kmSuffix: " km",
@@ -148,6 +170,9 @@
       autoMerge: "Automatisches Zusammenführen",
       perfectAutoMerge: "Perfekte Treffer automatisch",
       autoMergeThreshold: "Auto-Zusammenführung-Schwelle",
+      strictNormalizedAuto: "Nur exakt normalisierte Identität automatisch",
+      strictNormalizedHint:
+        "Bei aktivierter Option gelten Auto-Merge, perfekte Treffer und die Schwelle nicht für automatische Zuordnung: automatisch nur, wenn Name (normalisiert), Jahrgang und Verein exakt zur Datenbank passen. Die Schwelle steuert weiterhin Prüfung vs. neue Person bei abweichenden Daten.",
       matchingDefaultHint:
         "Standard: Nur perfekte Treffer werden automatisch zusammengeführt.",
       reviewTitle: "Zusammenführungen prüfen",

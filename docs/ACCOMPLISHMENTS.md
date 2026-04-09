@@ -17,12 +17,26 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-09 - F11 Strict normalized auto-match mode
+- Requirement/Milestone: [R4, R6; M5]
+- What shipped: Optional `strict_normalized_auto_only` matching mode auto-links only when incoming rows match exactly one existing entity on normalized name (`parse_person_name` of display name), YOB, gender, and normalized club; full scan avoids blocking misses after identity edits; fuzzy scores can no longer auto in this mode; `get_matching_config` / `set_matching_config` + Import panel checkbox with fuzzy controls disabled while active.
+- Evidence: `backend/matching/strict_identity.py`, `backend/matching/workflow.py`, `backend/matching/config.py`, `backend/matching/decisions.py` (`name_key`), `backend/ui_api/service.py`, `docs/api/ui-api-v1.md`, `frontend/app.js`, `frontend/strings.js`, `docs/features/F11-strict-normalized-auto-match.md`, `tests/test_matching_strict_identity.py`, `tests/test_f08_ui_api.py`; `uv run pytest`
+- Impact: Operators can avoid silent fuzzy auto-links after canonical renames when Excel text still differs slightly.
+- Follow-up: optional persistence of matching mode in project metadata if sessions should survive restarts.
+
+### 2026-04-09 - F10 Standings identity correction (German GUI)
+- Requirement/Milestone: [R6, R8; M5]
+- What shipped: **Aktuelle Wertung** includes a correction-mode toggle, row clicks open a single modal, `get_standings` team rows expose `team_members` for prefill, Einzel uses one form and Paarlauf uses two stacked sub-forms (Läufer A/B) each saving via `update_participant_identity`; modal chrome in `index.html`/`styles.css`, copy in `standings.identity` within `frontend/strings.js`.
+- Evidence: `backend/ui_api/queries.py`, `docs/api/ui-api-v1.md`, `frontend/app.js`, `frontend/strings.js`, `frontend/index.html`, `frontend/styles.css`, `docs/features/F10-standings-identity-correction-ui.md`, `tests/test_f08_ui_api.py`; `uv run pytest`
+- Impact: organizers fix canonical name/club/YOB where they see it in the standings table without CLI or ad-hoc tools.
+- Follow-up: optional `entity_uid` on per-race results rows for the same flow from the lower table.
+
 ### 2026-04-09 - F09 Canonical identity correction (backend + API)
 - Requirement/Milestone: [R3, R4, R6, R7; M5]
 - What shipped: `update_participant_identity` UI API command updates canonical `Person` (or one Paarlauf member) with re-normalized derived fields, recomputes standings, and appends `MatchingDecision` rows with `kind=identity_correction` and `scope_series_year` so year-filtered timeline and `matching_decisions` counts include identity-only edits; extended `MatchingDecision` + `schema_v2` and centralized timeline filtering in `queries.py`.
 - Evidence: `backend/domain/identity.py`, `backend/ui_api/commands.py`, `backend/ui_api/queries.py`, `backend/ui_api/service.py`, `backend/storage/schema_v2.py`, `docs/api/ui-api-v1.md`, `docs/features/F09-canonical-identity-correction.md`, `tests/test_f08_ui_api.py`; `uv run pytest`
 - Impact: organizers can fix first-import typos in merged identities without re-importing the whole season; audit trail remains coherent per season.
-- Follow-up: optional German GUI action from standings rows calling `update_participant_identity`.
+- Follow-up: superseded by F10 standings identity correction GUI.
 
 ### 2026-04-09 - Zentraler GUI-String-Katalog (`frontend/strings.js`)
 - Requirement/Milestone: [R8; M5]

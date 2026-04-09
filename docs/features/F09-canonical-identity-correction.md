@@ -4,7 +4,7 @@
 
 - Feature name: Canonical participant identity correction
 - Owner: TBD
-- Status: Implemented (backend + API + tests; GUI wiring optional follow-up)
+- Status: Implemented (backend + API + tests; GUI delivered as **F10**)
 - Related requirement(s): R3, R4, R6, R7
 - Related milestone(s): M5
 
@@ -29,7 +29,7 @@ The merged season treats `Person` (and Paarlauf team members) as the source of t
 - Separate “display name” vs “matching profile” models.
 - Auto-updating Excel source files.
 - Bulk rename without explicit UID.
-- German GUI form (can be a follow-up milestone; API is ready for standings-driven flows).
+- German GUI form (shipped in [F10](F10-standings-identity-correction-ui.md)).
 
 ## Acceptance Criteria
 
@@ -71,7 +71,7 @@ The merged season treats `Person` (and Paarlauf team members) as the source of t
 
 - Unit: covered via API tests loading persisted project JSON.
 - Integration: `update_participant_identity` → `get_standings`, `get_year_timeline`, `get_project_state`, wrong-year exclusion.
-- Manual checks: optional GUI hook to call API from standings row (future).
+- Manual checks: F10 GUI exercises the same contract from **Aktuelle Wertung**.
 - Rollback strategy: users rely on file backup / version control; no dedicated undo command in this feature.
 
 ## Definition of Done

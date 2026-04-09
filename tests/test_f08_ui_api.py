@@ -145,6 +145,16 @@ class TestF08UiApi(unittest.TestCase):
             self.assertGreaterEqual(len(rows), 1)
             self.assertEqual(rows[0]["display_name"], "Alex Beispiel / Sina Beispiel")
             self.assertEqual(rows[0]["yob"], "1987 / 1992")
+            members = rows[0]["team_members"]
+            self.assertEqual(len(members), 2)
+            self.assertEqual(members[0]["member"], "a")
+            self.assertEqual(members[0]["name"], "Alex Beispiel")
+            self.assertEqual(members[0]["yob"], 1987)
+            self.assertEqual(members[0]["club"], "TSV")
+            self.assertEqual(members[1]["member"], "b")
+            self.assertEqual(members[1]["name"], "Sina Beispiel")
+            self.assertEqual(members[1]["yob"], 1992)
+            self.assertEqual(members[1]["club"], "TSV")
 
     def test_list_series_years_returns_empty_without_workspace_data(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -601,6 +611,7 @@ class TestF08UiApi(unittest.TestCase):
             self.assertEqual(initial["status"], "ok")
             self.assertFalse(initial["payload"]["auto_merge_enabled"])
             self.assertTrue(initial["payload"]["perfect_match_auto_merge"])
+            self.assertFalse(initial["payload"]["strict_normalized_auto_only"])
             self.assertEqual(initial["payload"]["auto_min"], 1.0)
             self.assertEqual(initial["payload"]["effective_auto_min"], 1.0)
 
@@ -613,14 +624,33 @@ class TestF08UiApi(unittest.TestCase):
                         "auto_min": 0.94,
                         "auto_merge_enabled": True,
                         "perfect_match_auto_merge": True,
+                        "strict_normalized_auto_only": False,
                     },
                 }
             )
             self.assertEqual(updated["status"], "ok")
             self.assertTrue(updated["payload"]["auto_merge_enabled"])
             self.assertTrue(updated["payload"]["perfect_match_auto_merge"])
+            self.assertFalse(updated["payload"]["strict_normalized_auto_only"])
             self.assertEqual(updated["payload"]["auto_min"], 0.94)
             self.assertEqual(updated["payload"]["effective_auto_min"], 0.94)
+
+            strict_on = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_matching_cfg_strict",
+                    "method": "set_matching_config",
+                    "payload": {
+                        "auto_min": 0.94,
+                        "auto_merge_enabled": True,
+                        "perfect_match_auto_merge": True,
+                        "strict_normalized_auto_only": True,
+                    },
+                }
+            )
+            self.assertEqual(strict_on["status"], "ok")
+            self.assertTrue(strict_on["payload"]["strict_normalized_auto_only"])
+            self.assertTrue(service.matching_config.strict_normalized_auto_only)
 
     def test_reimport_race_rolls_back_all_events_with_same_source_hash(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

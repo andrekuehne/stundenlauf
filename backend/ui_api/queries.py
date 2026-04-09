@@ -7,7 +7,14 @@ from backend.domain.enums import RaceEventState
 from backend.domain.models import Couple, MatchingDecision, Person, ProjectDocument, RaceEntry, RaceEvent, RaceSeriesCategory
 from backend.ranking.engine import recompute_project_standings
 from backend.ui_api.errors import not_found, validation_error
-from backend.ui_api.mappers import category_label, club_for_row, display_name_for_row, race_event_identity, yob_for_row
+from backend.ui_api.mappers import (
+    category_label,
+    club_for_row,
+    display_name_for_row,
+    race_event_identity,
+    teams_by_uid,
+    yob_for_row,
+)
 
 
 def _matching_decision_in_filtered_year(
@@ -38,6 +45,27 @@ def _find_category(document: ProjectDocument, category_key: str) -> RaceSeriesCa
     raise not_found("category_key", category_key)
 
 
+def _team_members_for_standings_row(document: ProjectDocument, team_uid: str) -> list[dict[str, Any]]:
+    """Per-member identity for Paarlauf standings rows (GUI identity correction)."""
+    team = teams_by_uid(document).get(team_uid)
+    if team is None:
+        return []
+    return [
+        {
+            "member": "a",
+            "name": team.member_a.name,
+            "yob": team.member_a.yob,
+            "club": team.member_a.club or "",
+        },
+        {
+            "member": "b",
+            "name": team.member_b.name,
+            "yob": team.member_b.yob,
+            "club": team.member_b.club or "",
+        },
+    ]
+
+
 def _table_by_category_key(document: ProjectDocument, category_key: str) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     doc = document if document.standings is not None else recompute_project_standings(document)
     if doc.standings is None:
@@ -45,8 +73,9 @@ def _table_by_category_key(document: ProjectDocument, category_key: str) -> tupl
     for table in doc.standings.category_tables:
         if table.category_key != category_key:
             continue
-        rows = [
-            {
+        rows: list[dict[str, Any]] = []
+        for row in table.rows:
+            payload: dict[str, Any] = {
                 "platz": row.platz,
                 "entity_kind": row.entity_kind,
                 "entity_uid": row.entity_uid,
@@ -59,8 +88,9 @@ def _table_by_category_key(document: ProjectDocument, category_key: str) -> tupl
                     item.race_event_uid: item.counts_toward_total for item in row.race_contributions
                 },
             }
-            for row in table.rows
-        ]
+            if row.entity_kind == "team":
+                payload["team_members"] = _team_members_for_standings_row(doc, row.entity_uid)
+            rows.append(payload)
         meta = {
             "ruleset_version": doc.standings.ruleset_version,
             "calculated_at": doc.standings.calculated_at,
