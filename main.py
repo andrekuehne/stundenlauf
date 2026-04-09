@@ -6,6 +6,7 @@ from pathlib import Path
 from backend.ingestion.service import import_excel_into_project
 from backend.ranking.engine import recompute_project_standings
 from backend.storage.repository import JsonProjectRepository
+from backend.ui_app import launch_ui
 
 
 def main() -> None:
@@ -13,12 +14,23 @@ def main() -> None:
     parser.add_argument("--project", type=Path, help="Pfad zur Projektdatei (JSON).")
     parser.add_argument("--excel", type=Path, help="Pfad zur Ergebnis-Exceldatei.")
     parser.add_argument("--year", type=int, help="Serienjahr für den Import.")
+    parser.add_argument("--gui", action="store_true", help="Desktop-GUI im Vollbild-Modus starten.")
+    parser.add_argument(
+        "--workspace-dir",
+        type=Path,
+        default=Path.cwd(),
+        help="Arbeitsverzeichnis für GUI-Daten (Standard: aktueller Ordner).",
+    )
     parser.add_argument(
         "--recompute-standings",
         action="store_true",
         help="Nur Tabellenstände aus der Projektdatei neu berechnen und speichern.",
     )
     args = parser.parse_args()
+
+    if args.gui:
+        launch_ui(workspace_dir=args.workspace_dir, project_file=args.project)
+        return
 
     if args.project and args.recompute_standings:
         repo = JsonProjectRepository(args.project)

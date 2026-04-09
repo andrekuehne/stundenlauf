@@ -69,6 +69,68 @@ def _seed_project(path: Path) -> None:
 
 
 class TestF08UiApi(unittest.TestCase):
+    def test_list_series_years_returns_empty_without_workspace_data(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            service = UiApiService(workspace_dir=Path(temp_dir))
+            response = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_series_list_1",
+                    "method": "list_series_years",
+                    "payload": {},
+                }
+            )
+            self.assertEqual(response["status"], "ok")
+            self.assertEqual(response["payload"]["count"], 0)
+
+    def test_create_open_and_list_series_year(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = Path(temp_dir)
+            service = UiApiService(workspace_dir=workspace)
+            created = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_series_create_1",
+                    "method": "create_series_year",
+                    "payload": {"series_year": 2026, "display_name": "Saison 2026"},
+                }
+            )
+            self.assertEqual(created["status"], "ok")
+            self.assertEqual(created["payload"]["series_year"], 2026)
+
+            listed = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_series_list_2",
+                    "method": "list_series_years",
+                    "payload": {},
+                }
+            )
+            self.assertEqual(listed["status"], "ok")
+            self.assertEqual(listed["payload"]["count"], 1)
+            self.assertEqual(listed["payload"]["items"][0]["series_year"], 2026)
+
+            opened = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_series_open_1",
+                    "method": "open_series_year",
+                    "payload": {"series_year": 2026},
+                }
+            )
+            self.assertEqual(opened["status"], "ok")
+            self.assertTrue(opened["payload"]["active"])
+            project_state = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_project_state_1",
+                    "method": "get_project_state",
+                    "payload": {"series_year": 2026},
+                }
+            )
+            self.assertEqual(project_state["status"], "ok")
+            self.assertEqual(project_state["payload"]["counts"]["events_total"], 0)
+
     def test_envelope_requires_api_version_and_request_id(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project_path = Path(temp_dir) / "project.json"

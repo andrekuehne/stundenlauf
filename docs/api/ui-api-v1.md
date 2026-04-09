@@ -24,6 +24,25 @@ This document defines the frontend-facing Python API contract for the pywebview 
 
 ## Methods
 
+### `list_series_years`
+- Payload: none
+- Returns available season datasets discovered under local workspace storage:
+  - `items[]` with `series_year`, `project_file`, `events_total`, `review_queue_count`, `latest_imported_at`
+  - top-level `count`
+
+### `create_series_year`
+- Payload:
+  - `series_year` (required)
+  - `display_name` (optional)
+- Creates a new empty season dataset and returns:
+  - `series_year`, `display_name`, `project_file`
+
+### `open_series_year`
+- Payload:
+  - `series_year` (required)
+- Sets the active dataset in the UI API session and returns:
+  - `series_year`, `project_file`, `active=true`
+
 ### `get_project_state`
 - Payload:
   - `series_year` (optional filter)

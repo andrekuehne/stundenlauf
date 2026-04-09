@@ -4,13 +4,14 @@
 
 - Feature name: German UI and match review workflow
 - Owner: TBD
-- Status: Planned (next major track after F01–F04 backend and F06/F07 validation tooling)
+- Status: Implemented (v1 desktop workflow shipped)
 - Related requirement(s): R1, R3, R4, R6, R8
 - Related milestone(s): M4, M5
 
 ## Delivery order note
 
-F01–F04 were implemented first. **F06** (fixture HITL import) and **F07** (Gesamtwertung comparison) were added to tighten test-driven validation and CLI workflows before investing in the pywebview desktop shell. This document remains the specification for **F05** when GUI work starts.
+F01–F04 were implemented first. **F06** (fixture HITL import) and **F07** (Gesamtwertung comparison) were added to tighten test-driven validation and CLI workflows before investing in the pywebview desktop shell.
+F05 v1 is now implemented with a full-screen German frontend (`frontend/index.html`, `frontend/app.js`, `frontend/styles.css`) and pywebview launcher wiring (`backend/ui_app.py`, `main.py --gui`).
 
 Backend integration boundary prerequisite is now available via `backend/ui_api/` and documented in `docs/api/ui-api-v1.md` (F08 implementation).
 The API now also includes year-level workspace reads (`list_categories`, `get_year_overview`, `get_year_timeline`) and optional `series_year` filters for `get_project_state` / `get_audit_timeline`, plus optional `source_type` in `import_race`.
@@ -31,6 +32,10 @@ The API now also includes year-level workspace reads (`list_categories`, `get_ye
   - `get_year_timeline(series_year, limit?)` and/or `get_audit_timeline(series_year?, race_event_uid?, limit?)`
   - `rollback_race(race_event_uid, reason?)`
   - `reimport_race(previous_race_event_uid, file_path, series_year)`
+- Season entry/startup workflow:
+  - `list_series_years()`
+  - `create_series_year(series_year, display_name?)`
+  - `open_series_year(series_year)`
 
 ## Problem Statement
 

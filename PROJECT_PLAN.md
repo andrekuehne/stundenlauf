@@ -16,9 +16,9 @@ Checkboxes mark **product-level** satisfaction. Capabilities delivered only via 
 - [x] R3: Track participants and teams across non-consecutive races and partial participation.
 - [x] R4: Implement robust participant/team matching with typo tolerance, name-order handling, and optional title handling.
 - [x] R5: Compute cumulative distance/points and produce ranking tables using configurable rules.
-- [ ] R6: Provide interactive review and override for suggested matches before merge.
+- [x] R6: Provide interactive review and override for suggested matches before merge.
 - [x] R7: Keep data portable with file-based storage (no background server or remote DB).
-- [ ] R8: Provide German-language GUI for display and user workflows.
+- [x] R8: Provide German-language GUI for display and user workflows.
 
 ## Non-Goals
 
@@ -34,15 +34,15 @@ Checkboxes mark **product-level** satisfaction. Capabilities delivered only via 
 | M1 | Domain foundation and portable storage | 2026-05-15 | Complete (F01 shipped) |
 | M2 | Excel ingestion and merge pipeline | 2026-06-15 | Complete (F02 backend + CLI shipped) |
 | M3 | Matching workflow and ranking engine | 2026-07-15 | In progress (F03/F04 backend shipped; F05 interactive review deferred; F06/F07 validation tooling landed first) |
-| M4 | German UI integration in desktop shell | 2026-08-15 | In progress (F08 UI API boundary shipped; F05 frontend workflows next) |
+| M4 | German UI integration in desktop shell | 2026-08-15 | Complete (F05 desktop frontend shell + workflows shipped on top of F08 API) |
 | M5 | Hardening, validation, and first production use | 2026-09-15 | In progress (F06/F07 tooling and F08 API contract/regression tests landed) |
 
 ## Current Phase
 
-- Phase: Backend stack F01–F04 is shipped; F06/F07 CLI validation tooling and F08 API contract layer are shipped ahead of the desktop GUI; **F05 (German UI + match review)** is the next implementation track.
-- Planning status: Core plans for `F01`–`F05`; additional plans `F06` (fixture HITL import) and `F07` (Gesamtwertung ground-truth comparison) document test-driven helpers used before GUI hardening.
-- Delivery status: **F01** domain/storage; **F02** Excel ingestion, merge, CLI import; **F03** matching pipeline, audit, and decision replay; **F04** standings (`v1_legacy_top4`) on import and rollback; **F06** sequential fixture import + standings export; **F07** organizer-vs-project comparison workbooks; **F08** versioned Python frontend API layer (`backend/ui_api`, `docs/api/ui-api-v1.md`, pywebview bridge + tests) with additive year-level workspace methods (`list_categories`, `get_year_overview`, `get_year_timeline`) and optional `series_year` filters. Details: `docs/ACCOMPLISHMENTS.md`.
-- Immediate next step: Implement **F05** UI workflows against `ui-api-v1` (pywebview shell, German copy, review queue, rollback/reapply UX). Until golden tests stabilize, continue KPI work with `scripts/fixture_import_session.py` (F06) and `scripts/compare_gesamtwertung.py` (F07).
+- Phase: Backend stack F01–F04, validation tooling F06/F07, API layer F08, and desktop GUI F05 are shipped; current focus is hardening for first production use.
+- Planning status: Feature plans `F01`–`F08` are implemented; continue KPI-grounded hardening, usability validation with organizers, and fixture coverage expansion.
+- Delivery status: **F01** domain/storage; **F02** Excel ingestion, merge, CLI import; **F03** matching pipeline, audit, and decision replay; **F04** standings (`v1_legacy_top4`) on import and rollback; **F06** sequential fixture import + standings export; **F07** organizer-vs-project comparison workbooks; **F08** versioned Python frontend API layer (`backend/ui_api`, `docs/api/ui-api-v1.md`, pywebview bridge + tests) with additive year-level workspace methods; **F05** German reactive pywebview frontend (`frontend/`) including season entry/open/create workflow, standings tables, import/review flow, and history rollback UX.
+- Immediate next step: Run focused UAT with non-technical end users, tune copy/contrast/interaction friction, and broaden automated GUI contract coverage around real fixture datasets.
 
 ## Success Metrics (KPIs)
 
@@ -91,3 +91,4 @@ Checkboxes mark **product-level** satisfaction. Capabilities delivered only via 
 | 2026-04-08 | Doc sync: requirements, milestones, F01/F02 status, delivery order F01–04 then F06/07 before F05 GUI | Align plan and feature docs with shipped backend and validation tooling |
 | 2026-04-09 | Shipped F08 Python frontend API layer (v1) | Added `backend/ui_api`, pywebview bridge adapter, API contract docs, and backend API tests to unblock F05 UI |
 | 2026-04-09 | Extended ui-api-v1 with year-level workspace methods | Added season-wide query surface and optional year filters to support fluid all-dataset UI workflows |
+| 2026-04-09 | Shipped F05 German desktop frontend workflows | Added pywebview full-screen UI shell (`frontend/`), season open/create entrypoint, standings/results tables, import/review actions, and timeline rollback UX |

@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-09 - F05 German reactive desktop GUI shipped
+- Requirement/Milestone: [R6, R8; M4, M5]
+- What shipped: Implemented a full-screen German pywebview frontend with season startup flow (open/create year-series), standings and race matrix tables, add-race import/review workflow, and history rollback actions; extended `ui-api-v1` with season lifecycle methods (`list_series_years`, `create_series_year`, `open_series_year`).
+- Evidence: `frontend/index.html`, `frontend/app.js`, `frontend/styles.css`, `backend/ui_app.py`, `main.py`, `backend/ui_api/workspace.py`, `backend/ui_api/service.py`, `backend/ui_api/pywebview_bridge.py`, `docs/api/ui-api-v1.md`, `tests/test_f08_ui_api.py`, `uv run pytest tests/test_f08_ui_api.py`
+- Impact: non-technical users can operate the core yearly workflow end-to-end in a guided German interface without CLI usage, including typo-merge review and race correction actions.
+- Follow-up: add UI integration tests against fixture Excel files and run organizer UAT for copy/accessibility tuning.
+
 ### 2026-04-09 - UI API v1 year-level workspace extension
 - Requirement/Milestone: [R1, R3, R5, R6, R8; M4, M5]
 - What shipped: Added additive year-level read methods (`list_categories`, `get_year_overview`, `get_year_timeline`) plus optional `series_year` filters on project/audit queries; extended `import_race` with optional `source_type` (`singles`/`couples`) while keeping backward compatibility.

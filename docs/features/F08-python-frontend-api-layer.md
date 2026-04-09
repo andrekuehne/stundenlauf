@@ -14,6 +14,10 @@
   - `list_categories(series_year)`
   - `get_year_overview(series_year)`
   - `get_year_timeline(series_year, limit?)`
+- Added season lifecycle methods used by F05 startup entry:
+  - `list_series_years()`
+  - `create_series_year(series_year, display_name?)`
+  - `open_series_year(series_year)`
 - Added optional `series_year` filters to `get_project_state` and `get_audit_timeline`.
 - Extended `import_race` with optional `source_type` (`singles` or `couples`) while preserving prior filename-based detection for backward compatibility.
 
