@@ -550,6 +550,9 @@ def process_couples_section(
                     team_meta,
                     incoming_display_name=f"{row.name_a.strip()} / {row.name_b.strip()}",
                     incoming_yob=None,
+                    incoming_yob_text=(
+                        " / ".join([str(value) for value in (row.yob_a, row.yob_b) if value]) or None
+                    ),
                     incoming_club=(
                         " / ".join([item.strip() for item in (row.club_a or "", row.club_b or "") if item and item.strip()])
                         or None

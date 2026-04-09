@@ -36,11 +36,18 @@ def display_name_for_row(row: StandingsRow, document: ProjectDocument) -> str:
     return f"{team.member_a.name} / {team.member_b.name}"
 
 
-def yob_for_row(row: StandingsRow, document: ProjectDocument) -> int | None:
-    if row.entity_kind != "participant":
+def yob_for_row(row: StandingsRow, document: ProjectDocument) -> str | int | None:
+    if row.entity_kind == "participant":
+        person = people_by_uid(document).get(row.entity_uid)
+        return person.yob if person is not None else None
+    team = teams_by_uid(document).get(row.entity_uid)
+    if team is None:
         return None
-    person = people_by_uid(document).get(row.entity_uid)
-    return person.yob if person is not None else None
+    # Show member birth years for couple rows in the same column.
+    years = [str(value) for value in (team.member_a.yob, team.member_b.yob) if value]
+    if not years:
+        return None
+    return " / ".join(years)
 
 
 def club_for_row(row: StandingsRow, document: ProjectDocument) -> str | None:

@@ -201,6 +201,7 @@ def _match_meta_to_dict(meta: RaceEntryMatchMeta) -> dict[str, Any]:
         "conflict_flags": list(meta.conflict_flags),
         "incoming_display_name": meta.incoming_display_name,
         "incoming_yob": meta.incoming_yob,
+        "incoming_yob_text": meta.incoming_yob_text,
         "incoming_club": meta.incoming_club,
         "incoming_kind": meta.incoming_kind,
     }
@@ -217,6 +218,7 @@ def _match_meta_from_dict(payload: dict[str, Any]) -> RaceEntryMatchMeta:
         conflict_flags=tuple(str(x) for x in payload.get("conflict_flags", [])),
         incoming_display_name=str(payload.get("incoming_display_name", "")),
         incoming_yob=int(incoming_yob_raw) if incoming_yob_raw not in (None, "") else None,
+        incoming_yob_text=str(payload.get("incoming_yob_text", "")).strip() or None,
         incoming_club=payload.get("incoming_club"),
         incoming_kind=payload.get("incoming_kind", "unknown"),  # type: ignore[arg-type]
     )

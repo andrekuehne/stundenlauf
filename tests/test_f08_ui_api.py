@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from backend.domain.enums import Division, Gender, RaceDuration, RaceEventState
-from backend.domain.models import EntryResult, Person, ProjectDocument, RaceEntry, RaceEntryMatchMeta, RaceEvent, RaceSeriesCategory
+from backend.domain.models import Couple, EntryResult, Person, ProjectDocument, RaceEntry, RaceEntryMatchMeta, RaceEvent, RaceSeriesCategory
 from backend.ranking.engine import recompute_project_standings
 from backend.storage.repository import JsonProjectRepository
 from backend.storage.schema_v2 import SCHEMA_VERSION_V2
@@ -101,6 +101,51 @@ def _seed_project_for_year(path: Path, series_year: int) -> None:
 
 
 class TestF08UiApi(unittest.TestCase):
+    def test_get_standings_returns_member_yobs_for_couples(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.COUPLES_MIXED)
+            team = Couple(
+                uid="team_mixed_1",
+                member_a=Person(name="Alex Beispiel", yob=1987, gender=Gender.M, club="TSV"),
+                member_b=Person(name="Sina Beispiel", yob=1992, gender=Gender.F, club="TSV"),
+            )
+            event = RaceEvent(
+                race_event_uid="race_event_couples_1",
+                category=category,
+                race_date="2026-01-05",
+                race_no=1,
+                source_file="fixture_couples.xlsx",
+                source_sha256="sha-couples",
+                imported_at="2026-01-05T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp-couples",
+                entries=(
+                    RaceEntry(
+                        entry_uid="entry_couples_1",
+                        team_uid=team.uid,
+                        startnr="1",
+                        result=EntryResult(distance_km=10.5, points=20.0),
+                    ),
+                ),
+            )
+            doc = ProjectDocument(schema_version=SCHEMA_VERSION_V2, couples=(team,), events=(event,))
+            JsonProjectRepository(project_path).save(recompute_project_standings(doc))
+            service = UiApiService(project_path)
+            response = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_standings_couples_yob",
+                    "method": "get_standings",
+                    "payload": {"category_key": "2026:hour:couples_mixed"},
+                }
+            )
+            self.assertEqual(response["status"], "ok")
+            rows = response["payload"]["rows"]
+            self.assertGreaterEqual(len(rows), 1)
+            self.assertEqual(rows[0]["display_name"], "Alex Beispiel / Sina Beispiel")
+            self.assertEqual(rows[0]["yob"], "1987 / 1992")
+
     def test_list_series_years_returns_empty_without_workspace_data(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             service = UiApiService(workspace_dir=Path(temp_dir))
@@ -764,6 +809,111 @@ class TestF08UiApi(unittest.TestCase):
             item = response["payload"]["items"][0]
             self.assertEqual(item["entry_preview"]["display_name"], "Max Mustermannn")
             self.assertEqual(item["candidate_previews"][0]["display_name"], "Max Mustermann")
+
+    def test_get_review_queue_includes_member_yobs_for_team_previews(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.COUPLES_MIXED)
+            team = Couple(
+                uid="team_review_1",
+                member_a=Person(name="Alex Beispiel", yob=1987, gender=Gender.M, club="TSV"),
+                member_b=Person(name="Sina Beispiel", yob=1992, gender=Gender.F, club="TSV"),
+            )
+            review_entry = RaceEntry(
+                entry_uid="entry_review_team_1",
+                team_uid=team.uid,
+                startnr="41",
+                result=EntryResult(distance_km=9.8, points=18.0),
+                match_meta=RaceEntryMatchMeta(
+                    route="review",
+                    confidence=0.8,
+                    top_candidate_uid=team.uid,
+                    candidate_uids=(team.uid,),
+                    features={"name_similarity": 0.8},
+                ),
+            )
+            event = RaceEvent(
+                race_event_uid="race_event_review_team_1",
+                category=category,
+                race_date="2026-02-10",
+                race_no=2,
+                source_file="fixture_review_team.xlsx",
+                source_sha256="sha-review-team",
+                imported_at="2026-02-10T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp-review-team",
+                entries=(review_entry,),
+            )
+            doc = ProjectDocument(schema_version=SCHEMA_VERSION_V2, couples=(team,), events=(event,))
+            JsonProjectRepository(project_path).save(recompute_project_standings(doc))
+            service = UiApiService(project_path)
+            response = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_queue_team_yobs",
+                    "method": "get_review_queue",
+                    "payload": {},
+                }
+            )
+            self.assertEqual(response["status"], "ok")
+            item = response["payload"]["items"][0]
+            self.assertEqual(item["entry_preview"]["display_name"], "Alex Beispiel / Sina Beispiel")
+            self.assertEqual(item["entry_preview"]["yob"], "1987 / 1992")
+            self.assertEqual(item["candidate_previews"][0]["yob"], "1987 / 1992")
+
+    def test_get_review_queue_uses_incoming_team_yobs_for_left_preview(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.COUPLES_MIXED)
+            existing_team = Couple(
+                uid="team_existing_1",
+                member_a=Person(name="Alex Beispiel", yob=1980, gender=Gender.M, club="TSV"),
+                member_b=Person(name="Sina Beispiel", yob=1981, gender=Gender.F, club="TSV"),
+            )
+            review_entry = RaceEntry(
+                entry_uid="entry_review_team_incoming_1",
+                team_uid=existing_team.uid,
+                startnr="44",
+                result=EntryResult(distance_km=9.8, points=18.0),
+                match_meta=RaceEntryMatchMeta(
+                    route="review",
+                    confidence=0.78,
+                    top_candidate_uid=existing_team.uid,
+                    candidate_uids=(existing_team.uid,),
+                    features={"name_similarity": 0.78},
+                    incoming_display_name="Alex Beispiel / Sina Beispiel",
+                    incoming_yob_text="1987 / 1992",
+                    incoming_club="TSV / TSV",
+                    incoming_kind="team",
+                ),
+            )
+            event = RaceEvent(
+                race_event_uid="race_event_review_team_incoming_1",
+                category=category,
+                race_date="2026-02-11",
+                race_no=3,
+                source_file="fixture_review_team_incoming.xlsx",
+                source_sha256="sha-review-team-incoming",
+                imported_at="2026-02-11T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp-review-team-incoming",
+                entries=(review_entry,),
+            )
+            doc = ProjectDocument(schema_version=SCHEMA_VERSION_V2, couples=(existing_team,), events=(event,))
+            JsonProjectRepository(project_path).save(recompute_project_standings(doc))
+            service = UiApiService(project_path)
+            response = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_queue_team_incoming_yobs",
+                    "method": "get_review_queue",
+                    "payload": {},
+                }
+            )
+            self.assertEqual(response["status"], "ok")
+            item = response["payload"]["items"][0]
+            self.assertEqual(item["entry_preview"]["yob"], "1987 / 1992")
+            self.assertEqual(item["candidate_previews"][0]["yob"], "1980 / 1981")
 
     def test_get_audit_timeline_accepts_optional_year_filter(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

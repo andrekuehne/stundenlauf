@@ -50,6 +50,7 @@ class RaceEntryMatchMeta:
     conflict_flags: tuple[str, ...] = ()
     incoming_display_name: str = ""
     incoming_yob: Optional[int] = None
+    incoming_yob_text: Optional[str] = None
     incoming_club: Optional[str] = None
     incoming_kind: Literal["participant", "team", "unknown"] = "unknown"
 

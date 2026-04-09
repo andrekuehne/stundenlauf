@@ -186,11 +186,12 @@ def _person_preview(person: Person) -> dict[str, Any]:
 def _team_preview(team: Couple) -> dict[str, Any]:
     member_names = [item for item in (team.member_a.name, team.member_b.name) if item]
     clubs = [item for item in (team.member_a.club, team.member_b.club) if item]
+    yobs = [str(item) for item in (team.member_a.yob, team.member_b.yob) if item]
     return {
         "uid": team.uid,
         "kind": "team",
         "display_name": " / ".join(member_names),
-        "yob": None,
+        "yob": " / ".join(yobs) if yobs else None,
         "club": " / ".join(clubs) if clubs else None,
         "member_a": asdict(team.member_a),
         "member_b": asdict(team.member_b),
@@ -228,11 +229,14 @@ def _incoming_entry_preview(document: ProjectDocument, entry: RaceEntry) -> dict
     if meta is None:
         return None
     if meta.incoming_display_name:
+        preview_yob: str | int | None = meta.incoming_yob
+        if meta.incoming_kind == "team" and meta.incoming_yob_text:
+            preview_yob = meta.incoming_yob_text
         return {
             "uid": None,
             "kind": meta.incoming_kind if meta.incoming_kind in {"participant", "team"} else "unknown",
             "display_name": meta.incoming_display_name,
-            "yob": meta.incoming_yob,
+            "yob": preview_yob,
             "club": meta.incoming_club,
         }
     return (
