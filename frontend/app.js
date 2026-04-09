@@ -304,13 +304,6 @@
     await Promise.all([renderStandingsView(), renderImportView(), renderHistoryView()]);
   }
 
-  function raceListLabel(raceNumbers) {
-    if (!raceNumbers.length) {
-      return "Keine";
-    }
-    return raceNumbers.map((raceNo) => `${raceNo}. Lauf`).join(", ");
-  }
-
   function durationSortKey(duration) {
     const normalized = String(duration || "").toLowerCase();
     if (normalized.includes("half")) {
@@ -415,11 +408,46 @@
       });
     }
     byCategory.sort((a, b) => a.label.localeCompare(b.label, "de"));
+    const singlesRaceList = [...singlesRaceNumbers].sort((a, b) => a - b);
+    const couplesRaceList = [...couplesRaceNumbers].sort((a, b) => a - b);
+    const maxRaceNo = Math.max(
+      0,
+      ...singlesRaceList,
+      ...couplesRaceList
+    );
+    const columnMax = Math.max(5, maxRaceNo);
+    const raceColumns = Array.from({ length: columnMax }, (_, index) => index + 1);
     return {
-      singlesRaceNumbers: [...singlesRaceNumbers].sort((a, b) => a - b),
-      couplesRaceNumbers: [...couplesRaceNumbers].sort((a, b) => a - b),
+      singlesRaceNumbers: singlesRaceList,
+      couplesRaceNumbers: couplesRaceList,
       byCategory,
+      raceColumns,
+      matrixRows: [
+        { label: "Einzel", raceNumbers: singlesRaceList },
+        { label: "Paare", raceNumbers: couplesRaceList },
+      ],
     };
+  }
+
+  function renderImportedRunsMatrix(importedRaceInfo) {
+    const headers = importedRaceInfo.raceColumns.map((raceNo) => `<th>${raceNo}</th>`).join("");
+    const rows = importedRaceInfo.matrixRows
+      .map((row) => {
+        const raceNumberSet = new Set(row.raceNumbers || []);
+        const cells = importedRaceInfo.raceColumns
+          .map((raceNo) => `<td class="imported-runs-matrix-cell">${raceNumberSet.has(raceNo) ? "x" : "—"}</td>`)
+          .join("");
+        return `<tr><th scope="row">${row.label}</th>${cells}</tr>`;
+      })
+      .join("");
+    return `
+      <div class="imported-runs-matrix-wrap">
+        <table class="imported-runs-matrix">
+          <thead><tr><th>Lauf</th>${headers}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
   }
 
   function switchView(viewName) {
@@ -452,8 +480,7 @@
             <button id="goToImportBtn" class="primary sidebar-top-action">Lauf hinzufügen</button>
             <div class="sidebar-section">
               <h3>Importierte Läufe</h3>
-              <p class="hint"><strong>Einzel:</strong> ${raceListLabel(importedRaceInfo.singlesRaceNumbers)}</p>
-              <p class="hint"><strong>Paare:</strong> ${raceListLabel(importedRaceInfo.couplesRaceNumbers)}</p>
+              ${renderImportedRunsMatrix(importedRaceInfo)}
             </div>
             <div class="sidebar-section">
               <h3>Einzel</h3>
@@ -517,8 +544,7 @@
           <button id="goToImportBtn" class="primary sidebar-top-action">Lauf hinzufügen</button>
           <div class="sidebar-section">
             <h3>Importierte Läufe</h3>
-            <p class="hint"><strong>Einzel:</strong> ${raceListLabel(importedRaceInfo.singlesRaceNumbers)}</p>
-            <p class="hint"><strong>Paare:</strong> ${raceListLabel(importedRaceInfo.couplesRaceNumbers)}</p>
+            ${renderImportedRunsMatrix(importedRaceInfo)}
           </div>
           <div class="sidebar-section">
             <h3>Einzel</h3>
@@ -652,6 +678,7 @@
     if (!state.seriesYear) {
       return;
     }
+    const importedRaceInfo = buildImportedRaceInfo();
     const queueResponse = await api("get_review_queue", {});
     if (queueResponse.status === "ok") {
       state.reviewQueue = queueResponse.payload.items || [];
@@ -679,6 +706,10 @@
               <option value="singles">Einzel</option>
               <option value="couples">Paare</option>
             </select>
+          </div>
+          <div class="sidebar-section">
+            <h3>Importierte Läufe</h3>
+            ${renderImportedRunsMatrix(importedRaceInfo)}
           </div>
           <div class="import-settings-panel">
             <h4>Matching-Einstellungen</h4>

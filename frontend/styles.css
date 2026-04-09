@@ -222,9 +222,45 @@ th {
   margin-bottom: 14px;
 }
 
+.imported-runs-matrix-wrap {
+  margin-top: 8px;
+  overflow-x: auto;
+}
+
+.imported-runs-matrix {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  min-width: 280px;
+}
+
+.imported-runs-matrix th,
+.imported-runs-matrix td {
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  text-align: center;
+  font-size: var(--font-small);
+}
+
+.imported-runs-matrix thead th {
+  background: #eef2fa;
+  position: static;
+}
+
+.imported-runs-matrix th:first-child,
+.imported-runs-matrix tbody th[scope="row"] {
+  text-align: left;
+  white-space: nowrap;
+  width: 72px;
+}
+
+.imported-runs-matrix-cell {
+  font-weight: 600;
+}
+
 .standings-layout {
   display: grid;
-  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
   gap: var(--space);
   align-items: start;
   height: 100%;

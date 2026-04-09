@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-09 - Importierte-Läufe-Matrix in Wertung und Importansicht
+- Requirement/Milestone: [R8; M5]
+- What shipped: Replaced the text summary of imported runs with a compact two-row matrix (`Einzel`, `Paare`) in both `Aktuelle Wertung` and `Lauf hinzufügen`, showing `x` per Lauf column with a default span of 1..5 and automatic extension for higher race numbers.
+- Evidence: `frontend/app.js`, `frontend/styles.css`, `ReadLints` (no errors in edited files)
+- Impact: operators can immediately see season coverage gaps/availability by race number in both key workflows, reducing context switching and interpretation effort.
+- Follow-up: consider optional clickable race cells for future drill-down into event history.
+
 ### 2026-04-09 - Season deletion safeguard with typed-year confirmation
 - Requirement/Milestone: [R8; M5]
 - What shipped: Added a red season delete action in the season entry table with explicit warning plus mandatory exact-year input confirmation, and introduced `delete_series_year` in `ui-api-v1` with strict confirmation validation before removing season storage.
