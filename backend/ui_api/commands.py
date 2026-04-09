@@ -7,6 +7,7 @@ from typing import Any, Literal, cast
 
 from backend.domain.models import Couple, FieldResolution, MatchingDecision, Person, RaceEntryMatchMeta
 from backend.ingestion.service import import_excel_into_project
+from backend.matching.config import MatchingConfig
 from backend.ranking.engine import recompute_project_standings
 from backend.storage.repository import JsonProjectRepository
 from backend.ui_api.errors import not_found, validation_error
@@ -16,7 +17,12 @@ def _iso_now() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat()
 
 
-def import_race(project_file: Path, payload: dict[str, Any]) -> dict[str, Any]:
+def import_race(
+    project_file: Path,
+    payload: dict[str, Any],
+    *,
+    matching_config: MatchingConfig | None = None,
+) -> dict[str, Any]:
     file_path = str(payload.get("file_path", "")).strip()
     series_year_raw = payload.get("series_year")
     source_type = payload.get("source_type")
@@ -36,6 +42,7 @@ def import_race(project_file: Path, payload: dict[str, Any]) -> dict[str, Any]:
         excel_file=Path(file_path),
         series_year=series_year,
         source_type=source_type_value,
+        matching_config=matching_config,
     )
     return {
         "noop": result.noop,

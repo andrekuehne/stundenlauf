@@ -50,6 +50,17 @@ The API now also includes year-level workspace reads (`list_categories`, `get_ye
   - `get_review_queue` now returns `confidence_label` and is sorted by confidence descending.
   - `apply_match_decision` now supports `decision_action: "create_new_identity"` in addition to linking an existing target.
 
+## Increment 2026-04-09: Matching threshold control in GUI
+
+- `Lauf hinzufügen` now contains a compact matching settings control:
+  - checkbox to enable/disable automatic merge,
+  - slider + numeric input for auto-merge threshold.
+- Default behavior is now strict review mode (`Auto-Merge aus`), so imports do not auto-link by default.
+- Session-level API support added:
+  - `get_matching_config`
+  - `set_matching_config`
+- Import commands now consume the active session matching config.
+
 ## Problem Statement
 
 Users need a clear German-language interface to import races, inspect standings, and resolve uncertain participant/team matches.

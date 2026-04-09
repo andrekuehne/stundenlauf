@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-09 - GUI control for auto-merge threshold (default strict review)
+- Requirement/Milestone: [R4, R6, R8; M5]
+- What shipped: Added a `Lauf hinzufügen` matching control (auto-merge on/off + threshold slider/number input + perfect-match auto-merge toggle), introduced session-level API methods (`get_matching_config`, `set_matching_config`), and wired imports to use the active matching config; default keeps perfect-match auto-merge enabled.
+- Evidence: `frontend/app.js`, `backend/ui_api/service.py`, `backend/ui_api/commands.py`, `backend/ingestion/service.py`, `docs/api/ui-api-v1.md`, `tests/test_f08_ui_api.py`
+- Impact: operators can tune merge strictness directly in the GUI, keep exact matches frictionless, and still prevent silent typo auto-links.
+- Follow-up: evaluate if review threshold should also be user-adjustable in the same control panel.
+
 ### 2026-04-09 - Review workflow wording clarified (link vs new identity)
 - Requirement/Milestone: [R6, R8; M5]
 - What shipped: Clarified German review guidance and action labels so users can clearly distinguish linking to an existing candidate from intentionally creating a new identity when no candidate matches.

@@ -382,6 +382,7 @@ class TestF08UiApi(unittest.TestCase):
                 self.assertEqual(response["status"], "ok")
                 mock_import.assert_called_once()
                 self.assertEqual(mock_import.call_args.kwargs["source_type"], "singles")
+                self.assertEqual(mock_import.call_args.kwargs["matching_config"].auto_min, 1.0)
 
     def test_import_race_rejects_invalid_source_type(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -402,6 +403,43 @@ class TestF08UiApi(unittest.TestCase):
             )
             self.assertEqual(response["status"], "error")
             self.assertEqual(response["error"]["code"], "VALIDATION_ERROR")
+
+    def test_matching_config_can_be_read_and_updated(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_project(project_path)
+            service = UiApiService(project_path)
+            initial = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_matching_cfg_initial",
+                    "method": "get_matching_config",
+                    "payload": {},
+                }
+            )
+            self.assertEqual(initial["status"], "ok")
+            self.assertFalse(initial["payload"]["auto_merge_enabled"])
+            self.assertTrue(initial["payload"]["perfect_match_auto_merge"])
+            self.assertEqual(initial["payload"]["auto_min"], 1.0)
+            self.assertEqual(initial["payload"]["effective_auto_min"], 1.0)
+
+            updated = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_matching_cfg_update",
+                    "method": "set_matching_config",
+                    "payload": {
+                        "auto_min": 0.94,
+                        "auto_merge_enabled": True,
+                        "perfect_match_auto_merge": True,
+                    },
+                }
+            )
+            self.assertEqual(updated["status"], "ok")
+            self.assertTrue(updated["payload"]["auto_merge_enabled"])
+            self.assertTrue(updated["payload"]["perfect_match_auto_merge"])
+            self.assertEqual(updated["payload"]["auto_min"], 0.94)
+            self.assertEqual(updated["payload"]["effective_auto_min"], 0.94)
 
     def test_reimport_race_rolls_back_all_events_with_same_source_hash(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

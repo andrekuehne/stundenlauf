@@ -8,6 +8,11 @@
     reviewQueue: [],
     reviewIndex: 0,
     reviewSelections: {},
+    matchingConfig: {
+      auto_min: 1.0,
+      auto_merge_enabled: false,
+      perfect_match_auto_merge: true,
+    },
   };
 
   let requestCounter = 0;
@@ -75,6 +80,44 @@
   function setStatus(text, isError) {
     globalStatus.textContent = text || "";
     globalStatus.className = isError ? "status-line danger-text" : "status-line";
+  }
+
+  function clampAutoMin(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return state.matchingConfig.auto_min;
+    }
+    return Math.min(1.0, Math.max(0.0, numeric));
+  }
+
+  async function loadMatchingConfig() {
+    const response = await api("get_matching_config", {});
+    if (response.status !== "ok") {
+      return;
+    }
+    state.matchingConfig = {
+      auto_min: Number(response.payload.auto_min || 1.0),
+      auto_merge_enabled: Boolean(response.payload.auto_merge_enabled),
+      perfect_match_auto_merge: Boolean(response.payload.perfect_match_auto_merge),
+    };
+  }
+
+  async function saveMatchingConfig(autoMin, autoMergeEnabled, perfectMatchAutoMerge) {
+    const response = await api("set_matching_config", {
+      auto_min: autoMin,
+      auto_merge_enabled: autoMergeEnabled,
+      perfect_match_auto_merge: perfectMatchAutoMerge,
+    });
+    if (response.status !== "ok") {
+      setStatus("Matching-Einstellungen konnten nicht gespeichert werden.", true);
+      return false;
+    }
+    state.matchingConfig = {
+      auto_min: Number(response.payload.auto_min || autoMin),
+      auto_merge_enabled: Boolean(response.payload.auto_merge_enabled),
+      perfect_match_auto_merge: Boolean(response.payload.perfect_match_auto_merge),
+    };
+    return true;
   }
 
   function getApiErrorMessage(error, fallbackMessage) {
@@ -198,6 +241,7 @@
       state.selectedCategory = "";
     }
     seasonLabel.textContent = `Saison: ${year}`;
+    await loadMatchingConfig();
     await loadOverview();
     seasonEntryView.classList.add("hidden");
     shellView.classList.remove("hidden");
@@ -574,22 +618,46 @@
       state.reviewIndex = Math.min(state.reviewIndex, Math.max(state.reviewQueue.length - 1, 0));
     }
     const review = state.reviewQueue[state.reviewIndex];
+    const autoMinValue = clampAutoMin(state.matchingConfig.auto_min);
+    const autoMergeEnabled = Boolean(state.matchingConfig.auto_merge_enabled);
+    const perfectMatchAutoMerge = Boolean(state.matchingConfig.perfect_match_auto_merge);
     importView.innerHTML = `
       <div class="card">
         <h2>Lauf hinzufügen</h2>
-        <p class="hint">Bitte wählen Sie die Ergebnisdatei des aktuellen Laufs aus.</p>
-        <div class="row">
-          <label for="filePathInput">Ergebnisdatei</label>
-          <input id="filePathInput" type="text" placeholder="Bitte Datei auswählen..." />
-          <button id="pickFileBtn" class="secondary">Datei auswählen</button>
-        </div>
-        <div class="row">
-          <label for="sourceTypeSelect">Lauftyp</label>
-          <select id="sourceTypeSelect">
-            <option value="">Automatisch erkennen</option>
-            <option value="singles">Einzel</option>
-            <option value="couples">Paare</option>
-          </select>
+        <div class="import-add-layout">
+          <div class="import-add-main">
+            <p class="hint">Bitte wählen Sie die Ergebnisdatei des aktuellen Laufs aus.</p>
+            <div class="row">
+              <label for="filePathInput">Ergebnisdatei</label>
+              <input id="filePathInput" type="text" placeholder="Bitte Datei auswählen..." />
+              <button id="pickFileBtn" class="secondary">Datei auswählen</button>
+            </div>
+            <div class="row">
+              <label for="sourceTypeSelect">Lauftyp</label>
+              <select id="sourceTypeSelect">
+                <option value="">Automatisch erkennen</option>
+                <option value="singles">Einzel</option>
+                <option value="couples">Paare</option>
+              </select>
+            </div>
+          </div>
+          <aside class="import-settings-panel">
+            <h4>Matching-Einstellungen</h4>
+            <div class="row">
+              <label for="autoMergeEnabledInput">Automatisches Zusammenführen</label>
+              <input id="autoMergeEnabledInput" type="checkbox" ${autoMergeEnabled ? "checked" : ""} />
+            </div>
+            <div class="row">
+              <label for="perfectAutoMergeInput">Perfekte Treffer automatisch</label>
+              <input id="perfectAutoMergeInput" type="checkbox" ${perfectMatchAutoMerge ? "checked" : ""} />
+            </div>
+            <div class="row">
+              <label for="autoMergeThresholdRange">Auto-Merge-Schwelle</label>
+              <input id="autoMergeThresholdRange" type="range" min="0.00" max="1.00" step="0.01" value="${autoMinValue.toFixed(2)}" />
+              <input id="autoMergeThresholdInput" type="number" min="0.00" max="1.00" step="0.01" value="${autoMinValue.toFixed(2)}" />
+            </div>
+            <p class="hint">Standard: Nur perfekte Treffer werden automatisch zusammengeführt.</p>
+          </aside>
         </div>
         <div class="row"><button id="importRaceBtn" class="primary">Lauf importieren</button></div>
       </div>
@@ -636,6 +704,50 @@
         }
       </div>
     `;
+    const autoMergeEnabledInput = document.getElementById("autoMergeEnabledInput");
+    const perfectAutoMergeInput = document.getElementById("perfectAutoMergeInput");
+    const autoMergeThresholdRange = document.getElementById("autoMergeThresholdRange");
+    const autoMergeThresholdInput = document.getElementById("autoMergeThresholdInput");
+    const syncThresholdInputs = (nextValue) => {
+      const clamped = clampAutoMin(nextValue);
+      autoMergeThresholdRange.value = clamped.toFixed(2);
+      autoMergeThresholdInput.value = clamped.toFixed(2);
+      return clamped;
+    };
+    autoMergeThresholdRange.addEventListener("input", () => {
+      syncThresholdInputs(autoMergeThresholdRange.value);
+    });
+    autoMergeThresholdInput.addEventListener("change", () => {
+      syncThresholdInputs(autoMergeThresholdInput.value);
+    });
+    autoMergeEnabledInput.addEventListener("change", async () => {
+      const threshold = syncThresholdInputs(autoMergeThresholdInput.value);
+      const ok = await saveMatchingConfig(threshold, autoMergeEnabledInput.checked, perfectAutoMergeInput.checked);
+      if (ok) {
+        setStatus(
+          autoMergeEnabledInput.checked
+            ? "Auto-Merge ist aktiv."
+            : "Auto-Merge ist deaktiviert. Neue Importe landen bei Unsicherheit in der Prüfung."
+        );
+      }
+    });
+    perfectAutoMergeInput.addEventListener("change", async () => {
+      const threshold = syncThresholdInputs(autoMergeThresholdInput.value);
+      const ok = await saveMatchingConfig(threshold, autoMergeEnabledInput.checked, perfectAutoMergeInput.checked);
+      if (ok) {
+        setStatus(
+          perfectAutoMergeInput.checked
+            ? "Perfekte Treffer werden automatisch zusammengeführt."
+            : "Perfekte Treffer werden nicht mehr automatisch zusammengeführt."
+        );
+      }
+    });
+    autoMergeThresholdInput.addEventListener("blur", async () => {
+      const threshold = syncThresholdInputs(autoMergeThresholdInput.value);
+      if (await saveMatchingConfig(threshold, autoMergeEnabledInput.checked, perfectAutoMergeInput.checked)) {
+        setStatus("Auto-Merge-Schwelle wurde aktualisiert.");
+      }
+    });
     document.getElementById("importRaceBtn").addEventListener("click", async () => {
       const filePath = document.getElementById("filePathInput").value.trim();
       const sourceType = document.getElementById("sourceTypeSelect").value || undefined;

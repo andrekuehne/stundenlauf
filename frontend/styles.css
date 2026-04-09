@@ -146,6 +146,22 @@ textarea {
   min-width: 220px;
 }
 
+input[type="checkbox"] {
+  min-width: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+}
+
+input[type="range"] {
+  min-width: 260px;
+}
+
+#autoMergeThresholdInput {
+  min-width: 110px;
+  width: 110px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -282,6 +298,24 @@ th {
   margin-top: 12px;
 }
 
+.import-add-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: var(--space);
+  align-items: start;
+}
+
+.import-settings-panel {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  background: #f9fbff;
+}
+
+.import-settings-panel h4 {
+  margin: 0 0 10px;
+}
+
 @media (max-width: 1200px) {
   .grid-2 {
     grid-template-columns: 1fr;
@@ -296,6 +330,10 @@ th {
   }
 
   .merge-review-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .import-add-layout {
     grid-template-columns: 1fr;
   }
 }

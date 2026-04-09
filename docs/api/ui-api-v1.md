@@ -43,6 +43,24 @@ This document defines the frontend-facing Python API contract for the pywebview 
 - Sets the active dataset in the UI API session and returns:
   - `series_year`, `project_file`, `active=true`
 
+### `get_matching_config`
+- Payload: none
+- Returns current matching configuration for the active UI session:
+  - `auto_min` (configured auto-link threshold from UI control)
+  - `review_min`
+  - `auto_merge_enabled`
+  - `perfect_match_auto_merge`
+  - `effective_auto_min` (actual threshold used for import matching)
+
+### `set_matching_config`
+- Payload:
+  - `auto_min` (required, 0.0..1.0 from UI control)
+  - `auto_merge_enabled` (optional, default `true`)
+  - `perfect_match_auto_merge` (optional, default `true`)
+- Updates matching configuration for subsequent imports in the active UI session.
+- If `auto_merge_enabled=false` and `perfect_match_auto_merge=true`, only perfect matches (1.0) auto-link.
+- If both are false, auto-linking is effectively disabled (internal threshold is set above 1.0).
+
 ### `get_project_state`
 - Payload:
   - `series_year` (optional filter)
@@ -115,6 +133,7 @@ This document defines the frontend-facing Python API contract for the pywebview 
   - `series_year` (required)
   - `source_type` (optional, `singles` or `couples`; defaults to filename-based detection)
 - Returns import summary (`noop`, `rows_imported`, `merged_event_uids`, matching report).
+- Uses the active session matching configuration from `set_matching_config`.
 - Duplicate/reimport safety behavior:
   - if the same source hash is already active, returns `IMPORT_DUPLICATE` error (no silent noop).
   - if the same source hash is partially rolled back (mixed active + rolled back), returns `REIMPORT_PARTIAL_ROLLBACK_REQUIRED`.
