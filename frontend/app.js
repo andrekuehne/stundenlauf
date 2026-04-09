@@ -31,6 +31,7 @@
   const historyView = document.getElementById("viewHistory");
 
   const tabs = Array.from(document.querySelectorAll(".tab[data-view]"));
+  setStatus("", false);
   for (const tab of tabs) {
     tab.addEventListener("click", () => switchView(tab.dataset.view));
   }
@@ -81,7 +82,8 @@
   }
 
   function setStatus(text, isError) {
-    globalStatus.textContent = text || "";
+    const message = text && String(text).trim() ? String(text).trim() : "Bereit";
+    globalStatus.textContent = `Status: ${message}`;
     globalStatus.className = isError ? "status-line danger-text" : "status-line";
   }
 

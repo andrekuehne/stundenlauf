@@ -118,25 +118,32 @@ body {
 }
 
 .status-line {
-  min-height: 0;
+  min-height: 38px;
   color: var(--muted);
+  margin-top: var(--space);
   margin-bottom: 0;
-}
-
-.status-line:not(:empty) {
-  min-height: 28px;
-  margin-bottom: var(--space);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
 }
 
 #shellView {
   display: grid;
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: auto 1fr auto;
   min-height: 0;
   height: 100%;
   overflow: hidden;
 }
 
+#globalStatus {
+  grid-row: 3;
+}
+
 .view {
+  grid-row: 2;
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -279,6 +286,9 @@ th {
   position: sticky;
   top: 0;
   align-self: start;
+  max-height: 100%;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .sidebar-top-action {
@@ -396,6 +406,9 @@ th {
   display: grid;
   gap: var(--space);
   grid-template-columns: minmax(0, 1fr);
+  max-height: 100%;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .import-file-row {
