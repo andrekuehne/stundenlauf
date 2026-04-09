@@ -9,6 +9,10 @@ from backend.storage.repository import JsonProjectRepository
 from backend.ui_app import launch_ui
 
 
+def stundenlauf_gui() -> None:
+    launch_ui(workspace_dir=Path.cwd(), project_file=None)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Stundenlauf CLI")
     parser.add_argument("--project", type=Path, help="Pfad zur Projektdatei (JSON).")

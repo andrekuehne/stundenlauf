@@ -11,5 +11,21 @@ dependencies = [
     "pytest>=9.0.3",
 ]
 
+[project.scripts]
+stundenlauf_gui = "main:stundenlauf_gui"
+
+[tool.uv]
+package = true
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["main"]
+
+[tool.setuptools.packages.find]
+include = ["backend*", "frontend*"]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
