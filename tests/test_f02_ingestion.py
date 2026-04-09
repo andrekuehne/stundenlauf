@@ -13,6 +13,7 @@ from backend.domain.models import ProjectDocument, RaceEvent, RaceSeriesCategory
 from backend.ingestion.adapters.couples import parse_couples_workbook
 from backend.ingestion.adapters.singles import parse_singles_workbook
 from backend.ingestion.service import import_excel_into_project
+from backend.ingestion.types import ImportRaceContext, ImportRowSingles, ParsedSectionSingles
 from backend.ingestion.validation import ImportValidationError
 from backend.storage.repository import JsonProjectRepository
 from backend.storage.schema_v2 import SCHEMA_VERSION_V2
@@ -80,6 +81,105 @@ class TestF02AdaptersWithFixtures(unittest.TestCase):
 
 
 class TestF02SyntheticValidation(unittest.TestCase):
+    def test_similar_names_in_same_new_race_do_not_create_review_queue(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            parsed_stub = SimpleNamespace(
+                meta=SimpleNamespace(
+                    source_file="fixture.xlsx",
+                    source_sha256="sha_similar_names",
+                    imported_at="2026-02-05T10:00:00+00:00",
+                    parser_version="v1",
+                    schema_fingerprint="fp",
+                ),
+                singles_sections=(
+                    ParsedSectionSingles(
+                        context=ImportRaceContext(
+                            series_year=2026,
+                            race_no=1,
+                            duration=RaceDuration.HOUR,
+                            division=Division.MEN,
+                            event_date="2026-02-05",
+                        ),
+                        rows=(
+                            ImportRowSingles(
+                                startnr="52",
+                                name="Johann Hardenberg",
+                                yob=2010,
+                                club="TSV",
+                                distance_km=5.0,
+                                points=10.0,
+                            ),
+                            ImportRowSingles(
+                                startnr="53",
+                                name="Matthis Hardenberg",
+                                yob=2010,
+                                club="TSV",
+                                distance_km=4.8,
+                                points=9.0,
+                            ),
+                        ),
+                    ),
+                ),
+                couples_sections=(),
+            )
+            with patch("backend.ingestion.service.parse_singles_workbook", return_value=parsed_stub):
+                import_excel_into_project(project_path, Path("ignored.xlsx"), series_year=2026, source_type="singles")
+            doc = JsonProjectRepository(project_path).load()
+            self.assertEqual(len(doc.events), 1)
+            review_entries = [
+                entry
+                for entry in doc.events[0].entries
+                if entry.match_meta is not None and entry.match_meta.route == "review"
+            ]
+            self.assertEqual(len(review_entries), 0)
+
+    def test_true_duplicate_row_in_same_race_fails_import(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            parsed_stub = SimpleNamespace(
+                meta=SimpleNamespace(
+                    source_file="fixture.xlsx",
+                    source_sha256="sha_true_duplicate",
+                    imported_at="2026-02-05T10:00:00+00:00",
+                    parser_version="v1",
+                    schema_fingerprint="fp",
+                ),
+                singles_sections=(
+                    ParsedSectionSingles(
+                        context=ImportRaceContext(
+                            series_year=2026,
+                            race_no=1,
+                            duration=RaceDuration.HOUR,
+                            division=Division.MEN,
+                            event_date="2026-02-05",
+                        ),
+                        rows=(
+                            ImportRowSingles(
+                                startnr="10",
+                                name="John Doe",
+                                yob=1990,
+                                club="TSV",
+                                distance_km=5.0,
+                                points=10.0,
+                            ),
+                            ImportRowSingles(
+                                startnr="10",
+                                name="John Doe",
+                                yob=1990,
+                                club="TSV",
+                                distance_km=5.0,
+                                points=10.0,
+                            ),
+                        ),
+                    ),
+                ),
+                couples_sections=(),
+            )
+            with patch("backend.ingestion.service.parse_singles_workbook", return_value=parsed_stub):
+                with self.assertRaisesRegex(ValueError, "Doppelte Teilnehmerzeile im selben Lauf"):
+                    import_excel_into_project(project_path, Path("ignored.xlsx"), series_year=2026, source_type="singles")
+
     def test_schema_fingerprint_mismatch_fails_fast(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             file_path = Path(temp_dir) / "Ergebnisliste MW Lauf 9.xlsx"

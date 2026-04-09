@@ -599,7 +599,8 @@
           !review
             ? `<p class="ok">Keine offenen Prüfungen.</p>`
             : `<p>Prüfung ${state.reviewIndex + 1} von ${state.reviewQueue.length}</p>
-               <p class="hint">Wählen Sie rechts den besten vorhandenen Treffer. Falls niemand passt, legen Sie links eine neue Person an.</p>
+               <p class="hint">Links sehen Sie den neu eingehenden Eintrag. Rechts sehen Sie nur bereits vorhandene Personen/Teams aus der Datenbasis.</p>
+               <p class="hint">Wenn rechts niemand dieselbe reale Person/dasselbe reale Team ist, wählen Sie unten "Keine passt: neue Person anlegen".</p>
                <p class="hint">Treffersicherheit: <strong>${confidenceLabel(review.confidence)}</strong> (${Math.round(
                 (review.confidence || 0) * 100
               )}%).</p>
@@ -626,9 +627,10 @@
                    </div>
                  </section>
                </div>
+               <p class="hint">Auswahl rechts verknüpft mit bestehender Person/Team; "neue Person anlegen" erstellt bewusst einen zusätzlichen Datensatz.</p>
                <div class="row merge-actions-row">
-                 <button id="acceptReviewBtn" class="primary">Als bestehende Person übernehmen</button>
-                 <button id="newIdentityReviewBtn" class="secondary">Als neue Person anlegen</button>
+                 <button id="acceptReviewBtn" class="primary">Mit ausgewählter Person/Team zusammenführen</button>
+                 <button id="newIdentityReviewBtn" class="secondary">Keine passt: neue Person anlegen</button>
                  <button id="skipReviewBtn" class="secondary">Überspringen</button>
                </div>`
         }

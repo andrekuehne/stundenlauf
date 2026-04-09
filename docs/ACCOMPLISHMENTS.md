@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-09 - Review workflow wording clarified (link vs new identity)
+- Requirement/Milestone: [R6, R8; M5]
+- What shipped: Clarified German review guidance and action labels so users can clearly distinguish linking to an existing candidate from intentionally creating a new identity when no candidate matches.
+- Evidence: `frontend/app.js`, `uv run pytest tests/test_f08_ui_api.py -q`
+- Impact: reduces misinterpretation risk in manual merge review by making the operator decision model explicit directly in the UI.
+- Follow-up: validate wording in organizer UAT and refine microcopy if users still confuse "existing link" vs "new identity".
+
 ### 2026-04-09 - Safe source-batch reimport hardening
 - Requirement/Milestone: [R1, R5, R6, R8; M5]
 - What shipped: Replaced silent same-file noop handling with explicit duplicate/partial-rollback errors, implemented source-hash batch rollback in `reimport_race`, and surfaced clearer German guidance in the import/history UI.

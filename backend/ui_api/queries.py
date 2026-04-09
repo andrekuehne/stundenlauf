@@ -223,6 +223,25 @@ def _confidence_label(confidence: float) -> str:
     return "niedrig"
 
 
+def _incoming_entry_preview(document: ProjectDocument, entry: RaceEntry) -> dict[str, Any] | None:
+    meta = entry.match_meta
+    if meta is None:
+        return None
+    if meta.incoming_display_name:
+        return {
+            "uid": None,
+            "kind": meta.incoming_kind if meta.incoming_kind in {"participant", "team"} else "unknown",
+            "display_name": meta.incoming_display_name,
+            "yob": meta.incoming_yob,
+            "club": meta.incoming_club,
+        }
+    return (
+        _entity_preview(document, entry.participant_uid)
+        if entry.participant_uid
+        else _entity_preview(document, entry.team_uid)
+    )
+
+
 def get_review_queue(document: ProjectDocument, payload: dict[str, Any]) -> dict[str, Any]:
     race_event_uid = str(payload.get("race_event_uid", "")).strip()
     rows: list[dict[str, Any]] = []
@@ -251,11 +270,7 @@ def get_review_queue(document: ProjectDocument, payload: dict[str, Any]) -> dict
                     "confidence_label": _confidence_label(confidence_value),
                     "features": dict(entry.match_meta.features),
                     "conflict_flags": list(entry.match_meta.conflict_flags),
-                    "entry_preview": (
-                        _entity_preview(document, entry.participant_uid)
-                        if entry.participant_uid
-                        else _entity_preview(document, entry.team_uid)
-                    ),
+                    "entry_preview": _incoming_entry_preview(document, entry),
                     "result_preview": {
                         "distance_km": entry.result.distance_km,
                         "points": entry.result.points,

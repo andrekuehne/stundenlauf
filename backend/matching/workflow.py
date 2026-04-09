@@ -80,6 +80,7 @@ def _resolve_person(
     yob: int,
     club_raw: str | None,
     gender: Gender,
+    candidate_people: tuple[Person, ...],
     people: list[Person],
     decision_index: dict[str, MatchingDecision],
     rejected_map: dict[str, set[str]],
@@ -119,7 +120,7 @@ def _resolve_person(
             )
             return target, meta
 
-    block_index = build_person_block_index(tuple(people), gender)
+    block_index = build_person_block_index(candidate_people, gender)
     candidates = gather_candidates(parsed, yob, gender, block_index, config)
     excluded = rejected_map.get(fp, set())
     scored: list[tuple[float, Person, dict[str, float]]] = []
@@ -419,6 +420,22 @@ def process_singles_section(
 
     gender = _gender_for_division(section.context.division)
     entries: list[RaceEntry] = []
+    incoming_keys: dict[tuple[str, int, str, str], int] = {}
+    for row in section.rows:
+        row_key = (row.name.strip().casefold(), int(row.yob or 0), (row.club or "").strip().casefold(), row.startnr.strip())
+        incoming_keys[row_key] = incoming_keys.get(row_key, 0) + 1
+    duplicate_rows = [
+        {"name": key[0], "yob": key[1], "club": key[2], "startnr": key[3], "count": count}
+        for key, count in incoming_keys.items()
+        if count > 1
+    ]
+    if duplicate_rows:
+        raise ValueError(
+            "Importkonflikt: Doppelte Teilnehmerzeile im selben Lauf "
+            "(Name/Jahrgang/Verein/Startnr)."
+        )
+
+    candidate_people = tuple(document.people)
     for row in section.rows:
         entry = RaceEntry(
             startnr=row.startnr,
@@ -429,6 +446,7 @@ def process_singles_section(
             yob=row.yob,
             club_raw=row.club,
             gender=gender,
+            candidate_people=candidate_people,
             people=people,
             decision_index=decision_index,
             rejected_map=rejected_map,
@@ -443,7 +461,13 @@ def process_singles_section(
             replace(
                 entry,
                 participant_uid=person.uid,
-                match_meta=meta,
+                match_meta=replace(
+                    meta,
+                    incoming_display_name=row.name.strip(),
+                    incoming_yob=row.yob if row.yob else None,
+                    incoming_club=(row.club or "").strip() or None,
+                    incoming_kind="participant",
+                ),
             )
         )
 
@@ -522,7 +546,16 @@ def process_couples_section(
             replace(
                 entry,
                 team_uid=team.uid,
-                match_meta=team_meta,
+                match_meta=replace(
+                    team_meta,
+                    incoming_display_name=f"{row.name_a.strip()} / {row.name_b.strip()}",
+                    incoming_yob=None,
+                    incoming_club=(
+                        " / ".join([item.strip() for item in (row.club_a or "", row.club_b or "") if item and item.strip()])
+                        or None
+                    ),
+                    incoming_kind="team",
+                ),
             )
         )
 

@@ -676,6 +676,57 @@ class TestF08UiApi(unittest.TestCase):
             self.assertEqual(items[0]["confidence_label"], "hoch")
             self.assertEqual(items[1]["confidence_label"], "mittel")
 
+    def test_get_review_queue_prefers_incoming_preview_over_provisional_link(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.MEN)
+            existing = Person(uid="participant_existing", name="Max Mustermann", yob=1990, gender=Gender.M, club="TSV")
+            review_entry = RaceEntry(
+                entry_uid="entry_review_incoming",
+                participant_uid=existing.uid,
+                startnr="17",
+                result=EntryResult(distance_km=11.5, points=23.0),
+                match_meta=RaceEntryMatchMeta(
+                    route="review",
+                    confidence=0.8,
+                    top_candidate_uid=existing.uid,
+                    candidate_uids=(existing.uid,),
+                    features={"name_similarity": 0.8},
+                    incoming_display_name="Max Mustermannn",
+                    incoming_yob=1990,
+                    incoming_club="TSV",
+                    incoming_kind="participant",
+                ),
+            )
+            event = RaceEvent(
+                race_event_uid="race_event_preview_1",
+                category=category,
+                race_date="2026-02-07",
+                race_no=3,
+                source_file="fixture_preview.xlsx",
+                source_sha256="sha-preview",
+                imported_at="2026-02-07T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp-preview",
+                entries=(review_entry,),
+            )
+            JsonProjectRepository(project_path).save(
+                recompute_project_standings(ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(existing,), events=(event,)))
+            )
+            service = UiApiService(project_path)
+            response = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_queue_incoming_preview",
+                    "method": "get_review_queue",
+                    "payload": {},
+                }
+            )
+            self.assertEqual(response["status"], "ok")
+            item = response["payload"]["items"][0]
+            self.assertEqual(item["entry_preview"]["display_name"], "Max Mustermannn")
+            self.assertEqual(item["candidate_previews"][0]["display_name"], "Max Mustermann")
+
     def test_get_audit_timeline_accepts_optional_year_filter(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project_path = Path(temp_dir) / "project.json"

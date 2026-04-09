@@ -48,6 +48,10 @@ class RaceEntryMatchMeta:
     candidate_uids: tuple[str, ...] = ()
     features: dict[str, float] = field(default_factory=dict)
     conflict_flags: tuple[str, ...] = ()
+    incoming_display_name: str = ""
+    incoming_yob: Optional[int] = None
+    incoming_club: Optional[str] = None
+    incoming_kind: Literal["participant", "team", "unknown"] = "unknown"
 
 
 @dataclass(frozen=True)
