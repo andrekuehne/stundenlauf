@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-09 - F09 Canonical identity correction (backend + API)
+- Requirement/Milestone: [R3, R4, R6, R7; M5]
+- What shipped: `update_participant_identity` UI API command updates canonical `Person` (or one Paarlauf member) with re-normalized derived fields, recomputes standings, and appends `MatchingDecision` rows with `kind=identity_correction` and `scope_series_year` so year-filtered timeline and `matching_decisions` counts include identity-only edits; extended `MatchingDecision` + `schema_v2` and centralized timeline filtering in `queries.py`.
+- Evidence: `backend/domain/identity.py`, `backend/ui_api/commands.py`, `backend/ui_api/queries.py`, `backend/ui_api/service.py`, `backend/storage/schema_v2.py`, `docs/api/ui-api-v1.md`, `docs/features/F09-canonical-identity-correction.md`, `tests/test_f08_ui_api.py`; `uv run pytest`
+- Impact: organizers can fix first-import typos in merged identities without re-importing the whole season; audit trail remains coherent per season.
+- Follow-up: optional German GUI action from standings rows calling `update_participant_identity`.
+
 ### 2026-04-09 - Zentraler GUI-String-Katalog (`frontend/strings.js`)
 - Requirement/Milestone: [R8; M5]
 - What shipped: Moved all German end-user copy for the pywebview UI into `frontend/strings.js` (`window.UIStrings` / `window.UIFormat`), load order updated in `frontend/index.html`, and refactored `frontend/app.js` to reference the catalog and apply shell chrome on startup.

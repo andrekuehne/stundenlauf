@@ -234,6 +234,7 @@ def _matching_decision_to_dict(decision: MatchingDecision) -> dict[str, Any]:
         "entry_uid": decision.entry_uid,
         "target_participant_uid": decision.target_participant_uid,
         "target_team_uid": decision.target_team_uid,
+        "scope_series_year": decision.scope_series_year,
         "rationale": decision.rationale,
         "field_resolutions": [
             {"field_name": fr.field_name, "kept_from": fr.kept_from, "value": fr.value} for fr in decision.field_resolutions
@@ -260,6 +261,7 @@ def _matching_decision_from_dict(payload: dict[str, Any]) -> MatchingDecision:
         entry_uid=str(payload.get("entry_uid", "")),
         target_participant_uid=payload.get("target_participant_uid"),
         target_team_uid=payload.get("target_team_uid"),
+        scope_series_year=int(payload["scope_series_year"]) if payload.get("scope_series_year") is not None else None,
         rationale=str(payload.get("rationale", "")),
         field_resolutions=frs,
         feature_scores={str(k): float(v) for k, v in payload.get("feature_scores", {}).items()},

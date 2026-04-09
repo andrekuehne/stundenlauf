@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal, cast
 
+from backend.domain.identity import person_with_updated_identity, yob_bounds
 from backend.domain.models import Couple, FieldResolution, MatchingDecision, Person, RaceEntryMatchMeta
 from backend.ingestion.service import import_excel_into_project
 from backend.matching.config import MatchingConfig
@@ -295,3 +296,115 @@ def reimport_race(project_file: Path, payload: dict[str, Any]) -> dict[str, Any]
         "rolled_back_event_uids": list(rolled_back_event_uids),
     }
     return imported
+
+
+def update_participant_identity(project_file: Path, payload: dict[str, Any]) -> dict[str, Any]:
+    """Update canonical name/yob/club for a single participant or one Paarlauf team member."""
+    series_year_raw = payload.get("series_year")
+    if series_year_raw is None:
+        raise validation_error("series_year is required")
+    series_year = int(series_year_raw)
+
+    participant_uid = str(payload.get("participant_uid", "")).strip() or None
+    team_uid = str(payload.get("team_uid", "")).strip() or None
+    member_raw = payload.get("member")
+    member: Literal["a", "b"] | None = None
+    if member_raw is not None:
+        ms = str(member_raw).strip().lower()
+        if ms not in {"a", "b"}:
+            raise validation_error("member must be 'a' or 'b'")
+        member = cast(Literal["a", "b"], ms)
+
+    name = str(payload.get("name", "")).strip()
+    if not name:
+        raise validation_error("name is required")
+
+    yob_raw = payload.get("yob")
+    if yob_raw is None:
+        raise validation_error("yob is required")
+    try:
+        yob = int(yob_raw)
+    except (TypeError, ValueError):
+        raise validation_error("yob must be an integer") from None
+    lo, hi = yob_bounds()
+    if yob < lo or yob > hi:
+        raise validation_error(f"yob must be between {lo} and {hi}")
+
+    club_raw = payload.get("club")
+    if club_raw is None:
+        club: str | None = None
+    else:
+        club = str(club_raw).strip() or None
+
+    has_participant = bool(participant_uid)
+    has_team = bool(team_uid)
+    if has_participant == has_team:
+        raise validation_error("exactly one of participant_uid or team_uid is required")
+    if team_uid is not None and member is None:
+        raise validation_error("member is required when team_uid is set")
+    if participant_uid is not None and member is not None:
+        raise validation_error("member must not be set when participant_uid is set")
+
+    repo = JsonProjectRepository(project_file)
+    document = repo.load()
+
+    if participant_uid is not None:
+        pidx = next((i for i, p in enumerate(document.people) if p.uid == participant_uid), None)
+        if pidx is None:
+            raise not_found("participant_uid", participant_uid)
+        old = document.people[pidx]
+        updated_person = person_with_updated_identity(person=old, name=name, yob=yob, club=club)
+        new_people = list(document.people)
+        new_people[pidx] = updated_person
+        new_couples = document.couples
+        target_pt: str | None = participant_uid
+        target_tm: str | None = None
+    else:
+        assert team_uid is not None and member is not None
+        cidx = next((i for i, c in enumerate(document.couples) if c.uid == team_uid), None)
+        if cidx is None:
+            raise not_found("team_uid", team_uid)
+        couple = document.couples[cidx]
+        target_old = couple.member_a if member == "a" else couple.member_b
+        new_member = person_with_updated_identity(person=target_old, name=name, yob=yob, club=club)
+        new_couple = replace(
+            couple,
+            member_a=new_member if member == "a" else couple.member_a,
+            member_b=new_member if member == "b" else couple.member_b,
+        )
+        new_couples = list(document.couples)
+        new_couples[cidx] = new_couple
+        midx = next((i for i, p in enumerate(document.people) if p.uid == new_member.uid), None)
+        if midx is None:
+            raise validation_error("team member not found in people table")
+        new_people = list(document.people)
+        new_people[midx] = new_member
+        target_pt = new_member.uid
+        target_tm = team_uid
+
+    decision = MatchingDecision(
+        decided_at=_iso_now(),
+        kind="identity_correction",
+        race_event_uid="",
+        entry_uid="",
+        target_participant_uid=target_pt,
+        target_team_uid=target_tm,
+        scope_series_year=series_year,
+        rationale=str(payload.get("rationale", "")).strip(),
+        feature_scores={"identity_correction": 1.0},
+    )
+    updated_doc = replace(
+        document,
+        people=tuple(new_people),
+        couples=tuple(new_couples),
+        matching_decisions=tuple([*document.matching_decisions, decision]),
+    )
+    updated_doc = recompute_project_standings(updated_doc)
+    repo.save(updated_doc)
+    return {
+        "decision_uid": decision.decision_uid,
+        "status": "applied",
+        "participant_uid": target_pt,
+        "team_uid": target_tm,
+        "scope_series_year": series_year,
+    }

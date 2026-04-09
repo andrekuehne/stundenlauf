@@ -164,6 +164,20 @@ This document defines the frontend-facing Python API contract for the pywebview 
   - `field_resolutions[]` (optional)
 - Returns decision result (`decision_uid`, target UID, status).
 
+### `update_participant_identity`
+- Payload:
+  - `series_year` (required; season the correction belongs to for audit/timeline scoping)
+  - `name` (required, non-empty)
+  - `yob` (required integer; validated to a reasonable year range)
+  - `club` (optional string; empty clears the club)
+  - Exactly one targeting mode:
+    - `participant_uid` (singles), or
+    - `team_uid` + `member` (`a` or `b`) for Paarlauf team members
+  - `rationale` (optional)
+- Updates canonical `Person` fields (and derived name/club normalization used for matching). Gender is not editable.
+- Returns `decision_uid`, `status` (`applied`), `participant_uid` (edited person, including team member UID), `team_uid` (set for team edits), `scope_series_year`.
+- Appends a `matching_decisions` entry with `kind=identity_correction` (visible in `get_year_timeline` / `get_audit_timeline` for the same `series_year`).
+
 ### `rollback_race`
 - Payload:
   - `race_event_uid` (required)
