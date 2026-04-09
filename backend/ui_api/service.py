@@ -23,9 +23,12 @@ class UiApiService:
 
     def _dispatch(self, req: ApiEnvelopeRequest) -> dict[str, Any]:
         handlers: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
-            "get_project_state": lambda payload: queries.get_project_state(self._load()),
+            "get_project_state": lambda payload: queries.get_project_state_filtered(self._load(), payload),
             "get_standings": lambda payload: queries.get_standings(self._load(), payload),
             "get_category_current_results_table": lambda payload: queries.get_category_current_results_table(self._load(), payload),
+            "list_categories": lambda payload: queries.list_categories(self._load(), payload),
+            "get_year_overview": lambda payload: queries.get_year_overview(self._load(), payload),
+            "get_year_timeline": lambda payload: queries.get_year_timeline(self._load(), payload),
             "get_review_queue": lambda payload: queries.get_review_queue(self._load(), payload),
             "get_match_candidate": lambda payload: queries.get_match_candidate(self._load(), payload),
             "get_audit_timeline": lambda payload: queries.get_audit_timeline(self._load(), payload),

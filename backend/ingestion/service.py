@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from backend.domain.enums import RaceEventState
 from backend.ingestion.adapters.couples import parse_couples_workbook
@@ -12,11 +13,19 @@ from backend.ranking.engine import recompute_project_standings
 from backend.storage.repository import JsonProjectRepository
 
 
-def import_excel_into_project(project_file: Path, excel_file: Path, series_year: int) -> ImportResult:
+def import_excel_into_project(
+    project_file: Path,
+    excel_file: Path,
+    series_year: int,
+    source_type: Literal["singles", "couples"] | None = None,
+) -> ImportResult:
     repo = JsonProjectRepository(project_file)
     document = repo.load()
     lower_name = excel_file.name.lower()
-    is_couples = "paare" in lower_name
+    if source_type is None:
+        is_couples = "paare" in lower_name
+    else:
+        is_couples = source_type == "couples"
 
     parsed = parse_couples_workbook(excel_file, series_year) if is_couples else parse_singles_workbook(excel_file, series_year)
 

@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-09 - UI API v1 year-level workspace extension
+- Requirement/Milestone: [R1, R3, R5, R6, R8; M4, M5]
+- What shipped: Added additive year-level read methods (`list_categories`, `get_year_overview`, `get_year_timeline`) plus optional `series_year` filters on project/audit queries; extended `import_race` with optional `source_type` (`singles`/`couples`) while keeping backward compatibility.
+- Evidence: `backend/ui_api/queries.py`, `backend/ui_api/service.py`, `backend/ui_api/commands.py`, `backend/ingestion/service.py`, `docs/api/ui-api-v1.md`, `tests/test_f08_ui_api.py`, `uv run pytest tests/test_f08_ui_api.py`
+- Impact: frontend can load and navigate all season datasets (singles + couples across categories) with fewer roundtrips and less client-side composition, improving fluidity for year-wide workflows.
+- Follow-up: consume new year-level endpoints in F05 views (`Aktuelle Wertung`, race history, and season-level review monitoring).
+
 ### 2026-04-09 - F08 Python frontend API layer shipped (v1)
 - Requirement/Milestone: [R1, R3, R4, R5, R6, R8; M4, M5]
 - What shipped: Added a dedicated `backend/ui_api/` package with versioned envelopes, query/command handlers, DTO/error mapping, and a pywebview-compatible bridge (`PywebviewApiBridge`); published contract doc `docs/api/ui-api-v1.md`; added API tests in `tests/test_f08_ui_api.py`.

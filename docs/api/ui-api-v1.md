@@ -25,7 +25,8 @@ This document defines the frontend-facing Python API contract for the pywebview 
 ## Methods
 
 ### `get_project_state`
-- Payload: `{}`
+- Payload:
+  - `series_year` (optional filter)
 - Returns project uid/schema and high-level counts (`people`, `teams`, `events_total`, `events_active`, `matching_decisions`, `review_queue`).
 
 ### `get_standings`
@@ -43,6 +44,30 @@ This document defines the frontend-facing Python API contract for the pywebview 
   - `rows[].race_cells[]` with `{ race_no, race_event_uid, distance_km|null, points|null, counts_toward_total }`
   - `rows[].distanz_gesamt`, `rows[].punkte_gesamt`
 
+### `list_categories`
+- Payload:
+  - `series_year` (required)
+- Returns year-scoped category cards with:
+  - `category_key`, `category_label`, `duration`, `division`
+  - `events_total`, `events_active`, `review_queue_count`, `latest_imported_at`
+  - top-level `count` and `events_active_total`.
+
+### `get_year_overview`
+- Payload:
+  - `series_year` (required)
+- Returns:
+  - `series_year`
+  - `totals` (`categories`, `events_total`, `events_active`, `review_queue`)
+  - `health` (`has_active_events`, `has_review_queue`)
+  - `categories[]` (same compact cards as `list_categories`)
+  - `race_history_groups[]` grouped by category with compact race identities.
+
+### `get_year_timeline`
+- Payload:
+  - `series_year` (required)
+  - `limit` (optional, default 200)
+- Returns a season-wide merged timeline (`race_import`, `race_rolled_back`, `rollback`, `matching_decision`) scoped to the requested year.
+
 ### `get_review_queue`
 - Payload:
   - `race_event_uid` (optional)
@@ -55,6 +80,7 @@ This document defines the frontend-facing Python API contract for the pywebview 
 
 ### `get_audit_timeline`
 - Payload:
+  - `series_year` (optional filter)
   - `race_event_uid` (optional filter)
   - `limit` (optional, default 200)
 - Returns import/rollback/matching decision timeline entries.
@@ -63,6 +89,7 @@ This document defines the frontend-facing Python API contract for the pywebview 
 - Payload:
   - `file_path` (required)
   - `series_year` (required)
+  - `source_type` (optional, `singles` or `couples`; defaults to filename-based detection)
 - Returns import summary (`noop`, `rows_imported`, `merged_event_uids`, matching report).
 
 ### `apply_match_decision`

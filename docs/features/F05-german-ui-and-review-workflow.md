@@ -13,6 +13,24 @@
 F01–F04 were implemented first. **F06** (fixture HITL import) and **F07** (Gesamtwertung comparison) were added to tighten test-driven validation and CLI workflows before investing in the pywebview desktop shell. This document remains the specification for **F05** when GUI work starts.
 
 Backend integration boundary prerequisite is now available via `backend/ui_api/` and documented in `docs/api/ui-api-v1.md` (F08 implementation).
+The API now also includes year-level workspace reads (`list_categories`, `get_year_overview`, `get_year_timeline`) and optional `series_year` filters for `get_project_state` / `get_audit_timeline`, plus optional `source_type` in `import_race`.
+
+## UI/API alignment baseline (v1)
+
+- Season workspace bootstrap:
+  - `get_year_overview(series_year)` for year header metrics, category list, and grouped race history.
+  - `list_categories(series_year)` for category cards/filter options when a lighter payload is preferred.
+- Category-specific standings:
+  - `get_standings(category_key)` and `get_category_current_results_table(category_key, max_races?)`.
+- Add-race and review workflow:
+  - `import_race(file_path, series_year, source_type?)`
+  - `get_review_queue(race_event_uid?)`
+  - `get_match_candidate(candidate_uid)`
+  - `apply_match_decision(...)`
+- History and correction workflow:
+  - `get_year_timeline(series_year, limit?)` and/or `get_audit_timeline(series_year?, race_event_uid?, limit?)`
+  - `rollback_race(race_event_uid, reason?)`
+  - `reimport_race(previous_race_event_uid, file_path, series_year)`
 
 ## Problem Statement
 
@@ -64,6 +82,7 @@ This review flow is critical for trust in cumulative results and for correcting 
   - `MergeResolutionDialog`: side-by-side field chooser + manual override input.
   - `RaceHistoryPanel`: imported races, UIDs, timestamps, rollback/reapply actions.
 - Data model/API changes:
+  - query year-level workspace snapshot (`series_year` totals, category cards, race-history groups).
   - query current standings snapshot and trace metadata (`ruleset_version`, recalculated_at, source races).
   - retrieve match candidates with explanation details and confidence buckets.
   - submit merge decisions including field-level picks and optional manual values.
@@ -95,17 +114,18 @@ This review flow is critical for trust in cumulative results and for correcting 
    - add top-level route/state switcher between the two primary views.
    - preserve unsaved review progress when switching views.
 3. Build `Aktuelle Wertung` view
-   - category selector + standings table with points/distance totals.
+   - initialize season context from `get_year_overview(series_year)`.
+   - category selector (from year categories) + standings table with points/distance totals.
    - row detail drawer with UID, source races, and decision trace snippets.
 4. Build `Lauf hinzufügen` view
-   - file picker/import trigger + validation summary in German.
+   - file picker/import trigger + validation summary in German (`import_race` with optional `source_type`).
    - candidate queue with confidence groups (hoch/mittel/niedrig).
 5. Build merge resolution interaction
    - side-by-side values from candidate A/B per field.
    - per-field controls: keep left, keep right, manual value.
    - apply decision and update queue immediately.
 6. Integrate audit timeline
-   - display import, decision, recalculation, rollback, and reimport events.
+   - display import, decision, recalculation, rollback, and reimport events (`get_year_timeline` by default).
    - support filtering by UID (participant/team/race).
 7. Implement rollback and reapply flow
    - race history list with rollback action for a selected race event.
@@ -127,6 +147,8 @@ This review flow is critical for trust in cumulative results and for correcting 
   - switching from `Lauf hinzufügen` to `Aktuelle Wertung` and back keeps unresolved queue and form state.
 - `standings_view_renders_category_specific_rows`
   - selected category changes table content deterministically.
+- `season_workspace_loads_year_summary_and_categories`
+  - `get_year_overview`/`list_categories` populate dashboard metrics and category navigation.
 - `merge_dialog_supports_left_right_manual_per_field`
   - for each field, left/right/manual selection updates the pending decision payload.
 - `manual_value_validation_blocks_empty_required_name`
@@ -137,7 +159,9 @@ This review flow is critical for trust in cumulative results and for correcting 
 ### Integration Tests (UI + API Contracts)
 
 - `import_review_apply_updates_current_rankings`
-  - flow: import -> candidate review -> decisions submit -> standings refresh.
+  - flow: import (`source_type` optional) -> candidate review -> decisions submit -> standings refresh.
+- `year_timeline_shows_cross_category_season_events`
+  - `get_year_timeline(series_year)` returns imports/decisions/rollbacks across singles and couples categories.
 - `candidate_highlighting_prioritizes_best_match_first`
   - best confidence candidate is pre-highlighted but not auto-applied when review required.
 - `field_level_manual_correction_persists_in_identity_cluster`

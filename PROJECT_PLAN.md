@@ -41,7 +41,7 @@ Checkboxes mark **product-level** satisfaction. Capabilities delivered only via 
 
 - Phase: Backend stack F01–F04 is shipped; F06/F07 CLI validation tooling and F08 API contract layer are shipped ahead of the desktop GUI; **F05 (German UI + match review)** is the next implementation track.
 - Planning status: Core plans for `F01`–`F05`; additional plans `F06` (fixture HITL import) and `F07` (Gesamtwertung ground-truth comparison) document test-driven helpers used before GUI hardening.
-- Delivery status: **F01** domain/storage; **F02** Excel ingestion, merge, CLI import; **F03** matching pipeline, audit, and decision replay; **F04** standings (`v1_legacy_top4`) on import and rollback; **F06** sequential fixture import + standings export; **F07** organizer-vs-project comparison workbooks; **F08** versioned Python frontend API layer (`backend/ui_api`, `docs/api/ui-api-v1.md`, pywebview bridge + tests). Details: `docs/ACCOMPLISHMENTS.md`.
+- Delivery status: **F01** domain/storage; **F02** Excel ingestion, merge, CLI import; **F03** matching pipeline, audit, and decision replay; **F04** standings (`v1_legacy_top4`) on import and rollback; **F06** sequential fixture import + standings export; **F07** organizer-vs-project comparison workbooks; **F08** versioned Python frontend API layer (`backend/ui_api`, `docs/api/ui-api-v1.md`, pywebview bridge + tests) with additive year-level workspace methods (`list_categories`, `get_year_overview`, `get_year_timeline`) and optional `series_year` filters. Details: `docs/ACCOMPLISHMENTS.md`.
 - Immediate next step: Implement **F05** UI workflows against `ui-api-v1` (pywebview shell, German copy, review queue, rollback/reapply UX). Until golden tests stabilize, continue KPI work with `scripts/fixture_import_session.py` (F06) and `scripts/compare_gesamtwertung.py` (F07).
 
 ## Success Metrics (KPIs)
@@ -90,3 +90,4 @@ Checkboxes mark **product-level** satisfaction. Capabilities delivered only via 
 | 2026-04-08 | Added F06 fixture HITL import script | Sequential fixture import + standings CSV export for manual ground-truth comparison vs GUI |
 | 2026-04-08 | Doc sync: requirements, milestones, F01/F02 status, delivery order F01–04 then F06/07 before F05 GUI | Align plan and feature docs with shipped backend and validation tooling |
 | 2026-04-09 | Shipped F08 Python frontend API layer (v1) | Added `backend/ui_api`, pywebview bridge adapter, API contract docs, and backend API tests to unblock F05 UI |
+| 2026-04-09 | Extended ui-api-v1 with year-level workspace methods | Added season-wide query surface and optional year filters to support fluid all-dataset UI workflows |

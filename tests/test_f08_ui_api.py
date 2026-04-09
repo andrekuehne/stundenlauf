@@ -3,6 +3,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from backend.domain.enums import Division, Gender, RaceDuration
 from backend.domain.models import EntryResult, Person, ProjectDocument, RaceEntry, RaceEntryMatchMeta, RaceEvent, RaceSeriesCategory
@@ -14,7 +15,9 @@ from backend.ui_api import API_VERSION_V1, PywebviewApiBridge, UiApiService
 
 def _seed_project(path: Path) -> None:
     category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.MEN)
+    old_category = RaceSeriesCategory(year=2025, duration=RaceDuration.HOUR, division=Division.MEN)
     participant = Person(uid="participant_target", name="Max Mustermann", yob=1990, gender=Gender.M, club="TSV")
+    old_participant = Person(uid="participant_legacy", name="Erik Alt", yob=1988, gender=Gender.M, club="ALT")
     review_meta = RaceEntryMatchMeta(
         route="review",
         confidence=0.82,
@@ -41,7 +44,26 @@ def _seed_project(path: Path) -> None:
         schema_fingerprint="fp",
         entries=(review_entry,),
     )
-    doc = ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(participant,), events=(event,))
+    old_event = RaceEvent(
+        race_event_uid="race_event_legacy",
+        category=old_category,
+        race_date="2025-01-05",
+        race_no=1,
+        source_file="legacy_fixture.xlsx",
+        source_sha256="legacy",
+        imported_at="2025-01-05T10:00:00+00:00",
+        parser_version="v1",
+        schema_fingerprint="fp_legacy",
+        entries=(
+            RaceEntry(
+                entry_uid="entry_legacy_1",
+                participant_uid="participant_legacy",
+                startnr="7",
+                result=EntryResult(distance_km=10.5, points=20.0),
+            ),
+        ),
+    )
+    doc = ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(participant, old_participant), events=(event, old_event))
     doc = recompute_project_standings(doc)
     JsonProjectRepository(path).save(doc)
 
@@ -76,6 +98,96 @@ class TestF08UiApi(unittest.TestCase):
             self.assertGreaterEqual(len(payload["rows"]), 1)
             self.assertIn("race_cells", payload["rows"][0])
 
+    def test_list_categories_filters_by_year(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_project(project_path)
+            service = UiApiService(project_path)
+            response = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_categories_2026",
+                    "method": "list_categories",
+                    "payload": {"series_year": 2026},
+                }
+            )
+            self.assertEqual(response["status"], "ok")
+            payload = response["payload"]
+            self.assertEqual(payload["series_year"], 2026)
+            self.assertEqual(payload["count"], 1)
+            self.assertEqual(payload["items"][0]["category_key"], "2026:hour:men")
+
+    def test_get_year_overview_returns_compact_workspace_data(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_project(project_path)
+            service = UiApiService(project_path)
+            response = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_overview_2026",
+                    "method": "get_year_overview",
+                    "payload": {"series_year": 2026},
+                }
+            )
+            self.assertEqual(response["status"], "ok")
+            payload = response["payload"]
+            self.assertEqual(payload["series_year"], 2026)
+            self.assertEqual(payload["totals"]["events_total"], 1)
+            self.assertEqual(payload["totals"]["categories"], 1)
+            self.assertEqual(len(payload["race_history_groups"]), 1)
+            self.assertEqual(payload["race_history_groups"][0]["category_key"], "2026:hour:men")
+
+    def test_get_year_timeline_scopes_audit_items(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_project(project_path)
+            bridge = PywebviewApiBridge(str(project_path))
+
+            bridge.invoke(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_apply_timeline",
+                    "method": "apply_match_decision",
+                    "payload": {
+                        "race_event_uid": "race_event_1",
+                        "entry_uid": "entry_review_1",
+                        "target_participant_uid": "participant_target",
+                    },
+                }
+            )
+            timeline = bridge.invoke(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_timeline_2026",
+                    "method": "get_year_timeline",
+                    "payload": {"series_year": 2026},
+                }
+            )
+            self.assertEqual(timeline["status"], "ok")
+            self.assertGreaterEqual(timeline["payload"]["count"], 1)
+            for item in timeline["payload"]["items"]:
+                if "category_key" in item:
+                    self.assertTrue(str(item["category_key"]).startswith("2026:"))
+
+    def test_get_project_state_accepts_optional_year_filter(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_project(project_path)
+            service = UiApiService(project_path)
+
+            filtered = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_project_state_filter",
+                    "method": "get_project_state",
+                    "payload": {"series_year": 2026},
+                }
+            )
+            self.assertEqual(filtered["status"], "ok")
+            self.assertEqual(filtered["payload"]["counts"]["events_total"], 1)
+            self.assertEqual(filtered["payload"]["counts"]["events_active"], 1)
+
     def test_apply_match_decision_rejects_missing_required_fields(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project_path = Path(temp_dir) / "project.json"
@@ -87,6 +199,60 @@ class TestF08UiApi(unittest.TestCase):
                     "request_id": "req_apply_1",
                     "method": "apply_match_decision",
                     "payload": {"race_event_uid": "race_event_1"},
+                }
+            )
+            self.assertEqual(response["status"], "error")
+            self.assertEqual(response["error"]["code"], "VALIDATION_ERROR")
+
+    def test_import_race_accepts_optional_source_type(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_project(project_path)
+            service = UiApiService(project_path)
+            with patch("backend.ui_api.commands.import_excel_into_project") as mock_import:
+                mock_import.return_value = type(
+                    "ImportResultStub",
+                    (),
+                    {
+                        "noop": False,
+                        "issues": (),
+                        "merged_event_uids": ("race_event_x",),
+                        "rows_imported": 0,
+                        "source_file": Path("dummy.xlsx"),
+                        "matching_report": None,
+                    },
+                )()
+                response = service.handle(
+                    {
+                        "api_version": API_VERSION_V1,
+                        "request_id": "req_import_source_type",
+                        "method": "import_race",
+                        "payload": {
+                            "file_path": "dummy.xlsx",
+                            "series_year": 2026,
+                            "source_type": "singles",
+                        },
+                    }
+                )
+                self.assertEqual(response["status"], "ok")
+                mock_import.assert_called_once()
+                self.assertEqual(mock_import.call_args.kwargs["source_type"], "singles")
+
+    def test_import_race_rejects_invalid_source_type(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_project(project_path)
+            service = UiApiService(project_path)
+            response = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_import_invalid_source_type",
+                    "method": "import_race",
+                    "payload": {
+                        "file_path": "dummy.xlsx",
+                        "series_year": 2026,
+                        "source_type": "invalid",
+                    },
                 }
             )
             self.assertEqual(response["status"], "error")
@@ -147,6 +313,25 @@ class TestF08UiApi(unittest.TestCase):
             self.assertEqual(audit["status"], "ok")
             kinds = [item["event_type"] for item in audit["payload"]["items"]]
             self.assertIn("matching_decision", kinds)
+
+    def test_get_audit_timeline_accepts_optional_year_filter(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_project(project_path)
+            service = UiApiService(project_path)
+            response = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_audit_filtered",
+                    "method": "get_audit_timeline",
+                    "payload": {"series_year": 2026},
+                }
+            )
+            self.assertEqual(response["status"], "ok")
+            items = response["payload"]["items"]
+            self.assertGreaterEqual(len(items), 1)
+            import_items = [item for item in items if "category_key" in item]
+            self.assertTrue(all(str(item["category_key"]).startswith("2026:") for item in import_items))
 
 
 if __name__ == "__main__":

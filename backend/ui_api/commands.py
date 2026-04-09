@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
 from backend.domain.models import FieldResolution, MatchingDecision, RaceEntryMatchMeta
 from backend.ingestion.service import import_excel_into_project
@@ -19,15 +19,23 @@ def _iso_now() -> str:
 def import_race(project_file: Path, payload: dict[str, Any]) -> dict[str, Any]:
     file_path = str(payload.get("file_path", "")).strip()
     series_year_raw = payload.get("series_year")
+    source_type = payload.get("source_type")
     if not file_path:
         raise validation_error("file_path is required")
     if series_year_raw is None:
         raise validation_error("series_year is required")
+    source_type_value: Literal["singles", "couples"] | None = None
+    if source_type is not None:
+        source_type_raw = str(source_type).strip().lower()
+        if source_type_raw not in {"singles", "couples"}:
+            raise validation_error("source_type must be 'singles' or 'couples'")
+        source_type_value = cast(Literal["singles", "couples"], source_type_raw)
     series_year = int(series_year_raw)
     result = import_excel_into_project(
         project_file=project_file,
         excel_file=Path(file_path),
         series_year=series_year,
+        source_type=source_type_value,
     )
     return {
         "noop": result.noop,

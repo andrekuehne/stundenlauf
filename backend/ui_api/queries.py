@@ -10,6 +10,15 @@ from backend.ui_api.errors import not_found, validation_error
 from backend.ui_api.mappers import category_label, club_for_row, display_name_for_row, race_event_identity, yob_for_row
 
 
+def _parse_series_year(payload: dict[str, Any], *, required: bool = False) -> int | None:
+    raw = payload.get("series_year")
+    if raw is None:
+        if required:
+            raise validation_error("series_year is required")
+        return None
+    return int(raw)
+
+
 def _find_category(document: ProjectDocument, category_key: str) -> RaceSeriesCategory:
     for event in document.events:
         if event.category.key == category_key:
@@ -50,7 +59,17 @@ def _table_by_category_key(document: ProjectDocument, category_key: str) -> tupl
 
 
 def get_project_state(document: ProjectDocument) -> dict[str, Any]:
-    active = [event for event in document.events if event.state == RaceEventState.ACTIVE]
+    return get_project_state_filtered(document, {})
+
+
+def get_project_state_filtered(document: ProjectDocument, payload: dict[str, Any]) -> dict[str, Any]:
+    series_year = _parse_series_year(payload, required=False)
+    scoped_events = [
+        event
+        for event in document.events
+        if series_year is None or event.category.year == series_year
+    ]
+    active = [event for event in scoped_events if event.state == RaceEventState.ACTIVE]
     review_queue = 0
     for event in active:
         for entry in event.entries:
@@ -62,9 +81,19 @@ def get_project_state(document: ProjectDocument) -> dict[str, Any]:
         "counts": {
             "people": len(document.people),
             "teams": len(document.couples),
-            "events_total": len(document.events),
+            "events_total": len(scoped_events),
             "events_active": len(active),
-            "matching_decisions": len(document.matching_decisions),
+            "matching_decisions": len(
+                [
+                    decision
+                    for decision in document.matching_decisions
+                    if series_year is None
+                    or any(
+                        event.race_event_uid == decision.race_event_uid and event.category.year == series_year
+                        for event in document.events
+                    )
+                ]
+            ),
             "review_queue": review_queue,
         },
     }
@@ -171,6 +200,88 @@ def get_review_queue(document: ProjectDocument, payload: dict[str, Any]) -> dict
     return {"items": rows, "count": len(rows)}
 
 
+def list_categories(document: ProjectDocument, payload: dict[str, Any]) -> dict[str, Any]:
+    series_year = _parse_series_year(payload, required=True)
+    active_events = [event for event in document.events if event.state == RaceEventState.ACTIVE]
+    items: list[dict[str, Any]] = []
+    category_keys = sorted({event.category.key for event in document.events if event.category.year == series_year})
+    for category_key in category_keys:
+        category_events = [
+            event
+            for event in document.events
+            if event.category.key == category_key
+        ]
+        active_for_category = [event for event in category_events if event.state == RaceEventState.ACTIVE]
+        review_queue_count = 0
+        for event in active_for_category:
+            for entry in event.entries:
+                if entry.match_meta is not None and entry.match_meta.route == "review":
+                    review_queue_count += 1
+        sample = active_for_category[0] if active_for_category else category_events[0]
+        latest_imported_at = ""
+        if category_events:
+            latest_imported_at = max((event.imported_at for event in category_events), default="")
+        items.append(
+            {
+                "category_key": category_key,
+                "category_label": category_label(sample.category.duration, sample.category.division),
+                "duration": sample.category.duration.value,
+                "division": sample.category.division.value,
+                "events_total": len(category_events),
+                "events_active": len(active_for_category),
+                "review_queue_count": review_queue_count,
+                "latest_imported_at": latest_imported_at,
+            }
+        )
+    return {
+        "series_year": series_year,
+        "items": items,
+        "count": len(items),
+        "events_active_total": len([event for event in active_events if event.category.year == series_year]),
+    }
+
+
+def get_year_overview(document: ProjectDocument, payload: dict[str, Any]) -> dict[str, Any]:
+    series_year = _parse_series_year(payload, required=True)
+    category_cards = list_categories(document, payload)["items"]
+    scoped_events = [event for event in document.events if event.category.year == series_year]
+    active_events = [event for event in scoped_events if event.state == RaceEventState.ACTIVE]
+    review_queue = 0
+    for event in active_events:
+        for entry in event.entries:
+            if entry.match_meta is not None and entry.match_meta.route == "review":
+                review_queue += 1
+    race_history_groups = [
+        {
+            "category_key": card["category_key"],
+            "category_label": card["category_label"],
+            "events": [
+                race_event_identity(event)
+                for event in sorted(
+                    [item for item in scoped_events if item.category.key == card["category_key"]],
+                    key=lambda item: (item.race_no, item.race_date, item.race_event_uid),
+                )
+            ],
+        }
+        for card in category_cards
+    ]
+    return {
+        "series_year": series_year,
+        "totals": {
+            "categories": len(category_cards),
+            "events_total": len(scoped_events),
+            "events_active": len(active_events),
+            "review_queue": review_queue,
+        },
+        "health": {
+            "has_active_events": bool(active_events),
+            "has_review_queue": review_queue > 0,
+        },
+        "categories": category_cards,
+        "race_history_groups": race_history_groups,
+    }
+
+
 def get_match_candidate(document: ProjectDocument, payload: dict[str, Any]) -> dict[str, Any]:
     candidate_uid = str(payload.get("candidate_uid", "")).strip()
     if not candidate_uid:
@@ -202,9 +313,12 @@ def get_match_candidate(document: ProjectDocument, payload: dict[str, Any]) -> d
 def get_audit_timeline(document: ProjectDocument, payload: dict[str, Any]) -> dict[str, Any]:
     limit_raw = payload.get("limit")
     limit = int(limit_raw) if limit_raw is not None else 200
+    series_year = _parse_series_year(payload, required=False)
     by_race_event_uid = str(payload.get("race_event_uid", "")).strip()
     entries: list[dict[str, Any]] = []
     for event in document.events:
+        if series_year is not None and event.category.year != series_year:
+            continue
         if by_race_event_uid and event.race_event_uid != by_race_event_uid:
             continue
         entries.append(
@@ -229,6 +343,9 @@ def get_audit_timeline(document: ProjectDocument, payload: dict[str, Any]) -> di
                 }
             )
     for decision in document.matching_decisions:
+        related_event = next((event for event in document.events if event.race_event_uid == decision.race_event_uid), None)
+        if series_year is not None and (related_event is None or related_event.category.year != series_year):
+            continue
         if by_race_event_uid and decision.race_event_uid != by_race_event_uid:
             continue
         entries.append(
@@ -244,3 +361,13 @@ def get_audit_timeline(document: ProjectDocument, payload: dict[str, Any]) -> di
         )
     entries.sort(key=lambda item: (item.get("timestamp", ""), item.get("event_type", "")), reverse=True)
     return {"items": entries[:limit], "count": min(limit, len(entries))}
+
+
+def get_year_timeline(document: ProjectDocument, payload: dict[str, Any]) -> dict[str, Any]:
+    series_year = _parse_series_year(payload, required=True)
+    result = get_audit_timeline(document, {"series_year": series_year, "limit": payload.get("limit", 200)})
+    return {
+        "series_year": series_year,
+        "items": result["items"],
+        "count": result["count"],
+    }

@@ -8,6 +8,15 @@
 - Related requirement(s): R1, R3, R4, R5, R6, R8
 - Related milestone(s): M4, M5
 
+## Post-v1 extension note (2026-04-09)
+
+- Added additive year-level API methods in `ui-api-v1` for season workspace UX:
+  - `list_categories(series_year)`
+  - `get_year_overview(series_year)`
+  - `get_year_timeline(series_year, limit?)`
+- Added optional `series_year` filters to `get_project_state` and `get_audit_timeline`.
+- Extended `import_race` with optional `source_type` (`singles` or `couples`) while preserving prior filename-based detection for backward compatibility.
+
 ## Problem Statement
 
 Backend capabilities for ingestion, matching, standings, and rollback are implemented in Python, while the planned desktop UI (F05) requires a reliable and testable integration boundary.
