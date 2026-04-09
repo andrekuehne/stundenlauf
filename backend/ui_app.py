@@ -26,7 +26,7 @@ def launch_ui(workspace_dir: Path, project_file: Path | None = None) -> None:
 
     def pick_file() -> str | None:
         selected = window.create_file_dialog(
-            webview.OPEN_DIALOG,
+            webview.FileDialog.OPEN,
             allow_multiple=False,
             file_types=("Excel (*.xlsx;*.xls)",),
         )
