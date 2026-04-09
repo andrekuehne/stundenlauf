@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from backend.app_paths import default_workspace_dir
 from backend.ingestion.service import import_excel_into_project
 from backend.ranking.engine import recompute_project_standings
 from backend.storage.repository import JsonProjectRepository
@@ -10,7 +11,7 @@ from backend.ui_app import launch_ui
 
 
 def stundenlauf_gui() -> None:
-    launch_ui(workspace_dir=Path.cwd(), project_file=None)
+    launch_ui(workspace_dir=default_workspace_dir(), project_file=None)
 
 
 def main() -> None:
@@ -22,8 +23,8 @@ def main() -> None:
     parser.add_argument(
         "--workspace-dir",
         type=Path,
-        default=Path.cwd(),
-        help="Arbeitsverzeichnis für GUI-Daten (Standard: aktueller Ordner).",
+        default=default_workspace_dir(),
+        help="Arbeitsverzeichnis für GUI-Daten (Standard: Dokumente/Stundenlauf).",
     )
     parser.add_argument(
         "--recompute-standings",

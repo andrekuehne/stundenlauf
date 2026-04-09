@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from typing import Any, Callable
 
+from backend.app_paths import default_workspace_dir
 from backend.storage.repository import JsonProjectRepository
 from backend.ui_api import commands, queries
 from backend.ui_api import workspace
@@ -16,7 +17,7 @@ LOGGER = logging.getLogger(__name__)
 
 class UiApiService:
     def __init__(self, project_file: Path | None = None, workspace_dir: Path | None = None) -> None:
-        self.workspace_dir = workspace_dir or Path.cwd()
+        self.workspace_dir = workspace_dir or default_workspace_dir()
         self.project_file = project_file
 
     def _load(self):

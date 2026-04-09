@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from backend.app_paths import project_root_dir
 from backend.ui_api.pywebview_bridge import PywebviewApiBridge
 
 
@@ -14,7 +15,7 @@ def launch_ui(workspace_dir: Path, project_file: Path | None = None) -> None:
         ) from exc
 
     workspace_dir = workspace_dir.resolve()
-    frontend_index = (workspace_dir / "frontend" / "index.html").resolve()
+    frontend_index = (project_root_dir() / "frontend" / "index.html").resolve()
     window = webview.create_window(
         "Stundenlauf-Auswertung",
         url=frontend_index.as_uri(),

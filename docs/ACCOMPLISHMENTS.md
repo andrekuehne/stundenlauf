@@ -17,6 +17,27 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-09 - Konfliktprüfung mit Kandidatenauswahl
+- Requirement/Milestone: [R6, R8; M5]
+- What shipped: Extended the German merge-review card with a real candidate picker dropdown so users can explicitly choose the merge target before confirming instead of always accepting the top suggestion.
+- Evidence: `frontend/app.js`
+- Impact: reduces accidental merges in ambiguous cases by making reviewer intent explicit at decision time.
+- Follow-up: add a side-by-side candidate detail panel (selected candidate vs incoming entry) to further improve confidence on close matches.
+
+### 2026-04-09 - Konfliktprüfung zeigt lesbare Kandidatendaten
+- Requirement/Milestone: [R6, R8; M5]
+- What shipped: Enhanced the review queue API (`get_review_queue`) to include human-readable entity previews (name/team members, year, club) and updated the German import/review UI to prioritize these details while keeping UIDs as secondary trace metadata.
+- Evidence: `backend/ui_api/queries.py`, `frontend/app.js`, `docs/api/ui-api-v1.md`, `tests/test_f08_ui_api.py`, `uv run pytest tests/test_f08_ui_api.py`
+- Impact: conflict resolution is faster and less error-prone because users no longer need to interpret raw UIDs to choose the right merge target.
+- Follow-up: add a dedicated choose-candidate interaction (instead of one-click top-candidate accept) for ambiguous multi-candidate cases.
+
+### 2026-04-09 - Default series storage moved to user Documents
+- Requirement/Milestone: [R7; M5]
+- What shipped: Changed default workspace resolution from current working directory to `~/Documents/Stundenlauf` so yearly series JSON data persists in a per-user app folder outside the repository/app directory; decoupled frontend asset lookup from workspace path.
+- Evidence: `backend/app_paths.py`, `main.py`, `backend/ui_app.py`, `backend/ui_api/service.py`, `uv run pytest tests/test_f08_ui_api.py tests/test_f01_storage.py`
+- Impact: improves portability and safety by avoiding accidental data placement inside the app checkout while keeping existing explicit `--workspace-dir` overrides intact.
+- Follow-up: optional migration helper could detect and offer import of legacy `./data/series` folders.
+
 ### 2026-04-09 - F05 standings sidebar and quick category buttons
 - Requirement/Milestone: [R8; M5]
 - What shipped: Reworked `Aktuelle Wertung` to use a compact sidebar with `Lauf hinzufügen`, imported-run status for Einzel/Paare, and fast category switching via 2x3 button grids for Einzel and Paare with active selection highlighting (replacing the dropdown).

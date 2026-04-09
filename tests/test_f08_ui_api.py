@@ -68,6 +68,38 @@ def _seed_project(path: Path) -> None:
     JsonProjectRepository(path).save(doc)
 
 
+def _seed_project_for_year(path: Path, series_year: int) -> None:
+    category = RaceSeriesCategory(year=series_year, duration=RaceDuration.HALF_HOUR, division=Division.MEN)
+    participant = Person(
+        uid=f"participant_{series_year}",
+        name=f"Starter {series_year}",
+        yob=1990,
+        gender=Gender.M,
+        club="TSV",
+    )
+    event = RaceEvent(
+        race_event_uid=f"race_event_{series_year}_1",
+        category=category,
+        race_date=f"{series_year}-01-05",
+        race_no=1,
+        source_file=f"fixture_{series_year}.xlsx",
+        source_sha256=f"sha_{series_year}",
+        imported_at=f"{series_year}-01-05T10:00:00+00:00",
+        parser_version="v1",
+        schema_fingerprint=f"fp_{series_year}",
+        entries=(
+            RaceEntry(
+                entry_uid=f"entry_{series_year}_1",
+                participant_uid=participant.uid,
+                startnr="1",
+                result=EntryResult(distance_km=10.0, points=20.0),
+            ),
+        ),
+    )
+    doc = ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(participant,), events=(event,))
+    JsonProjectRepository(path).save(recompute_project_standings(doc))
+
+
 class TestF08UiApi(unittest.TestCase):
     def test_list_series_years_returns_empty_without_workspace_data(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -387,6 +419,11 @@ class TestF08UiApi(unittest.TestCase):
             )
             self.assertEqual(before["status"], "ok")
             self.assertEqual(before["payload"]["count"], 1)
+            first_review_item = before["payload"]["items"][0]
+            self.assertIn("entry_preview", first_review_item)
+            self.assertIn("candidate_previews", first_review_item)
+            self.assertEqual(first_review_item["entry_preview"]["display_name"], "Max Mustermann")
+            self.assertEqual(first_review_item["candidate_previews"][0]["display_name"], "Max Mustermann")
 
             applied = bridge.invoke(
                 {
@@ -445,6 +482,79 @@ class TestF08UiApi(unittest.TestCase):
             self.assertGreaterEqual(len(items), 1)
             import_items = [item for item in items if "category_key" in item]
             self.assertTrue(all(str(item["category_key"]).startswith("2026:") for item in import_items))
+
+    def test_switching_series_year_uses_active_year_categories(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = Path(temp_dir)
+            service = UiApiService(workspace_dir=workspace)
+
+            created_2026 = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_create_2026",
+                    "method": "create_series_year",
+                    "payload": {"series_year": 2026},
+                }
+            )
+            created_2027 = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_create_2027",
+                    "method": "create_series_year",
+                    "payload": {"series_year": 2027},
+                }
+            )
+            _seed_project_for_year(Path(created_2026["payload"]["project_file"]), 2026)
+            _seed_project_for_year(Path(created_2027["payload"]["project_file"]), 2027)
+
+            service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_open_2026",
+                    "method": "open_series_year",
+                    "payload": {"series_year": 2026},
+                }
+            )
+            stale_key = "2026:half_hour:men"
+            before_switch = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_standings_2026",
+                    "method": "get_standings",
+                    "payload": {"category_key": stale_key},
+                }
+            )
+            self.assertEqual(before_switch["status"], "ok")
+
+            service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_open_2027",
+                    "method": "open_series_year",
+                    "payload": {"series_year": 2027},
+                }
+            )
+
+            stale_after_switch = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_stale_key_2027",
+                    "method": "get_standings",
+                    "payload": {"category_key": stale_key},
+                }
+            )
+            self.assertEqual(stale_after_switch["status"], "error")
+            self.assertEqual(stale_after_switch["error"]["code"], "NOT_FOUND")
+
+            current_year = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_standings_2027",
+                    "method": "get_standings",
+                    "payload": {"category_key": "2027:half_hour:men"},
+                }
+            )
+            self.assertEqual(current_year["status"], "ok")
 
 
 if __name__ == "__main__":

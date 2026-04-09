@@ -92,3 +92,4 @@ Checkboxes mark **product-level** satisfaction. Capabilities delivered only via 
 | 2026-04-09 | Shipped F08 Python frontend API layer (v1) | Added `backend/ui_api`, pywebview bridge adapter, API contract docs, and backend API tests to unblock F05 UI |
 | 2026-04-09 | Extended ui-api-v1 with year-level workspace methods | Added season-wide query surface and optional year filters to support fluid all-dataset UI workflows |
 | 2026-04-09 | Shipped F05 German desktop frontend workflows | Added pywebview full-screen UI shell (`frontend/`), season open/create entrypoint, standings/results tables, import/review actions, and timeline rollback UX |
+| 2026-04-09 | Moved default workspace storage to user Documents folder | Default `workspace_dir` now resolves to `~/Documents/Stundenlauf`, keeping series data outside the app directory while preserving explicit overrides |

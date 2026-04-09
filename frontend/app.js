@@ -180,7 +180,11 @@
       setStatus("Saison konnte nicht geöffnet werden.", true);
       return;
     }
+    const seasonChanged = state.seriesYear !== year;
     state.seriesYear = year;
+    if (seasonChanged) {
+      state.selectedCategory = "";
+    }
     seasonLabel.textContent = `Saison: ${year}`;
     await loadOverview();
     seasonEntryView.classList.add("hidden");
@@ -197,7 +201,9 @@
     }
     state.categories = response.payload.categories || [];
     state.raceHistoryGroups = response.payload.race_history_groups || [];
-    state.selectedCategory = state.selectedCategory || (state.categories[0] ? state.categories[0].category_key : "");
+    if (!state.categories.some((category) => category.category_key === state.selectedCategory)) {
+      state.selectedCategory = state.categories[0] ? state.categories[0].category_key : "";
+    }
     reviewLabel.textContent = `Prüfungen offen: ${response.payload.totals.review_queue}`;
     await Promise.all([renderStandingsView(), renderImportView(), renderHistoryView()]);
   }
@@ -464,6 +470,44 @@
     }
   }
 
+  function formatEntityPreview(preview) {
+    if (!preview) {
+      return "Unbekannt";
+    }
+    const parts = [preview.display_name || preview.uid || "Unbekannt"];
+    if (preview.yob) {
+      parts.push(`Jg. ${preview.yob}`);
+    }
+    if (preview.club) {
+      parts.push(preview.club);
+    }
+    return parts.join(" | ");
+  }
+
+  function formatCandidateList(review) {
+    const previews = review.candidate_previews || [];
+    if (!previews.length) {
+      const fallback = review.candidate_uids || [];
+      return fallback.length ? fallback.join(", ") : "Keine";
+    }
+    return previews.map((preview) => formatEntityPreview(preview)).join("<br/>");
+  }
+
+  function buildCandidateOptions(review) {
+    const candidateUids = review.candidate_uids || [];
+    const previewByUid = new Map((review.candidate_previews || []).filter(Boolean).map((item) => [item.uid, item]));
+    const selectedUid =
+      review.top_candidate_uid && candidateUids.includes(review.top_candidate_uid)
+        ? review.top_candidate_uid
+        : candidateUids[0] || "";
+    return candidateUids.map((candidateUid) => {
+      const preview = previewByUid.get(candidateUid);
+      const label = preview ? formatEntityPreview(preview) : candidateUid;
+      const selected = candidateUid === selectedUid ? "selected" : "";
+      return `<option value="${candidateUid}" ${selected}>${label}</option>`;
+    });
+  }
+
   async function renderImportView() {
     if (!state.seriesYear) {
       return;
@@ -500,8 +544,17 @@
             ? `<p class="ok">Keine offenen Prüfungen.</p>`
             : `<p>Prüfung ${state.reviewIndex + 1} von ${state.reviewQueue.length}</p>
                <p class="hint">Übereinstimmung: ${Math.round((review.confidence || 0) * 100)}%</p>
-               <div class="row"><strong>Eintrag:</strong> ${review.entry_uid} | <strong>Lauf:</strong> ${review.race_event_uid}</div>
-               <div class="row"><strong>Kandidaten:</strong> ${(review.candidate_uids || []).join(", ")}</div>
+               <div class="row"><strong>Eintrag:</strong> ${formatEntityPreview(review.entry_preview)}</div>
+               <div class="row"><strong>Leistung:</strong> Startnr. ${review.startnr || "-"} | ${review.result_preview?.distance_km ?? "-"} km | ${
+                review.result_preview?.points ?? "-"
+              } Punkte</div>
+               <div class="row"><strong>Top-Vorschlag:</strong> ${formatEntityPreview(review.top_candidate_preview)}</div>
+               <div class="row">
+                 <label for="candidateSelect"><strong>Kandidat auswählen:</strong></label>
+                 <select id="candidateSelect">${buildCandidateOptions(review).join("")}</select>
+               </div>
+               <div class="row"><strong>Kandidaten:</strong> <div>${formatCandidateList(review)}</div></div>
+               <p class="hint">Eintrag-ID: ${review.entry_uid} | Lauf-ID: ${review.race_event_uid}</p>
                <div class="row">
                  <button id="acceptReviewBtn" class="primary">Zusammenführung bestätigen</button>
                  <button id="skipReviewBtn" class="secondary">Überspringen</button>
@@ -547,7 +600,8 @@
         await renderImportView();
       });
       document.getElementById("acceptReviewBtn").addEventListener("click", async () => {
-        const target = review.top_candidate_uid || (review.candidate_uids || [])[0];
+        const candidateSelect = document.getElementById("candidateSelect");
+        const target = candidateSelect ? candidateSelect.value : review.top_candidate_uid || (review.candidate_uids || [])[0];
         if (!target) {
           setStatus("Für diesen Eintrag ist kein Kandidat verfügbar.", true);
           return;

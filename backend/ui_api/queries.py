@@ -4,7 +4,7 @@ from dataclasses import asdict
 from typing import Any
 
 from backend.domain.enums import RaceEventState
-from backend.domain.models import ProjectDocument, RaceEntry, RaceEvent, RaceSeriesCategory
+from backend.domain.models import Couple, Person, ProjectDocument, RaceEntry, RaceEvent, RaceSeriesCategory
 from backend.ranking.engine import recompute_project_standings
 from backend.ui_api.errors import not_found, validation_error
 from backend.ui_api.mappers import category_label, club_for_row, display_name_for_row, race_event_identity, yob_for_row
@@ -173,6 +173,48 @@ def get_category_current_results_table(document: ProjectDocument, payload: dict[
     }
 
 
+def _person_preview(person: Person) -> dict[str, Any]:
+    return {
+        "uid": person.uid,
+        "kind": "participant",
+        "display_name": person.name,
+        "yob": person.yob or None,
+        "club": person.club,
+    }
+
+
+def _team_preview(team: Couple) -> dict[str, Any]:
+    member_names = [item for item in (team.member_a.name, team.member_b.name) if item]
+    clubs = [item for item in (team.member_a.club, team.member_b.club) if item]
+    return {
+        "uid": team.uid,
+        "kind": "team",
+        "display_name": " / ".join(member_names),
+        "yob": None,
+        "club": " / ".join(clubs) if clubs else None,
+        "member_a": asdict(team.member_a),
+        "member_b": asdict(team.member_b),
+    }
+
+
+def _entity_preview(document: ProjectDocument, entity_uid: str | None) -> dict[str, Any] | None:
+    if not entity_uid:
+        return None
+    person = next((item for item in document.people if item.uid == entity_uid), None)
+    if person is not None:
+        return _person_preview(person)
+    team = next((item for item in document.couples if item.uid == entity_uid), None)
+    if team is not None:
+        return _team_preview(team)
+    return {
+        "uid": entity_uid,
+        "kind": "unknown",
+        "display_name": entity_uid,
+        "yob": None,
+        "club": None,
+    }
+
+
 def get_review_queue(document: ProjectDocument, payload: dict[str, Any]) -> dict[str, Any]:
     race_event_uid = str(payload.get("race_event_uid", "")).strip()
     rows: list[dict[str, Any]] = []
@@ -190,10 +232,24 @@ def get_review_queue(document: ProjectDocument, payload: dict[str, Any]) -> dict
                     "entry_uid": entry.entry_uid,
                     "startnr": entry.startnr,
                     "candidate_uids": list(entry.match_meta.candidate_uids),
+                    "candidate_previews": [
+                        _entity_preview(document, candidate_uid)
+                        for candidate_uid in entry.match_meta.candidate_uids
+                    ],
                     "top_candidate_uid": entry.match_meta.top_candidate_uid,
+                    "top_candidate_preview": _entity_preview(document, entry.match_meta.top_candidate_uid),
                     "confidence": entry.match_meta.confidence,
                     "features": dict(entry.match_meta.features),
                     "conflict_flags": list(entry.match_meta.conflict_flags),
+                    "entry_preview": (
+                        _entity_preview(document, entry.participant_uid)
+                        if entry.participant_uid
+                        else _entity_preview(document, entry.team_uid)
+                    ),
+                    "result_preview": {
+                        "distance_km": entry.result.distance_km,
+                        "points": entry.result.points,
+                    },
                     "event": race_event_identity(event),
                 }
             )

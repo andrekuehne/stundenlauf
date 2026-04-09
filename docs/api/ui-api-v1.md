@@ -90,7 +90,11 @@ This document defines the frontend-facing Python API contract for the pywebview 
 ### `get_review_queue`
 - Payload:
   - `race_event_uid` (optional)
-- Returns open review entries based on `match_meta.route == "review"`, including candidate IDs and confidence/features.
+- Returns open review entries based on `match_meta.route == "review"`, including:
+  - technical IDs (`entry_uid`, `race_event_uid`, `candidate_uids`, `top_candidate_uid`)
+  - human-readable previews for direct UI rendering (`entry_preview`, `top_candidate_preview`, `candidate_previews[]` with display name / year / club and team member details)
+  - confidence and explainability fields (`confidence`, `features`, `conflict_flags`)
+  - compact race metadata under `event` and imported result metrics under `result_preview`.
 
 ### `get_match_candidate`
 - Payload:
