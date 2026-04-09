@@ -305,6 +305,24 @@ th {
   align-items: start;
 }
 
+.import-view-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
+  gap: var(--space);
+  align-items: start;
+}
+
+.import-controls-column {
+  position: sticky;
+  top: var(--space);
+  display: grid;
+  gap: var(--space);
+}
+
+.import-review-column {
+  min-width: 0;
+}
+
 .import-settings-panel {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -335,5 +353,13 @@ th {
 
   .import-add-layout {
     grid-template-columns: 1fr;
+  }
+
+  .import-view-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .import-controls-column {
+    position: static;
   }
 }

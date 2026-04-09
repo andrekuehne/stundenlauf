@@ -622,26 +622,24 @@
     const autoMergeEnabled = Boolean(state.matchingConfig.auto_merge_enabled);
     const perfectMatchAutoMerge = Boolean(state.matchingConfig.perfect_match_auto_merge);
     importView.innerHTML = `
-      <div class="card">
-        <h2>Lauf hinzufügen</h2>
-        <div class="import-add-layout">
-          <div class="import-add-main">
-            <p class="hint">Bitte wählen Sie die Ergebnisdatei des aktuellen Laufs aus.</p>
-            <div class="row">
-              <label for="filePathInput">Ergebnisdatei</label>
-              <input id="filePathInput" type="text" placeholder="Bitte Datei auswählen..." />
-              <button id="pickFileBtn" class="secondary">Datei auswählen</button>
-            </div>
-            <div class="row">
-              <label for="sourceTypeSelect">Lauftyp</label>
-              <select id="sourceTypeSelect">
-                <option value="">Automatisch erkennen</option>
-                <option value="singles">Einzel</option>
-                <option value="couples">Paare</option>
-              </select>
-            </div>
+      <div class="import-view-layout">
+        <aside class="card import-controls-column">
+          <h2>Lauf hinzufügen</h2>
+          <p class="hint">Bitte wählen Sie die Ergebnisdatei des aktuellen Laufs aus.</p>
+          <div class="row">
+            <label for="filePathInput">Ergebnisdatei</label>
+            <input id="filePathInput" type="text" placeholder="Bitte Datei auswählen..." />
+            <button id="pickFileBtn" class="secondary">Datei auswählen</button>
           </div>
-          <aside class="import-settings-panel">
+          <div class="row">
+            <label for="sourceTypeSelect">Lauftyp</label>
+            <select id="sourceTypeSelect">
+              <option value="">Automatisch erkennen</option>
+              <option value="singles">Einzel</option>
+              <option value="couples">Paare</option>
+            </select>
+          </div>
+          <div class="import-settings-panel">
             <h4>Matching-Einstellungen</h4>
             <div class="row">
               <label for="autoMergeEnabledInput">Automatisches Zusammenführen</label>
@@ -657,11 +655,10 @@
               <input id="autoMergeThresholdInput" type="number" min="0.00" max="1.00" step="0.01" value="${autoMinValue.toFixed(2)}" />
             </div>
             <p class="hint">Standard: Nur perfekte Treffer werden automatisch zusammengeführt.</p>
-          </aside>
-        </div>
-        <div class="row"><button id="importRaceBtn" class="primary">Lauf importieren</button></div>
-      </div>
-      <div class="card">
+          </div>
+          <div class="row"><button id="importRaceBtn" class="primary">Lauf importieren</button></div>
+        </aside>
+        <section class="card import-review-column">
         <h3>Zusammenführungen prüfen</h3>
         ${
           !review
@@ -702,6 +699,7 @@
                  <button id="skipReviewBtn" class="secondary">Überspringen</button>
                </div>`
         }
+        </section>
       </div>
     `;
     const autoMergeEnabledInput = document.getElementById("autoMergeEnabledInput");
