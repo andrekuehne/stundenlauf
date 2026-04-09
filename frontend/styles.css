@@ -177,6 +177,11 @@ th {
   font-size: var(--font-small);
 }
 
+.imported-races-list {
+  margin-top: 6px;
+  margin-bottom: 14px;
+}
+
 .ok {
   color: var(--ok);
 }

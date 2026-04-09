@@ -2,6 +2,7 @@
   const state = {
     seriesYear: null,
     categories: [],
+    raceHistoryGroups: [],
     selectedCategory: "",
     currentView: "standings",
     reviewQueue: [],
@@ -195,9 +196,53 @@
       return;
     }
     state.categories = response.payload.categories || [];
+    state.raceHistoryGroups = response.payload.race_history_groups || [];
     state.selectedCategory = state.selectedCategory || (state.categories[0] ? state.categories[0].category_key : "");
     reviewLabel.textContent = `Prüfungen offen: ${response.payload.totals.review_queue}`;
     await Promise.all([renderStandingsView(), renderImportView(), renderHistoryView()]);
+  }
+
+  function raceListLabel(raceNumbers) {
+    if (!raceNumbers.length) {
+      return "Keine";
+    }
+    return raceNumbers.map((raceNo) => `${raceNo}. Lauf`).join(", ");
+  }
+
+  function buildImportedRaceInfo() {
+    const categoryByKey = new Map(state.categories.map((category) => [category.category_key, category]));
+    const singlesRaceNumbers = new Set();
+    const couplesRaceNumbers = new Set();
+    const byCategory = [];
+    for (const group of state.raceHistoryGroups) {
+      const category = categoryByKey.get(group.category_key);
+      const activeEvents = (group.events || []).filter((event) => {
+        const raceNo = Number(event.race_no);
+        return Number.isInteger(raceNo) && raceNo > 0;
+      });
+      const raceNumbers = [...new Set(activeEvents.map((event) => Number(event.race_no)))].sort((a, b) => a - b);
+      if (raceNumbers.length === 0) {
+        continue;
+      }
+      const isCouples = Boolean(category && String(category.division).startsWith("couples_"));
+      for (const raceNo of raceNumbers) {
+        if (isCouples) {
+          couplesRaceNumbers.add(raceNo);
+        } else {
+          singlesRaceNumbers.add(raceNo);
+        }
+      }
+      byCategory.push({
+        label: group.category_label,
+        raceNumbers,
+      });
+    }
+    byCategory.sort((a, b) => a.label.localeCompare(b.label, "de"));
+    return {
+      singlesRaceNumbers: [...singlesRaceNumbers].sort((a, b) => a - b),
+      couplesRaceNumbers: [...couplesRaceNumbers].sort((a, b) => a - b),
+      byCategory,
+    };
   }
 
   function switchView(viewName) {
@@ -248,6 +293,10 @@
         return `<tr><td>${row.platz}</td><td>${row.display_name}</td>${cells}<td>${row.distanz_gesamt}</td><td>${row.punkte_gesamt}</td></tr>`;
       })
       .join("");
+    const importedRaceInfo = buildImportedRaceInfo();
+    const importedRaceDetails = importedRaceInfo.byCategory
+      .map((item) => `<li><strong>${item.label}:</strong> ${raceListLabel(item.raceNumbers)}</li>`)
+      .join("");
 
     standingsView.innerHTML = `
       <div class="card">
@@ -259,6 +308,13 @@
           </div>
         </div>
         <p class="hint">Die Gesamtwertung basiert auf den importierten Läufen und dem aktuellen Regelwerk.</p>
+        <p class="hint"><strong>Bereits importiert (Einzel):</strong> ${raceListLabel(importedRaceInfo.singlesRaceNumbers)}</p>
+        <p class="hint"><strong>Bereits importiert (Paare):</strong> ${raceListLabel(importedRaceInfo.couplesRaceNumbers)}</p>
+        ${
+          importedRaceDetails
+            ? `<p class="hint">Details je Kategorie:</p><ul class="hint imported-races-list">${importedRaceDetails}</ul>`
+            : `<p class="hint">Details je Kategorie: Keine Läufe importiert.</p>`
+        }
         <div class="table-wrap">
           <table>
             <thead><tr><th>Platz</th><th>Name</th><th>Jahrgang</th><th>Verein</th><th>Gesamtdistanz (km)</th><th>Gesamtpunkte</th></tr></thead>
