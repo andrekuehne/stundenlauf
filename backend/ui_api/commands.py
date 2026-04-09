@@ -221,5 +221,27 @@ def reimport_race(project_file: Path, payload: dict[str, Any]) -> dict[str, Any]
     previous_race_event_uid = str(payload.get("previous_race_event_uid", "")).strip()
     if not previous_race_event_uid:
         raise validation_error("previous_race_event_uid is required")
-    rollback_race(project_file, {"race_event_uid": previous_race_event_uid, "reason": "ui_api.reimport"})
-    return import_race(project_file, payload)
+    repo = JsonProjectRepository(project_file)
+    loaded = repo.load()
+    previous_event = next((event for event in loaded.events if event.race_event_uid == previous_race_event_uid), None)
+    if previous_event is None:
+        raise not_found("race_event_uid", previous_race_event_uid)
+    source_sha256 = previous_event.source_sha256
+    if not source_sha256:
+        raise validation_error("previous race event has no source_sha256")
+
+    updated, rolled_back_event_uids = repo.mark_events_rolled_back_by_source_sha256(
+        loaded,
+        source_sha256=source_sha256,
+        rolled_back_by="ui_api",
+        reason="ui_api.reimport",
+    )
+    repo.save(updated)
+
+    imported = import_race(project_file, payload)
+    imported["reimport"] = {
+        "source_sha256": source_sha256,
+        "rolled_back_event_count": len(rolled_back_event_uids),
+        "rolled_back_event_uids": list(rolled_back_event_uids),
+    }
+    return imported

@@ -3,15 +3,19 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from openpyxl import Workbook
 
-from backend.domain.enums import Division
+from backend.domain.enums import Division, RaceDuration, RaceEventState
+from backend.domain.models import ProjectDocument, RaceEvent, RaceSeriesCategory
 from backend.ingestion.adapters.couples import parse_couples_workbook
 from backend.ingestion.adapters.singles import parse_singles_workbook
 from backend.ingestion.service import import_excel_into_project
 from backend.ingestion.validation import ImportValidationError
 from backend.storage.repository import JsonProjectRepository
+from backend.storage.schema_v2 import SCHEMA_VERSION_V2
 
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
@@ -50,14 +54,14 @@ class TestF02AdaptersWithFixtures(unittest.TestCase):
             self.assertTrue(parsed.couples_sections)
             self.assertGreater(sum(len(section.rows) for section in parsed.couples_sections), 0)
 
-    def test_reimport_same_file_is_noop(self) -> None:
+    def test_reimport_same_file_returns_duplicate_error(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project_path = Path(temp_dir) / "project.json"
             excel_file = DATA_2023_EINZEL / "Ergebnisliste MW Lauf 1.xlsx"
             first = import_excel_into_project(project_path, excel_file, series_year=2023)
-            second = import_excel_into_project(project_path, excel_file, series_year=2023)
             self.assertFalse(first.noop)
-            self.assertTrue(second.noop)
+            with self.assertRaisesRegex(ValueError, "Doppelimport-Konflikt"):
+                import_excel_into_project(project_path, excel_file, series_year=2023)
 
     def test_import_singles_and_couples_do_not_collide(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -108,3 +112,115 @@ class TestF02SyntheticValidation(unittest.TestCase):
             first_row = parsed.singles_sections[0].rows[0]
             self.assertEqual(first_row.distance_km, 12.5)
             self.assertEqual(first_row.points, 42.0)
+
+    def test_import_same_file_without_rollback_returns_duplicate_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.MEN)
+            existing = RaceEvent(
+                race_event_uid="race_event_existing",
+                category=category,
+                race_date="2026-01-05",
+                race_no=1,
+                source_file="fixture.xlsx",
+                source_sha256="sha_duplicate",
+                imported_at="2026-01-05T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp",
+                entries=(),
+            )
+            JsonProjectRepository(project_path).save(ProjectDocument(schema_version=SCHEMA_VERSION_V2, events=(existing,)))
+            parsed_stub = SimpleNamespace(
+                meta=SimpleNamespace(
+                    source_file="fixture.xlsx",
+                    source_sha256="sha_duplicate",
+                    imported_at="2026-02-05T10:00:00+00:00",
+                    parser_version="v1",
+                    schema_fingerprint="fp",
+                ),
+                singles_sections=(),
+                couples_sections=(),
+            )
+            with patch("backend.ingestion.service.parse_singles_workbook", return_value=parsed_stub):
+                with self.assertRaisesRegex(ValueError, "Doppelimport-Konflikt"):
+                    import_excel_into_project(project_path, Path("ignored.xlsx"), series_year=2026, source_type="singles")
+
+    def test_import_after_full_source_batch_rollback_is_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.MEN)
+            rolled_back = RaceEvent(
+                race_event_uid="race_event_rolled_back",
+                category=category,
+                race_date="2026-01-05",
+                race_no=1,
+                source_file="fixture.xlsx",
+                source_sha256="sha_reimport_ok",
+                imported_at="2026-01-05T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp",
+                state=RaceEventState.ROLLED_BACK,
+                entries=(),
+            )
+            JsonProjectRepository(project_path).save(ProjectDocument(schema_version=SCHEMA_VERSION_V2, events=(rolled_back,)))
+            parsed_stub = SimpleNamespace(
+                meta=SimpleNamespace(
+                    source_file="fixture.xlsx",
+                    source_sha256="sha_reimport_ok",
+                    imported_at="2026-02-05T10:00:00+00:00",
+                    parser_version="v1",
+                    schema_fingerprint="fp",
+                ),
+                singles_sections=(),
+                couples_sections=(),
+            )
+            with patch("backend.ingestion.service.parse_singles_workbook", return_value=parsed_stub):
+                result = import_excel_into_project(project_path, Path("ignored.xlsx"), series_year=2026, source_type="singles")
+            self.assertFalse(result.noop)
+
+    def test_import_after_partial_source_batch_rollback_is_blocked(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.MEN)
+            active_event = RaceEvent(
+                race_event_uid="race_event_active",
+                category=category,
+                race_date="2026-01-05",
+                race_no=1,
+                source_file="fixture.xlsx",
+                source_sha256="sha_partial",
+                imported_at="2026-01-05T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp",
+                entries=(),
+            )
+            rolled_back_event = RaceEvent(
+                race_event_uid="race_event_rolled_back",
+                category=category,
+                race_date="2026-01-06",
+                race_no=1,
+                source_file="fixture.xlsx",
+                source_sha256="sha_partial",
+                imported_at="2026-01-06T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp",
+                state=RaceEventState.ROLLED_BACK,
+                entries=(),
+            )
+            JsonProjectRepository(project_path).save(
+                ProjectDocument(schema_version=SCHEMA_VERSION_V2, events=(active_event, rolled_back_event))
+            )
+            parsed_stub = SimpleNamespace(
+                meta=SimpleNamespace(
+                    source_file="fixture.xlsx",
+                    source_sha256="sha_partial",
+                    imported_at="2026-02-05T10:00:00+00:00",
+                    parser_version="v1",
+                    schema_fingerprint="fp",
+                ),
+                singles_sections=(),
+                couples_sections=(),
+            )
+            with patch("backend.ingestion.service.parse_singles_workbook", return_value=parsed_stub):
+                with self.assertRaisesRegex(ValueError, "Teilweiser Reimport-Konflikt"):
+                    import_excel_into_project(project_path, Path("ignored.xlsx"), series_year=2026, source_type="singles")

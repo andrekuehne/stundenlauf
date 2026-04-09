@@ -77,6 +77,17 @@
     globalStatus.className = isError ? "status-line danger-text" : "status-line";
   }
 
+  function getApiErrorMessage(error, fallbackMessage) {
+    const code = (error && error.code) || "";
+    if (code === "IMPORT_DUPLICATE") {
+      return "Diese Datei ist bereits aktiv importiert. Bitte nehmen Sie den bisherigen Import zuerst in der Historie zurück.";
+    }
+    if (code === "REIMPORT_PARTIAL_ROLLBACK_REQUIRED") {
+      return "Import abgebrochen: Es wurde nichts importiert. Korrektur nur teilweise zurückgenommen. Bitte zuerst alle noch aktiven Läufe dieser Quelle zurücknehmen und dann erneut importieren.";
+    }
+    return (error && error.details && error.details.message) || fallbackMessage;
+  }
+
   function renderSeasonEntry(items) {
     const rows = items
       .map(
@@ -637,7 +648,7 @@
         source_type: sourceType,
       });
       if (response.status === "error") {
-        setStatus(response.error.details.message || "Import konnte nicht abgeschlossen werden.", true);
+        setStatus(getApiErrorMessage(response.error, "Import konnte nicht abgeschlossen werden."), true);
         return;
       }
       setStatus("Import abgeschlossen. Bitte prüfen Sie offene Zuordnungen.");
@@ -763,7 +774,7 @@
         }
         const response = await api("rollback_race", { race_event_uid: eventUid, reason: "ui.history.rollback" });
         if (response.status === "error") {
-          setStatus("Lauf konnte nicht zurückgenommen werden.", true);
+          setStatus(getApiErrorMessage(response.error, "Lauf konnte nicht zurückgenommen werden."), true);
           return;
         }
         setStatus("Lauf wurde zurückgenommen.");

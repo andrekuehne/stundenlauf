@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-09 - Safe source-batch reimport hardening
+- Requirement/Milestone: [R1, R5, R6, R8; M5]
+- What shipped: Replaced silent same-file noop handling with explicit duplicate/partial-rollback errors, implemented source-hash batch rollback in `reimport_race`, and surfaced clearer German guidance in the import/history UI.
+- Evidence: `backend/ingestion/service.py`, `backend/storage/repository.py`, `backend/ui_api/commands.py`, `backend/ui_api/errors.py`, `frontend/app.js`, `docs/api/ui-api-v1.md`, `tests/test_f02_ingestion.py`, `tests/test_f08_ui_api.py`
+- Impact: correction flow is safer and deterministic because reimport now enforces full source-batch rollback, preventing hidden partial-state duplicates and making operator next steps explicit.
+- Follow-up: consider adding a dedicated history action that triggers `reimport_race` directly with guided file-pick UX for non-technical users.
+
 ### 2026-04-09 - Merge-Prüfung als Zwei-Spalten-Tabelle vereinfacht
 - Requirement/Milestone: [R6, R8; M5]
 - What shipped: Replaced the merge-review card with a side-by-side table view (`eingehender Eintrag` vs `mögliche Treffer`) including clear German guidance, ranked candidate selection, and explicit actions for `bestehende Person` vs `neue Person`.

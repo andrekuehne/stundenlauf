@@ -68,6 +68,27 @@ class JsonProjectRepository:
         updated = replace(document, events=tuple(updated_events))
         return recompute_project_standings(updated)
 
+    def mark_events_rolled_back_by_source_sha256(
+        self,
+        document: ProjectDocument,
+        source_sha256: str,
+        rolled_back_by: str,
+        reason: str,
+    ) -> tuple[ProjectDocument, tuple[str, ...]]:
+        updated_events: list[RaceEvent] = []
+        affected_uids: list[str] = []
+        for event in document.events:
+            if event.source_sha256 == source_sha256 and event.state == RaceEventState.ACTIVE:
+                rollback = RollbackMetadata(rolled_back_by=rolled_back_by, reason=reason)
+                updated_events.append(replace(event, state=RaceEventState.ROLLED_BACK, rollback=rollback))
+                affected_uids.append(event.race_event_uid)
+            else:
+                updated_events.append(event)
+        if not affected_uids:
+            raise ValidationError(f"No active events found for source_sha256: {source_sha256}")
+        updated = replace(document, events=tuple(updated_events))
+        return recompute_project_standings(updated), tuple(affected_uids)
+
     def _validate_document(self, document: ProjectDocument) -> None:
         if document.schema_version != SCHEMA_VERSION_V2:
             raise ValidationError(

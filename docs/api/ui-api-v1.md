@@ -115,6 +115,10 @@ This document defines the frontend-facing Python API contract for the pywebview 
   - `series_year` (required)
   - `source_type` (optional, `singles` or `couples`; defaults to filename-based detection)
 - Returns import summary (`noop`, `rows_imported`, `merged_event_uids`, matching report).
+- Duplicate/reimport safety behavior:
+  - if the same source hash is already active, returns `IMPORT_DUPLICATE` error (no silent noop).
+  - if the same source hash is partially rolled back (mixed active + rolled back), returns `REIMPORT_PARTIAL_ROLLBACK_REQUIRED`.
+  - if all prior events for the source hash are rolled back, import is allowed.
 
 ### `apply_match_decision`
 - Payload:
@@ -139,14 +143,21 @@ This document defines the frontend-facing Python API contract for the pywebview 
   - `file_path` (required)
   - `series_year` (required)
 - Behavior:
-  - rolls back previous race event, then imports replacement file
-- Returns import summary payload.
+  - resolves the source hash from `previous_race_event_uid`
+  - rolls back all active events sharing that source hash
+  - imports replacement file
+- Returns import summary payload with additional `reimport` metadata:
+  - `source_sha256`
+  - `rolled_back_event_count`
+  - `rolled_back_event_uids[]`
 
 ## Error Code Catalog
 
 - `VALIDATION_ERROR`: malformed envelope/payload or invalid parameters.
 - `SOURCE_FILE_NOT_FOUND`: import source file path is invalid.
 - `MATCH_CONFLICT`: domain conflict during import/apply flow.
+- `IMPORT_DUPLICATE`: same source file/hash is already active in the season.
+- `REIMPORT_PARTIAL_ROLLBACK_REQUIRED`: same source hash is only partially rolled back; full source-batch rollback is required before reimport.
 - `RACE_NOT_FOUND`: referenced race event UID does not exist.
 - `NOT_FOUND`: generic entity lookup miss.
 - `INTERNAL_ERROR`: unhandled backend exception.

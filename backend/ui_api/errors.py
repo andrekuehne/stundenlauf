@@ -50,6 +50,18 @@ def map_exception(exc: Exception) -> ApiErrorDTO:
         )
     if isinstance(exc, ValueError):
         text = str(exc)
+        if "Doppelimport-Konflikt" in text:
+            return ApiErrorDTO(
+                code="IMPORT_DUPLICATE",
+                message_key="error.import_duplicate",
+                details={"message": text},
+            )
+        if "Teilweiser Reimport-Konflikt" in text:
+            return ApiErrorDTO(
+                code="REIMPORT_PARTIAL_ROLLBACK_REQUIRED",
+                message_key="error.reimport_partial_rollback_required",
+                details={"message": text},
+            )
         if "Importkonflikt" in text:
             return ApiErrorDTO(
                 code="MATCH_CONFLICT",

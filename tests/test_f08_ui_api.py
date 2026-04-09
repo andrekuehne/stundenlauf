@@ -403,6 +403,103 @@ class TestF08UiApi(unittest.TestCase):
             self.assertEqual(response["status"], "error")
             self.assertEqual(response["error"]["code"], "VALIDATION_ERROR")
 
+    def test_reimport_race_rolls_back_all_events_with_same_source_hash(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.MEN)
+            event_a = RaceEvent(
+                race_event_uid="race_event_same_source_a",
+                category=category,
+                race_date="2026-01-05",
+                race_no=1,
+                source_file="fixture_a.xlsx",
+                source_sha256="shared_source_sha",
+                imported_at="2026-01-05T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp",
+                entries=(),
+            )
+            event_b = RaceEvent(
+                race_event_uid="race_event_same_source_b",
+                category=category,
+                race_date="2026-01-06",
+                race_no=1,
+                source_file="fixture_b.xlsx",
+                source_sha256="shared_source_sha",
+                imported_at="2026-01-06T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp",
+                entries=(),
+            )
+            JsonProjectRepository(project_path).save(
+                recompute_project_standings(
+                    ProjectDocument(schema_version=SCHEMA_VERSION_V2, events=(event_a, event_b))
+                )
+            )
+            service = UiApiService(project_path)
+            with patch("backend.ui_api.commands.import_excel_into_project") as mock_import:
+                mock_import.return_value = type(
+                    "ImportResultStub",
+                    (),
+                    {
+                        "noop": False,
+                        "issues": (),
+                        "merged_event_uids": ("race_event_reimported",),
+                        "rows_imported": 0,
+                        "source_file": Path("dummy.xlsx"),
+                        "matching_report": None,
+                    },
+                )()
+                response = service.handle(
+                    {
+                        "api_version": API_VERSION_V1,
+                        "request_id": "req_reimport_batch_1",
+                        "method": "reimport_race",
+                        "payload": {
+                            "previous_race_event_uid": "race_event_same_source_a",
+                            "file_path": "dummy.xlsx",
+                            "series_year": 2026,
+                            "source_type": "singles",
+                        },
+                    }
+                )
+            self.assertEqual(response["status"], "ok")
+            reimport_meta = response["payload"]["reimport"]
+            self.assertEqual(reimport_meta["source_sha256"], "shared_source_sha")
+            self.assertEqual(reimport_meta["rolled_back_event_count"], 2)
+            self.assertCountEqual(
+                reimport_meta["rolled_back_event_uids"],
+                ["race_event_same_source_a", "race_event_same_source_b"],
+            )
+            doc = JsonProjectRepository(project_path).load()
+            for event in doc.events:
+                self.assertEqual(event.state, RaceEventState.ROLLED_BACK)
+            self.assertEqual(len([event for event in doc.events if event.rollback is not None]), 2)
+
+    def test_ui_api_import_race_propagates_duplicate_error_details(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_project(project_path)
+            service = UiApiService(project_path)
+            with patch(
+                "backend.ui_api.commands.import_excel_into_project",
+                side_effect=ValueError("Doppelimport-Konflikt: Diese Datei wurde bereits importiert."),
+            ):
+                response = service.handle(
+                    {
+                        "api_version": API_VERSION_V1,
+                        "request_id": "req_import_duplicate_1",
+                        "method": "import_race",
+                        "payload": {
+                            "file_path": "dummy.xlsx",
+                            "series_year": 2026,
+                            "source_type": "singles",
+                        },
+                    }
+                )
+            self.assertEqual(response["status"], "error")
+            self.assertEqual(response["error"]["code"], "IMPORT_DUPLICATE")
+
     def test_bridge_apply_decision_updates_review_queue_and_audit(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project_path = Path(temp_dir) / "project.json"

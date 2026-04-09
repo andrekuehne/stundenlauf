@@ -150,6 +150,7 @@ This review flow is critical for trust in cumulative results and for correcting 
    - confirmation dialog with impact summary (entities affected).
    - after rollback: recompute standings and keep immutable audit record.
    - reimport corrected race file and restart merge review flow.
+   - on reimport, rollback all active events sharing the same import source hash before importing replacement data.
 8. Harden UX edge cases
    - stale data conflicts, duplicate submits, and command retry behavior.
    - loading/empty/error states across both primary views.
@@ -210,7 +211,8 @@ This review flow is critical for trust in cumulative results and for correcting 
 
 ### Rollback Strategy
 
-- Rollback is race-event scoped and append-only in audit history (no destructive deletion of audit records).
+- Rollback is race-event scoped for manual actions and append-only in audit history (no destructive deletion of audit records).
+- Reimport uses source-batch rollback semantics (all active events sharing the same source hash) before replacement import.
 - Recalculation always runs from remaining active race events to guarantee deterministic recovery.
 
 ## Definition of Done
