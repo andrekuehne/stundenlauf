@@ -914,53 +914,91 @@
     if (!state.seriesYear) {
       return;
     }
-    const timelineResponse = await api("get_year_timeline", { series_year: state.seriesYear });
+    const timelineResponse = await api("get_year_timeline", {
+      series_year: state.seriesYear,
+      limit: 1000,
+    });
     if (timelineResponse.status === "error") {
       historyView.innerHTML = `<div class="card"><p class="danger-text">Historie konnte nicht geladen werden.</p></div>`;
       return;
     }
-    const rows = (timelineResponse.payload.items || [])
-      .map((item) => {
-        const rollbackAction =
-          item.event_type === "race_import"
-            ? `<button class="danger" data-rollback="${item.race_event_uid}">Lauf zurücknehmen</button>`
-            : "";
+    const timelineItems = timelineResponse.payload.items || [];
+    const groupedImports = new Map();
+    for (const item of timelineItems) {
+      if (item.event_type !== "race_import") {
+        continue;
+      }
+      const sourceHash = String(item.source_sha256 || "").trim();
+      if (!sourceHash) {
+        continue;
+      }
+      const existing = groupedImports.get(sourceHash);
+      if (existing) {
+        existing.count += 1;
+        existing.eventUids.push(item.race_event_uid || "");
+        if (item.category_key) {
+          existing.categories.add(item.category_key);
+        }
+        continue;
+      }
+      groupedImports.set(sourceHash, {
+        sourceSha256: sourceHash,
+        sourceFile: item.source_file || "-",
+        timestamp: item.timestamp || "-",
+        anchorEventUid: item.race_event_uid || "",
+        eventUids: [item.race_event_uid || ""],
+        categories: new Set(item.category_key ? [item.category_key] : []),
+        count: 1,
+      });
+    }
+    const groupedRows = Array.from(groupedImports.values())
+      .map((group) => {
+        const categoryLabel = Array.from(group.categories).sort().join(", ") || "-";
+        const action = `<button class="danger" data-rollback-batch="${group.sourceSha256}" data-rollback-anchor="${group.anchorEventUid}" data-rollback-count="${group.count}">Datei zurücknehmen</button>`;
         return `<tr>
-          <td>${item.event_type}</td>
-          <td>${item.timestamp || "-"}</td>
-          <td>${item.race_event_uid || "-"}</td>
-          <td>${item.category_key || "-"}</td>
-          <td>${rollbackAction}</td>
+          <td>Datei-Import</td>
+          <td>${group.timestamp}</td>
+          <td>${group.sourceFile}</td>
+          <td>${categoryLabel}</td>
+          <td>${group.count}</td>
+          <td>${action}</td>
         </tr>`;
       })
       .join("");
     historyView.innerHTML = `
       <div class="card">
         <h2>Historie & Korrektur</h2>
-        <p class="hint">Alle Änderungen werden protokolliert.</p>
+        <p class="hint">Alle Änderungen werden protokolliert. Rücknahme erfolgt für alle Läufe einer importierten Datei gemeinsam.</p>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Ereignis</th><th>Zeitpunkt</th><th>Lauf-ID</th><th>Kategorie</th><th>Aktion</th></tr></thead>
-            <tbody>${rows || `<tr><td colspan="5">Noch keine Historie vorhanden</td></tr>`}</tbody>
+            <thead><tr><th>Ereignis</th><th>Zeitpunkt</th><th>Quelldatei</th><th>Kategorien</th><th>Läufe</th><th>Aktion</th></tr></thead>
+            <tbody>${groupedRows || `<tr><td colspan="6">Keine aktiven Datei-Importe vorhanden</td></tr>`}</tbody>
           </table>
         </div>
       </div>
     `;
-    for (const button of historyView.querySelectorAll("button[data-rollback]")) {
+    for (const button of historyView.querySelectorAll("button[data-rollback-batch]")) {
       button.addEventListener("click", async () => {
-        const eventUid = button.getAttribute("data-rollback");
+        const sourceSha = button.getAttribute("data-rollback-batch");
+        const anchorUid = button.getAttribute("data-rollback-anchor");
+        const count = Number(button.getAttribute("data-rollback-count") || "0");
         const confirmed = window.confirm(
-          "Die Ergebnisse dieses Laufs werden aus der Wertung entfernt und anschließend neu berechnet."
+          `Die Ergebnisse aller ${count} Läufe aus dieser Datei werden aus der Wertung entfernt und anschließend neu berechnet.`
         );
         if (!confirmed) {
           return;
         }
-        const response = await api("rollback_race", { race_event_uid: eventUid, reason: "ui.history.rollback" });
+        const response = await api("rollback_source_batch", {
+          source_sha256: sourceSha,
+          race_event_uid: anchorUid,
+          reason: "ui.history.rollback_source_batch",
+        });
         if (response.status === "error") {
-          setStatus(getApiErrorMessage(response.error, "Lauf konnte nicht zurückgenommen werden."), true);
+          setStatus(getApiErrorMessage(response.error, "Datei-Import konnte nicht zurückgenommen werden."), true);
           return;
         }
-        setStatus("Lauf wurde zurückgenommen.");
+        const rolledBackCount = response.payload.rolled_back_event_count || 0;
+        setStatus(`Datei-Import wurde zurückgenommen (${rolledBackCount} Läufe).`);
         await loadOverview();
       });
     }

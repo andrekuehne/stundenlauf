@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-09 - Dateiweises Rollback in der GUI verknüpft
+- Requirement/Milestone: [R1, R6, R8; M5]
+- What shipped: Added a dedicated `rollback_source_batch` UI API command, exposed `source_sha256` in timeline items, and refactored `Historie` to group active imports by source batch with one `Datei zurücknehmen` action that rolls back all races from that file together.
+- Evidence: `backend/ui_api/service.py`, `backend/ui_api/commands.py`, `backend/ui_api/queries.py`, `frontend/app.js`, `docs/api/ui-api-v1.md`, `tests/test_f08_ui_api.py`
+- Impact: prevents accidental partial correction states in the main GUI flow by making rollback semantics match source-batch reimport policy.
+- Follow-up: evaluate whether single-race rollback should be hidden behind an explicit advanced mode to further reduce misuse.
+
 ### 2026-04-09 - Importierte-Läufe-Matrix in Wertung und Importansicht
 - Requirement/Milestone: [R8; M5]
 - What shipped: Replaced the text summary of imported runs with a compact two-row matrix (`Einzel`, `Paare`) in both `Aktuelle Wertung` and `Lauf hinzufügen`, showing `x` per Lauf column with a default span of 1..5 and automatic extension for higher race numbers.

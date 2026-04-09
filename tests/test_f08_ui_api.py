@@ -437,6 +437,8 @@ class TestF08UiApi(unittest.TestCase):
             for item in timeline["payload"]["items"]:
                 if "category_key" in item:
                     self.assertTrue(str(item["category_key"]).startswith("2026:"))
+                if item["event_type"] in {"race_import", "race_rolled_back", "rollback"}:
+                    self.assertIn("source_sha256", item)
 
     def test_get_project_state_accepts_optional_year_filter(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -636,6 +638,74 @@ class TestF08UiApi(unittest.TestCase):
             for event in doc.events:
                 self.assertEqual(event.state, RaceEventState.ROLLED_BACK)
             self.assertEqual(len([event for event in doc.events if event.rollback is not None]), 2)
+
+    def test_rollback_source_batch_rolls_back_all_events_with_same_source_hash(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.MEN)
+            event_a = RaceEvent(
+                race_event_uid="race_event_batch_a",
+                category=category,
+                race_date="2026-01-05",
+                race_no=1,
+                source_file="fixture_a.xlsx",
+                source_sha256="batch_source_sha",
+                imported_at="2026-01-05T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp",
+                entries=(),
+            )
+            event_b = RaceEvent(
+                race_event_uid="race_event_batch_b",
+                category=category,
+                race_date="2026-01-06",
+                race_no=2,
+                source_file="fixture_b.xlsx",
+                source_sha256="batch_source_sha",
+                imported_at="2026-01-06T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp",
+                entries=(),
+            )
+            JsonProjectRepository(project_path).save(
+                recompute_project_standings(ProjectDocument(schema_version=SCHEMA_VERSION_V2, events=(event_a, event_b)))
+            )
+            service = UiApiService(project_path)
+            response = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_rollback_source_batch_1",
+                    "method": "rollback_source_batch",
+                    "payload": {"race_event_uid": "race_event_batch_a"},
+                }
+            )
+            self.assertEqual(response["status"], "ok")
+            self.assertEqual(response["payload"]["source_sha256"], "batch_source_sha")
+            self.assertEqual(response["payload"]["rolled_back_event_count"], 2)
+            self.assertCountEqual(
+                response["payload"]["rolled_back_event_uids"],
+                ["race_event_batch_a", "race_event_batch_b"],
+            )
+
+            doc = JsonProjectRepository(project_path).load()
+            for event in doc.events:
+                self.assertEqual(event.state, RaceEventState.ROLLED_BACK)
+
+    def test_rollback_source_batch_requires_anchor_or_hash(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_project(project_path)
+            service = UiApiService(project_path)
+            response = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_rollback_source_batch_missing",
+                    "method": "rollback_source_batch",
+                    "payload": {},
+                }
+            )
+            self.assertEqual(response["status"], "error")
+            self.assertEqual(response["error"]["code"], "VALIDATION_ERROR")
 
     def test_ui_api_import_race_propagates_duplicate_error_details(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

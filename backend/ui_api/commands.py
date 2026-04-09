@@ -224,6 +224,38 @@ def rollback_race(project_file: Path, payload: dict[str, Any]) -> dict[str, Any]
     return {"race_event_uid": race_event_uid, "state": "rolled_back"}
 
 
+def rollback_source_batch(project_file: Path, payload: dict[str, Any]) -> dict[str, Any]:
+    source_sha256 = str(payload.get("source_sha256", "")).strip()
+    race_event_uid = str(payload.get("race_event_uid", "")).strip()
+    reason = str(payload.get("reason", "")).strip() or "ui_api.rollback_source_batch"
+    if not source_sha256 and not race_event_uid:
+        raise validation_error("source_sha256 or race_event_uid is required")
+
+    repo = JsonProjectRepository(project_file)
+    loaded = repo.load()
+    if not source_sha256:
+        anchor_event = next((event for event in loaded.events if event.race_event_uid == race_event_uid), None)
+        if anchor_event is None:
+            raise not_found("race_event_uid", race_event_uid)
+        source_sha256 = anchor_event.source_sha256
+        if not source_sha256:
+            raise validation_error("race_event_uid has no source_sha256")
+
+    updated, rolled_back_event_uids = repo.mark_events_rolled_back_by_source_sha256(
+        loaded,
+        source_sha256=source_sha256,
+        rolled_back_by="ui_api",
+        reason=reason,
+    )
+    repo.save(updated)
+    return {
+        "source_sha256": source_sha256,
+        "rolled_back_event_count": len(rolled_back_event_uids),
+        "rolled_back_event_uids": list(rolled_back_event_uids),
+        "state": "rolled_back",
+    }
+
+
 def reimport_race(project_file: Path, payload: dict[str, Any]) -> dict[str, Any]:
     previous_race_event_uid = str(payload.get("previous_race_event_uid", "")).strip()
     if not previous_race_event_uid:

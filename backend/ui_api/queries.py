@@ -413,6 +413,7 @@ def get_audit_timeline(document: ProjectDocument, payload: dict[str, Any]) -> di
                 "timestamp": event.imported_at,
                 "race_event_uid": event.race_event_uid,
                 "state": event.state.value,
+                "source_sha256": event.source_sha256,
                 "source_file": event.source_file,
                 "race_no": event.race_no,
                 "category_key": event.category.key,
@@ -425,6 +426,7 @@ def get_audit_timeline(document: ProjectDocument, payload: dict[str, Any]) -> di
                     "timestamp": event.rollback.rolled_back_at.isoformat(),
                     "race_event_uid": event.race_event_uid,
                     "decision_uid": event.rollback.decision_uid,
+                    "source_sha256": event.source_sha256,
                     "reason": event.rollback.reason,
                 }
             )

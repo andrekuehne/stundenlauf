@@ -61,6 +61,9 @@ class UiApiService:
             ),
             "apply_match_decision": lambda payload: commands.apply_match_decision(self._require_active_project_file(), payload),
             "rollback_race": lambda payload: commands.rollback_race(self._require_active_project_file(), payload),
+            "rollback_source_batch": lambda payload: commands.rollback_source_batch(
+                self._require_active_project_file(), payload
+            ),
             "reimport_race": lambda payload: commands.reimport_race(self._require_active_project_file(), payload),
         }
         handler = handlers.get(req.method)

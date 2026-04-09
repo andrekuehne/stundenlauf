@@ -114,6 +114,9 @@ This document defines the frontend-facing Python API contract for the pywebview 
   - `series_year` (required)
   - `limit` (optional, default 200)
 - Returns a season-wide merged timeline (`race_import`, `race_rolled_back`, `rollback`, `matching_decision`) scoped to the requested year.
+- Import/rollback timeline rows include both:
+  - `source_sha256` (stable import-batch key)
+  - `source_file` (human-readable source path/name where available)
 
 ### `get_review_queue`
 - Payload:
@@ -165,6 +168,22 @@ This document defines the frontend-facing Python API contract for the pywebview 
   - `race_event_uid` (required)
   - `reason` (optional)
 - Returns updated state marker for the race event.
+
+### `rollback_source_batch`
+- Payload:
+  - `race_event_uid` (optional anchor, used to resolve file batch hash)
+  - `source_sha256` (optional explicit batch hash)
+  - `reason` (optional)
+- Validation:
+  - either `race_event_uid` or `source_sha256` is required.
+- Behavior:
+  - resolves batch hash (`source_sha256`) from anchor event when only `race_event_uid` is provided
+  - rolls back all active events sharing that source hash
+- Returns:
+  - `source_sha256`
+  - `rolled_back_event_count`
+  - `rolled_back_event_uids[]`
+  - `state` (`rolled_back`)
 
 ### `reimport_race`
 - Payload:
