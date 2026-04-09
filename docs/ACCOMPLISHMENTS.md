@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-09 - Zentraler GUI-String-Katalog (`frontend/strings.js`)
+- Requirement/Milestone: [R8; M5]
+- What shipped: Moved all German end-user copy for the pywebview UI into `frontend/strings.js` (`window.UIStrings` / `window.UIFormat`), load order updated in `frontend/index.html`, and refactored `frontend/app.js` to reference the catalog and apply shell chrome on startup.
+- Evidence: `frontend/strings.js`, `frontend/app.js`, `frontend/index.html`, `docs/features/F05-german-ui-and-review-workflow.md`; `node --check frontend/strings.js` and `node --check frontend/app.js`
+- Impact: copy edits and reviews can focus on a single module instead of searching scattered literals in `app.js` and HTML.
+- Follow-up: optional alignment of Python-originated `details.message` text with the same catalog if mixed-language status lines become confusing.
+
 ### 2026-04-09 - Import-Dialog: Layout, Erkennung und Laufnummer-API
 - Requirement/Milestone: [R8; M5]
 - What shipped: Enlarged main shell tabs, renamed the import tab to `Import`, removed the duplicate standings shortcut, reordered the import sidebar (matrix first, then filename row with basename-only display, inference hint, Einzel/Paare toggles, Laufnummer dropdown, import button, then matching settings), and added optional `race_no` on `import_race` so the GUI can set Laufnummer independently of the filename.

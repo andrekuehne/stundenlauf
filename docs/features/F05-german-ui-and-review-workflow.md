@@ -13,6 +13,12 @@
 F01–F04 were implemented first. **F06** (fixture HITL import) and **F07** (Gesamtwertung comparison) were added to tighten test-driven validation and CLI workflows before investing in the pywebview desktop shell.
 F05 v1 is now implemented with a full-screen German frontend (`frontend/index.html`, `frontend/app.js`, `frontend/styles.css`) and pywebview launcher wiring (`backend/ui_app.py`, `main.py --gui`).
 
+## GUI copy catalog
+
+- All German end-user strings for the pywebview UI live in [`frontend/strings.js`](../../frontend/strings.js) as `window.UIStrings`, with short formatters on `window.UIFormat` (for example season header and review-count lines). [`frontend/index.html`](../../frontend/index.html) loads `strings.js` before `app.js`; `applyShellChrome()` at the start of `app.js` sets the document title, main heading, tab labels, and default header spans so copy is not duplicated between HTML and the catalog.
+- [`frontend/app.js`](../../frontend/app.js) holds interaction logic and English identifiers (including API `rationale` values). Status messages and templates reference `UIStrings` rather than inline German literals.
+- Error text in the status bar may still come from the Python API (`error.details.message`) for generic failures; the frontend maps a small set of known `error.code` values in `getApiErrorMessage` using strings from `UIStrings.errors`.
+
 Backend integration boundary prerequisite is now available via `backend/ui_api/` and documented in `docs/api/ui-api-v1.md` (F08 implementation).
 The API now also includes year-level workspace reads (`list_categories`, `get_year_overview`, `get_year_timeline`) and optional `series_year` filters for `get_project_state` / `get_audit_timeline`, plus optional `source_type` in `import_race`.
 
