@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-09 - F05 standings sidebar and quick category buttons
+- Requirement/Milestone: [R8; M5]
+- What shipped: Reworked `Aktuelle Wertung` to use a compact sidebar with `Lauf hinzufügen`, imported-run status for Einzel/Paare, and fast category switching via 2x3 button grids for Einzel and Paare with active selection highlighting (replacing the dropdown).
+- Evidence: `frontend/app.js`, `frontend/styles.css`
+- Impact: reduces navigation friction during race-day operation and keeps imported-run visibility in-context while switching categories.
+- Follow-up: run organizer UAT for spacing/label preferences on the sidebar and button grid.
+
 ### 2026-04-09 - F05 German reactive desktop GUI shipped
 - Requirement/Milestone: [R6, R8; M4, M5]
 - What shipped: Implemented a full-screen German pywebview frontend with season startup flow (open/create year-series), standings and race matrix tables, add-race import/review workflow, and history rollback actions; extended `ui-api-v1` with season lifecycle methods (`list_series_years`, `create_series_year`, `open_series_year`).

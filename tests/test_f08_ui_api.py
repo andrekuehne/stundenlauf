@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from backend.domain.enums import Division, Gender, RaceDuration
+from backend.domain.enums import Division, Gender, RaceDuration, RaceEventState
 from backend.domain.models import EntryResult, Person, ProjectDocument, RaceEntry, RaceEntryMatchMeta, RaceEvent, RaceSeriesCategory
 from backend.ranking.engine import recompute_project_standings
 from backend.storage.repository import JsonProjectRepository
@@ -199,6 +199,57 @@ class TestF08UiApi(unittest.TestCase):
             self.assertEqual(payload["totals"]["categories"], 1)
             self.assertEqual(len(payload["race_history_groups"]), 1)
             self.assertEqual(payload["race_history_groups"][0]["category_key"], "2026:hour:men")
+
+    def test_get_year_overview_race_history_groups_only_include_active_events(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.MEN)
+            active_event = RaceEvent(
+                race_event_uid="race_event_active_1",
+                category=category,
+                race_date="2026-01-05",
+                race_no=1,
+                source_file="fixture_1.xlsx",
+                source_sha256="sha1",
+                imported_at="2026-01-05T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp1",
+                entries=(),
+            )
+            rolled_back_event = RaceEvent(
+                race_event_uid="race_event_rolled_back_2",
+                category=category,
+                race_date="2026-02-05",
+                race_no=2,
+                source_file="fixture_2.xlsx",
+                source_sha256="sha2",
+                imported_at="2026-02-05T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp2",
+                state=RaceEventState.ROLLED_BACK,
+                entries=(),
+            )
+            doc = ProjectDocument(
+                schema_version=SCHEMA_VERSION_V2,
+                events=(active_event, rolled_back_event),
+            )
+            JsonProjectRepository(project_path).save(recompute_project_standings(doc))
+            service = UiApiService(project_path)
+            response = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_overview_active_only",
+                    "method": "get_year_overview",
+                    "payload": {"series_year": 2026},
+                }
+            )
+            self.assertEqual(response["status"], "ok")
+            payload = response["payload"]
+            self.assertEqual(payload["totals"]["events_total"], 2)
+            self.assertEqual(payload["totals"]["events_active"], 1)
+            self.assertEqual(len(payload["race_history_groups"]), 1)
+            events = payload["race_history_groups"][0]["events"]
+            self.assertEqual([item["race_no"] for item in events], [1])
 
     def test_get_year_timeline_scopes_audit_items(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

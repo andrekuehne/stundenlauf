@@ -258,7 +258,7 @@ def get_year_overview(document: ProjectDocument, payload: dict[str, Any]) -> dic
             "events": [
                 race_event_identity(event)
                 for event in sorted(
-                    [item for item in scoped_events if item.category.key == card["category_key"]],
+                    [item for item in active_events if item.category.key == card["category_key"]],
                     key=lambda item: (item.race_no, item.race_date, item.race_event_uid),
                 )
             ],

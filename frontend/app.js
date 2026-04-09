@@ -209,6 +209,81 @@
     return raceNumbers.map((raceNo) => `${raceNo}. Lauf`).join(", ");
   }
 
+  function durationSortKey(duration) {
+    const normalized = String(duration || "").toLowerCase();
+    if (normalized.includes("half")) {
+      return 0;
+    }
+    if (normalized.includes("hour")) {
+      return 1;
+    }
+    return 9;
+  }
+
+  function normalizeDivision(division) {
+    return String(division || "").toLowerCase();
+  }
+
+  function buildCategoryQuickSelectModel() {
+    const categoriesByKey = new Map(state.categories.map((category) => [category.category_key, category]));
+    const slots = {
+      einzel: [
+        { key: "half_men", label: "1/2 h - M", match: (category) => durationSortKey(category.duration) === 0 && normalizeDivision(category.division) === "men" },
+        { key: "half_women", label: "1/2 h - F", match: (category) => durationSortKey(category.duration) === 0 && normalizeDivision(category.division) === "women" },
+        { key: "hour_men", label: "1 h - M", match: (category) => durationSortKey(category.duration) === 1 && normalizeDivision(category.division) === "men" },
+        { key: "hour_women", label: "1 h - F", match: (category) => durationSortKey(category.duration) === 1 && normalizeDivision(category.division) === "women" },
+      ],
+      paare: [
+        {
+          key: "half_couples_men",
+          label: "1/2 h - M",
+          match: (category) => durationSortKey(category.duration) === 0 && normalizeDivision(category.division) === "couples_men",
+        },
+        {
+          key: "half_couples_women",
+          label: "1/2 h - F",
+          match: (category) => durationSortKey(category.duration) === 0 && normalizeDivision(category.division) === "couples_women",
+        },
+        {
+          key: "half_couples_mixed",
+          label: "1/2 h - Mix",
+          match: (category) => durationSortKey(category.duration) === 0 && normalizeDivision(category.division) === "couples_mixed",
+        },
+        {
+          key: "hour_couples_men",
+          label: "1 h - M",
+          match: (category) => durationSortKey(category.duration) === 1 && normalizeDivision(category.division) === "couples_men",
+        },
+        {
+          key: "hour_couples_women",
+          label: "1 h - F",
+          match: (category) => durationSortKey(category.duration) === 1 && normalizeDivision(category.division) === "couples_women",
+        },
+        {
+          key: "hour_couples_mixed",
+          label: "1 h - Mix",
+          match: (category) => durationSortKey(category.duration) === 1 && normalizeDivision(category.division) === "couples_mixed",
+        },
+      ],
+    };
+
+    for (const groupKey of ["einzel", "paare"]) {
+      for (const slot of slots[groupKey]) {
+        const match = state.categories.find((category) => slot.match(category));
+        slot.categoryKey = match ? match.category_key : "";
+        slot.categoryLabel = match ? match.category_label : "";
+        slot.isActive = match ? match.category_key === state.selectedCategory : false;
+        slot.disabled = !match;
+      }
+    }
+
+    const selectedCategory = categoriesByKey.get(state.selectedCategory);
+    return {
+      slots,
+      selectedCategoryLabel: selectedCategory ? selectedCategory.category_label : "",
+    };
+  }
+
   function buildImportedRaceInfo() {
     const categoryByKey = new Map(state.categories.map((category) => [category.category_key, category]));
     const singlesRaceNumbers = new Set();
@@ -256,22 +331,63 @@
   }
 
   async function renderStandingsView() {
+    const importedRaceInfo = buildImportedRaceInfo();
+    const quickSelectModel = buildCategoryQuickSelectModel();
+    const renderQuickGrid = (groupKey) =>
+      quickSelectModel.slots[groupKey]
+        .map((slot) => {
+          const activeClass = slot.isActive ? " active" : "";
+          return `<button class="category-quick-btn${activeClass}" data-category-btn="${slot.categoryKey}" ${slot.disabled ? "disabled" : ""} title="${
+            slot.categoryLabel || "Nicht verfügbar"
+          }">${slot.label}</button>`;
+        })
+        .join("");
+
     if (!state.selectedCategory) {
-      standingsView.innerHTML = `<div class="card"><h2>Aktuelle Wertung</h2><p class="hint">Noch keine Ergebnisse vorhanden.</p></div>`;
+      standingsView.innerHTML = `
+        <div class="standings-layout">
+          <aside class="card standings-sidebar">
+            <button id="goToImportBtn" class="primary sidebar-top-action">Lauf hinzufügen</button>
+            <div class="sidebar-section">
+              <h3>Importierte Läufe</h3>
+              <p class="hint"><strong>Einzel:</strong> ${raceListLabel(importedRaceInfo.singlesRaceNumbers)}</p>
+              <p class="hint"><strong>Paare:</strong> ${raceListLabel(importedRaceInfo.couplesRaceNumbers)}</p>
+            </div>
+            <div class="sidebar-section">
+              <h3>Einzel</h3>
+              <div class="category-grid">${renderQuickGrid("einzel")}</div>
+            </div>
+            <div class="sidebar-section">
+              <h3>Paare</h3>
+              <div class="category-grid">${renderQuickGrid("paare")}</div>
+            </div>
+          </aside>
+          <div class="standings-content">
+            <div class="card"><h2>Aktuelle Wertung</h2><p class="hint">Noch keine Ergebnisse vorhanden.</p></div>
+          </div>
+        </div>
+      `;
+      document.getElementById("goToImportBtn").addEventListener("click", () => switchView("import"));
+      for (const button of standingsView.querySelectorAll("button[data-category-btn]")) {
+        button.addEventListener("click", async () => {
+          const categoryKey = button.getAttribute("data-category-btn");
+          if (!categoryKey) {
+            return;
+          }
+          state.selectedCategory = categoryKey;
+          await renderStandingsView();
+        });
+      }
       return;
     }
+
     const standingsResponse = await api("get_standings", { category_key: state.selectedCategory });
     const resultsResponse = await api("get_category_current_results_table", { category_key: state.selectedCategory });
     if (standingsResponse.status === "error" || resultsResponse.status === "error") {
       standingsView.innerHTML = `<div class="card"><p class="danger-text">Wertung konnte nicht geladen werden.</p></div>`;
       return;
     }
-    const categories = state.categories
-      .map(
-        (item) =>
-          `<option value="${item.category_key}" ${item.category_key === state.selectedCategory ? "selected" : ""}>${item.category_label}</option>`
-      )
-      .join("");
+
     const standingsRows = (standingsResponse.payload.rows || [])
       .map(
         (row) =>
@@ -293,49 +409,59 @@
         return `<tr><td>${row.platz}</td><td>${row.display_name}</td>${cells}<td>${row.distanz_gesamt}</td><td>${row.punkte_gesamt}</td></tr>`;
       })
       .join("");
-    const importedRaceInfo = buildImportedRaceInfo();
-    const importedRaceDetails = importedRaceInfo.byCategory
-      .map((item) => `<li><strong>${item.label}:</strong> ${raceListLabel(item.raceNumbers)}</li>`)
-      .join("");
-
     standingsView.innerHTML = `
-      <div class="card">
-        <div class="row-between">
-          <h2>Aktuelle Wertung</h2>
-          <div class="row">
-            <label for="categorySelect">Kategorie</label>
-            <select id="categorySelect">${categories}</select>
+      <div class="standings-layout">
+        <aside class="card standings-sidebar">
+          <button id="goToImportBtn" class="primary sidebar-top-action">Lauf hinzufügen</button>
+          <div class="sidebar-section">
+            <h3>Importierte Läufe</h3>
+            <p class="hint"><strong>Einzel:</strong> ${raceListLabel(importedRaceInfo.singlesRaceNumbers)}</p>
+            <p class="hint"><strong>Paare:</strong> ${raceListLabel(importedRaceInfo.couplesRaceNumbers)}</p>
           </div>
-        </div>
-        <p class="hint">Die Gesamtwertung basiert auf den importierten Läufen und dem aktuellen Regelwerk.</p>
-        <p class="hint"><strong>Bereits importiert (Einzel):</strong> ${raceListLabel(importedRaceInfo.singlesRaceNumbers)}</p>
-        <p class="hint"><strong>Bereits importiert (Paare):</strong> ${raceListLabel(importedRaceInfo.couplesRaceNumbers)}</p>
-        ${
-          importedRaceDetails
-            ? `<p class="hint">Details je Kategorie:</p><ul class="hint imported-races-list">${importedRaceDetails}</ul>`
-            : `<p class="hint">Details je Kategorie: Keine Läufe importiert.</p>`
-        }
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Platz</th><th>Name</th><th>Jahrgang</th><th>Verein</th><th>Gesamtdistanz (km)</th><th>Gesamtpunkte</th></tr></thead>
-            <tbody>${standingsRows || `<tr><td colspan="6">Noch keine Ergebnisse vorhanden</td></tr>`}</tbody>
-          </table>
-        </div>
-      </div>
-      <div class="card">
-        <h3>Laufübersicht je Kategorie</h3>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Platz</th><th>Name</th>${resultHeaders}<th>Gesamtdistanz</th><th>Gesamtpunkte</th></tr></thead>
-            <tbody>${resultRows || `<tr><td colspan="5">Noch keine Laufdaten vorhanden</td></tr>`}</tbody>
-          </table>
+          <div class="sidebar-section">
+            <h3>Einzel</h3>
+            <div class="category-grid">${renderQuickGrid("einzel")}</div>
+          </div>
+          <div class="sidebar-section">
+            <h3>Paare</h3>
+            <div class="category-grid">${renderQuickGrid("paare")}</div>
+          </div>
+        </aside>
+        <div class="standings-content">
+          <div class="card">
+            <h2>Aktuelle Wertung</h2>
+            <p class="hint">Ausgewählte Kategorie: ${quickSelectModel.selectedCategoryLabel || "-"}</p>
+            <p class="hint">Die Gesamtwertung basiert auf den importierten Läufen und dem aktuellen Regelwerk.</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Platz</th><th>Name</th><th>Jahrgang</th><th>Verein</th><th>Gesamtdistanz (km)</th><th>Gesamtpunkte</th></tr></thead>
+                <tbody>${standingsRows || `<tr><td colspan="6">Noch keine Ergebnisse vorhanden</td></tr>`}</tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Laufübersicht je Kategorie</h3>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Platz</th><th>Name</th>${resultHeaders}<th>Gesamtdistanz</th><th>Gesamtpunkte</th></tr></thead>
+                <tbody>${resultRows || `<tr><td colspan="5">Noch keine Laufdaten vorhanden</td></tr>`}</tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     `;
-    document.getElementById("categorySelect").addEventListener("change", async (event) => {
-      state.selectedCategory = event.target.value;
-      await renderStandingsView();
-    });
+    document.getElementById("goToImportBtn").addEventListener("click", () => switchView("import"));
+    for (const button of standingsView.querySelectorAll("button[data-category-btn]")) {
+      button.addEventListener("click", async () => {
+        const categoryKey = button.getAttribute("data-category-btn");
+        if (!categoryKey) {
+          return;
+        }
+        state.selectedCategory = categoryKey;
+        await renderStandingsView();
+      });
+    }
   }
 
   async function renderImportView() {
