@@ -11,7 +11,7 @@
       tabHistory: "Historie & Korrektur",
       switchSeason: "Saison wechseln",
       seasonLabelPlaceholder: "Saison: -",
-      reviewLabelPlaceholder: "Zuordnungen offen: 0",
+      reviewLabelPlaceholder: "Prüfungen offen: 0",
     },
     status: {
       prefix: "Status: ",
@@ -19,7 +19,7 @@
       matchingSaveFailed: "Matching-Einstellungen konnten nicht gespeichert werden.",
       autoMergeOn: "Auto_Zusammenführung ist aktiv.",
       autoMergeOff:
-        "Auto-Zusammenführung ist deaktiviert. Neue Importe landen bei Unsicherheit in der Zuordnung.",
+        "Auto-Zusammenführung ist deaktiviert. Neue Importe landen bei Unsicherheit in der Prüfung.",
       perfectAutoMergeOn: "Perfekte Treffer werden automatisch zusammengeführt.",
       perfectAutoMergeOff: "Perfekte Treffer werden nicht mehr automatisch zusammengeführt.",
       autoMergeThresholdUpdated: "Auto-Zusammenführung-Schwelle wurde aktualisiert.",
