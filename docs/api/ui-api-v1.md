@@ -114,9 +114,9 @@ This document defines the frontend-facing Python API contract for the pywebview 
 
 ### `get_matching_config`
 - Payload: none
-- Returns current matching configuration for the active UI session (a new `UiApiService` session defaults to `strict_normalized_auto_only=true` for safer imports; the desktop Import view uses the same default before the first API round-trip):
+- Returns current matching configuration for the active UI session (a new `UiApiService` session defaults to fuzzy matching with **100 %-only** auto-link (`auto_merge_enabled=false`, `perfect_match_auto_merge=true`), `strict_normalized_auto_only=false`, `auto_min`/`review_min` both `0.5` for slider defaults; the desktop Import view mirrors this before the first API round-trip):
   - `auto_min` (configured auto-link threshold from UI control)
-  - `review_min`
+  - `review_min` (minimum similarity for the review queue vs `new_identity`; session default `0.5`, adjustable via `set_matching_config`; library `MatchingConfig` default remains `0.72` for non-UI callers)
   - `auto_merge_enabled`
   - `perfect_match_auto_merge`
   - `strict_normalized_auto_only` (boolean; when `true`, see below)
@@ -125,10 +125,12 @@ This document defines the frontend-facing Python API contract for the pywebview 
 ### `set_matching_config`
 - Payload:
   - `auto_min` (required, 0.0..1.0 from UI control)
+  - `review_min` (optional, 0.0..1.0; when omitted, the previous session value is kept; default for a new UI session is `0.5`)
   - `auto_merge_enabled` (optional, default `true`)
   - `perfect_match_auto_merge` (optional, default `true`)
   - `strict_normalized_auto_only` (optional, default `false`)
 - Updates matching configuration for subsequent imports in the active UI session.
+- `review_min` must be less than or equal to the **effective** auto threshold implied by this payload (`auto_min` when `auto_merge_enabled=true`, else `1.0` when `perfect_match_auto_merge=true`, else `1.01`).
 - If `auto_merge_enabled=false` and `perfect_match_auto_merge=true`, only fuzzy scores `>= 1.0` (after weighting and clamping) can auto-link.
 - If both are false, auto-linking is effectively disabled (internal threshold is set above 1.0).
 - If `strict_normalized_auto_only=true`, **automatic** linking only occurs when the incoming row matches exactly one existing participant/team on **normalized** name (same parsing as fingerprints), YOB, gender, and normalized club; fuzzy similarity never produces auto by itself (it only affects review vs new identity). Multiple identical normalized hits go to review. The `auto_merge_enabled` / `perfect_match_auto_merge` / `auto_min` sliders do not change that strict-auto rule; `effective_auto_min` still applies to fuzzy routing for non-strict matches (review vs new identity).

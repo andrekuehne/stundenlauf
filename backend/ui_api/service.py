@@ -21,10 +21,11 @@ class UiApiService:
     def __init__(self, project_file: Path | None = None, workspace_dir: Path | None = None) -> None:
         self.workspace_dir = workspace_dir or default_workspace_dir()
         self.project_file = project_file
-        self._auto_min_setting = 1.0
+        self._auto_min_setting = 0.5
+        self._review_min_setting = 0.5
         self._auto_merge_enabled = False
         self._perfect_match_auto_merge = True
-        self._strict_normalized_auto_only = True
+        self._strict_normalized_auto_only = False
         self.matching_config = self._build_matching_config()
 
     def _load(self):
@@ -105,7 +106,7 @@ class UiApiService:
         _ = payload
         return {
             "auto_min": float(self._auto_min_setting),
-            "review_min": float(self.matching_config.review_min),
+            "review_min": float(self._review_min_setting),
             "auto_merge_enabled": bool(self._auto_merge_enabled),
             "perfect_match_auto_merge": bool(self._perfect_match_auto_merge),
             "strict_normalized_auto_only": bool(self._strict_normalized_auto_only),
@@ -124,9 +125,28 @@ class UiApiService:
         if auto_min < 0.0 or auto_min > 1.0:
             raise validation_error("auto_min must be between 0.0 and 1.0")
 
+        review_min_next = float(self._review_min_setting)
+        if "review_min" in payload:
+            review_min_next = float(payload["review_min"])
+            if review_min_next < 0.0 or review_min_next > 1.0:
+                raise validation_error("review_min must be between 0.0 and 1.0")
+
+        auto_merge_enabled = bool(auto_merge_enabled_raw)
+        perfect_match_auto_merge = bool(perfect_match_auto_merge_raw)
+        if auto_merge_enabled:
+            effective_auto_min = auto_min
+        elif perfect_match_auto_merge:
+            effective_auto_min = 1.0
+        else:
+            effective_auto_min = 1.01
+
+        if review_min_next > effective_auto_min:
+            raise validation_error("review_min must be less than or equal to effective_auto_min")
+
         self._auto_min_setting = auto_min
-        self._auto_merge_enabled = bool(auto_merge_enabled_raw)
-        self._perfect_match_auto_merge = bool(perfect_match_auto_merge_raw)
+        self._review_min_setting = review_min_next
+        self._auto_merge_enabled = auto_merge_enabled
+        self._perfect_match_auto_merge = perfect_match_auto_merge
         self._strict_normalized_auto_only = bool(strict_normalized_raw)
         self.matching_config = self._build_matching_config()
         return self._get_matching_config({})
@@ -141,7 +161,7 @@ class UiApiService:
             effective_auto_min = 1.01
         self.matching_config = MatchingConfig(
             auto_min=effective_auto_min,
-            review_min=base_cfg.review_min,
+            review_min=float(self._review_min_setting),
             yob_match_bonus=base_cfg.yob_match_bonus,
             yob_mismatch_penalty=base_cfg.yob_mismatch_penalty,
             club_weight=base_cfg.club_weight,

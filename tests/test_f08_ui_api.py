@@ -1023,9 +1023,10 @@ class TestF08UiApi(unittest.TestCase):
             self.assertEqual(initial["status"], "ok")
             self.assertFalse(initial["payload"]["auto_merge_enabled"])
             self.assertTrue(initial["payload"]["perfect_match_auto_merge"])
-            self.assertTrue(initial["payload"]["strict_normalized_auto_only"])
-            self.assertEqual(initial["payload"]["auto_min"], 1.0)
+            self.assertFalse(initial["payload"]["strict_normalized_auto_only"])
+            self.assertEqual(initial["payload"]["auto_min"], 0.5)
             self.assertEqual(initial["payload"]["effective_auto_min"], 1.0)
+            self.assertEqual(initial["payload"]["review_min"], 0.5)
 
             updated = service.handle(
                 {
@@ -1034,6 +1035,7 @@ class TestF08UiApi(unittest.TestCase):
                     "method": "set_matching_config",
                     "payload": {
                         "auto_min": 0.94,
+                        "review_min": 0.65,
                         "auto_merge_enabled": True,
                         "perfect_match_auto_merge": True,
                         "strict_normalized_auto_only": False,
@@ -1046,6 +1048,23 @@ class TestF08UiApi(unittest.TestCase):
             self.assertFalse(updated["payload"]["strict_normalized_auto_only"])
             self.assertEqual(updated["payload"]["auto_min"], 0.94)
             self.assertEqual(updated["payload"]["effective_auto_min"], 0.94)
+            self.assertEqual(updated["payload"]["review_min"], 0.65)
+
+            preserved = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_matching_cfg_preserve_review",
+                    "method": "set_matching_config",
+                    "payload": {
+                        "auto_min": 0.9,
+                        "auto_merge_enabled": True,
+                        "perfect_match_auto_merge": True,
+                        "strict_normalized_auto_only": False,
+                    },
+                }
+            )
+            self.assertEqual(preserved["status"], "ok")
+            self.assertEqual(preserved["payload"]["review_min"], 0.65)
 
             strict_on = service.handle(
                 {
@@ -1063,6 +1082,29 @@ class TestF08UiApi(unittest.TestCase):
             self.assertEqual(strict_on["status"], "ok")
             self.assertTrue(strict_on["payload"]["strict_normalized_auto_only"])
             self.assertTrue(service.matching_config.strict_normalized_auto_only)
+
+    def test_matching_config_review_min_must_not_exceed_effective_auto_min(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_project(project_path)
+            service = UiApiService(project_path)
+            bad = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_matching_cfg_bad_review",
+                    "method": "set_matching_config",
+                    "payload": {
+                        "auto_min": 0.8,
+                        "review_min": 0.85,
+                        "auto_merge_enabled": True,
+                        "perfect_match_auto_merge": True,
+                        "strict_normalized_auto_only": False,
+                    },
+                }
+            )
+            self.assertEqual(bad["status"], "error")
+            self.assertEqual(bad["error"]["code"], "VALIDATION_ERROR")
+            self.assertIn("review_min", bad["error"]["details"]["message"])
 
     def test_reimport_race_rolls_back_all_events_with_same_source_hash(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

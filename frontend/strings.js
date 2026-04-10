@@ -28,6 +28,7 @@
       matchingModeManualOn:
         "Manuell: Keine automatische Zuordnung per Ähnlichkeit; Sie entscheiden in der Prüfung.",
       autoMergeThresholdUpdated: "Ähnlichkeitsschwelle wurde aktualisiert.",
+      reviewMinThresholdUpdated: "Schwelle für Prüfung (statt neue Person) wurde aktualisiert.",
       importIncomplete: "Bitte Datei, Lauftyp und Laufnummer vollständig wählen.",
       importRunning: "Import läuft...",
       importFailed: "Import konnte nicht abgeschlossen werden.",
@@ -213,6 +214,8 @@
       matchingFuzzySubPerfect: "Nur 100 %-Ähnlichkeit",
       matchingFuzzySubThreshold: "Ab Schwelle",
       matchingThresholdLabel: "Ähnlichkeit ab der automatisch zugeordnet wird",
+      matchingReviewThresholdLabel:
+        "Mindest-Ähnlichkeit für Prüfliste",
       matchingHintStrict:
         "Automatische Zuordnung nur, wenn Name (normalisiert), Jahrgang, Verein und Geschlecht exakt einem bestehenden Datensatz entsprechen und genau ein Treffer möglich ist. Kein stiller Fuzzy-Auto-Merge.",
       matchingHintFuzzyPerfect:

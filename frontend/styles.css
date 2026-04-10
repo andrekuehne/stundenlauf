@@ -195,7 +195,8 @@ input[type="range"] {
   min-width: 260px;
 }
 
-#autoMergeThresholdInput {
+#autoMergeThresholdInput,
+#reviewMinThresholdInput {
   min-width: 110px;
   width: 110px;
 }

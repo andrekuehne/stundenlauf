@@ -17,6 +17,12 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-10 - Configurable review vs new-identity threshold (GUI + UI API)
+- Requirement/Milestone: [R6; M5]
+- What shipped: Session `review_min` is settable via `set_matching_config` with validation against effective auto threshold; **Lauf hinzufügen** matching panel adds a second slider/number for the review-queue floor; client caps review when auto threshold drops to avoid invalid saves. New UI sessions default to fuzzy **100 %-only** auto-link, `strict_normalized_auto_only=false`, and `auto_min`/`review_min` both `0.5`.
+- Evidence: `backend/ui_api/service.py`, `frontend/app.js`, `frontend/strings.js`, `frontend/styles.css`, `docs/api/ui-api-v1.md`, `tests/test_f08_ui_api.py`; `uv run pytest tests/test_f08_ui_api.py`
+- Impact: organizers can tune how aggressively borderline rows go to human review instead of starting as new identities, without code changes.
+
 ### 2026-04-10 - F15 Ranking eligibility (Außer Wertung)
 - Requirement/Milestone: [R5, R8; M5]
 - What shipped: Persisted per-category `ranking_exclusions` on the project document; **Aktuelle Wertung** shows only Endwertung-eligible rows; **Laufübersicht** lists everyone with an **a. W.** checkbox, effective `platz` (null + **—** when excluded), and `set_ranking_eligibility` in the UI API. Successful imports clear all exclusions. Season zip carries exclusions inside `session_project.json`.

@@ -56,10 +56,11 @@
     reviewIndex: 0,
     reviewSelections: {},
     matchingConfig: {
-      auto_min: 1.0,
+      auto_min: 0.5,
+      review_min: 0.5,
       auto_merge_enabled: false,
       perfect_match_auto_merge: true,
-      strict_normalized_auto_only: true,
+      strict_normalized_auto_only: false,
     },
     importFilePath: "",
     importSourceType: "",
@@ -154,22 +155,58 @@
     return Math.min(1.0, Math.max(0.0, numeric));
   }
 
+  function clampReviewMin(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return state.matchingConfig.review_min;
+    }
+    return Math.min(1.0, Math.max(0.0, numeric));
+  }
+
+  function effectiveAutoMinForMatchingCap(cfg) {
+    if (cfg.auto_merge_enabled) {
+      return clampAutoMin(cfg.auto_min);
+    }
+    if (cfg.perfect_match_auto_merge) {
+      return 1.0;
+    }
+    return 1.01;
+  }
+
+  function capReviewMinForConfig(reviewMin, cfg) {
+    const cap = effectiveAutoMinForMatchingCap(cfg);
+    return Math.min(clampReviewMin(reviewMin), cap);
+  }
+
   async function loadMatchingConfig() {
     const response = await api("get_matching_config", {});
     if (response.status !== "ok") {
       return;
     }
     state.matchingConfig = {
-      auto_min: Number(response.payload.auto_min || 1.0),
+      auto_min: Number(
+        response.payload.auto_min != null ? response.payload.auto_min : state.matchingConfig.auto_min
+      ),
+      review_min: Number(
+        response.payload.review_min != null ? response.payload.review_min : state.matchingConfig.review_min
+      ),
       auto_merge_enabled: Boolean(response.payload.auto_merge_enabled),
       perfect_match_auto_merge: Boolean(response.payload.perfect_match_auto_merge),
       strict_normalized_auto_only: Boolean(response.payload.strict_normalized_auto_only),
     };
   }
 
-  async function saveMatchingConfig(autoMin, autoMergeEnabled, perfectMatchAutoMerge, strictNormalizedAutoOnly) {
+  async function saveMatchingConfig(autoMin, reviewMin, autoMergeEnabled, perfectMatchAutoMerge, strictNormalizedAutoOnly) {
+    const cfgForCap = {
+      auto_min: autoMin,
+      auto_merge_enabled: autoMergeEnabled,
+      perfect_match_auto_merge: perfectMatchAutoMerge,
+      strict_normalized_auto_only: strictNormalizedAutoOnly,
+    };
+    const reviewCapped = capReviewMinForConfig(reviewMin, cfgForCap);
     const response = await api("set_matching_config", {
       auto_min: autoMin,
+      review_min: reviewCapped,
       auto_merge_enabled: autoMergeEnabled,
       perfect_match_auto_merge: perfectMatchAutoMerge,
       strict_normalized_auto_only: Boolean(strictNormalizedAutoOnly),
@@ -180,6 +217,9 @@
     }
     state.matchingConfig = {
       auto_min: Number(response.payload.auto_min || autoMin),
+      review_min: Number(
+        response.payload.review_min != null ? response.payload.review_min : reviewCapped
+      ),
       auto_merge_enabled: Boolean(response.payload.auto_merge_enabled),
       perfect_match_auto_merge: Boolean(response.payload.perfect_match_auto_merge),
       strict_normalized_auto_only: Boolean(response.payload.strict_normalized_auto_only),
@@ -1364,6 +1404,7 @@
     }
     const review = state.reviewQueue[state.reviewIndex];
     const autoMinValue = clampAutoMin(state.matchingConfig.auto_min);
+    const reviewMinValue = capReviewMinForConfig(state.matchingConfig.review_min, state.matchingConfig);
     const autoMergeEnabled = Boolean(state.matchingConfig.auto_merge_enabled);
     const perfectMatchAutoMerge = Boolean(state.matchingConfig.perfect_match_auto_merge);
     const strictNormalizedOnly = Boolean(state.matchingConfig.strict_normalized_auto_only);
@@ -1449,6 +1490,16 @@
             }`
                 : ""
             }
+            <hr class="matching-settings-divider" />
+            <div class="matching-threshold-group matching-review-threshold-group">
+              <div class="matching-settings-grid-row">
+                <label for="reviewMinThresholdRange">${iv.matchingReviewThresholdLabel}</label>
+                <div class="matching-settings-controls">
+                  <input id="reviewMinThresholdRange" type="range" min="0.00" max="1.00" step="0.01" value="${reviewMinValue.toFixed(2)}" />
+                  <input id="reviewMinThresholdInput" type="number" min="0.00" max="1.00" step="0.01" value="${reviewMinValue.toFixed(2)}" />
+                </div>
+              </div>
+            </div>
             <p class="hint matching-settings-hint">${matchingHint}</p>
           </div>
         </aside>
@@ -1500,8 +1551,22 @@
       return clampAutoMin(state.matchingConfig.auto_min);
     };
 
+    const matchingConfigSnapshotForReviewCap = () => ({
+      ...state.matchingConfig,
+      auto_min: readThresholdFromDom(),
+    });
+
+    const readReviewMinFromDom = () => {
+      const input = document.getElementById("reviewMinThresholdInput");
+      if (input) {
+        return clampReviewMin(input.value);
+      }
+      return clampReviewMin(state.matchingConfig.review_min);
+    };
+
     const applyMatchingPrimaryMode = async (mode) => {
       const threshold = readThresholdFromDom();
+      const reviewMin = readReviewMinFromDom();
       let strict;
       let auto;
       let perfect;
@@ -1530,7 +1595,7 @@
       if (unchanged) {
         return;
       }
-      const ok = await saveMatchingConfig(threshold, auto, perfect, strict);
+      const ok = await saveMatchingConfig(threshold, reviewMin, auto, perfect, strict);
       if (!ok) {
         return;
       }
@@ -1556,6 +1621,7 @@
       btn.addEventListener("click", async () => {
         const sub = btn.getAttribute("data-matching-fuzzy-sub");
         const threshold = readThresholdFromDom();
+        const reviewMin = readReviewMinFromDom();
         let auto;
         let perfect;
         if (sub === "perfect") {
@@ -1572,7 +1638,7 @@
         if (unchanged) {
           return;
         }
-        const ok = await saveMatchingConfig(threshold, auto, perfect, false);
+        const ok = await saveMatchingConfig(threshold, reviewMin, auto, perfect, false);
         if (!ok) {
           return;
         }
@@ -1600,16 +1666,27 @@
       autoMergeThresholdInput.addEventListener("change", () => {
         syncThresholdInputs(autoMergeThresholdInput.value);
       });
+      const syncReviewInputsFromState = () => {
+        const rIn = document.getElementById("reviewMinThresholdInput");
+        const rR = document.getElementById("reviewMinThresholdRange");
+        if (rIn && rR) {
+          const v = capReviewMinForConfig(state.matchingConfig.review_min, state.matchingConfig).toFixed(2);
+          rIn.value = v;
+          rR.value = v;
+        }
+      };
       autoMergeThresholdRange.addEventListener("change", async () => {
         const threshold = syncThresholdInputs(autoMergeThresholdRange.value);
         if (
           await saveMatchingConfig(
             threshold,
+            readReviewMinFromDom(),
             true,
             state.matchingConfig.perfect_match_auto_merge,
             false
           )
         ) {
+          syncReviewInputsFromState();
           setStatus(STR.status.autoMergeThresholdUpdated);
         }
       });
@@ -1618,12 +1695,59 @@
         if (
           await saveMatchingConfig(
             threshold,
+            readReviewMinFromDom(),
             true,
             state.matchingConfig.perfect_match_auto_merge,
             false
           )
         ) {
+          syncReviewInputsFromState();
           setStatus(STR.status.autoMergeThresholdUpdated);
+        }
+      });
+    }
+
+    const reviewMinThresholdRange = document.getElementById("reviewMinThresholdRange");
+    const reviewMinThresholdInput = document.getElementById("reviewMinThresholdInput");
+    if (reviewMinThresholdRange && reviewMinThresholdInput) {
+      const syncReviewInputs = (nextValue) => {
+        const capped = capReviewMinForConfig(nextValue, matchingConfigSnapshotForReviewCap());
+        reviewMinThresholdRange.value = capped.toFixed(2);
+        reviewMinThresholdInput.value = capped.toFixed(2);
+        return capped;
+      };
+      reviewMinThresholdRange.addEventListener("input", () => {
+        syncReviewInputs(reviewMinThresholdRange.value);
+      });
+      reviewMinThresholdInput.addEventListener("change", () => {
+        syncReviewInputs(reviewMinThresholdInput.value);
+      });
+      reviewMinThresholdRange.addEventListener("change", async () => {
+        const reviewMin = syncReviewInputs(reviewMinThresholdRange.value);
+        if (
+          await saveMatchingConfig(
+            readThresholdFromDom(),
+            reviewMin,
+            state.matchingConfig.auto_merge_enabled,
+            state.matchingConfig.perfect_match_auto_merge,
+            state.matchingConfig.strict_normalized_auto_only
+          )
+        ) {
+          setStatus(STR.status.reviewMinThresholdUpdated);
+        }
+      });
+      reviewMinThresholdInput.addEventListener("blur", async () => {
+        const reviewMin = syncReviewInputs(reviewMinThresholdInput.value);
+        if (
+          await saveMatchingConfig(
+            readThresholdFromDom(),
+            reviewMin,
+            state.matchingConfig.auto_merge_enabled,
+            state.matchingConfig.perfect_match_auto_merge,
+            state.matchingConfig.strict_normalized_auto_only
+          )
+        ) {
+          setStatus(STR.status.reviewMinThresholdUpdated);
         }
       });
     }
