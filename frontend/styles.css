@@ -7,6 +7,7 @@
   --accent: #174ea6;
   --danger: #b12525;
   --ok: #1f7a37;
+  --table-row-stripe: #f0f2f8;
   --space: clamp(12px, 1vw, 18px);
   --font-base: clamp(18px, 0.95vw, 22px);
   --font-small: clamp(15px, 0.85vw, 18px);
@@ -225,6 +226,11 @@ th {
 .table-wrap {
   max-height: 60vh;
   overflow: auto;
+}
+
+/* Direct tbody rows only — nested matrices inside cells must not match. */
+.table--banded > tbody > tr:nth-child(even) {
+  background: var(--table-row-stripe);
 }
 
 .hint {
@@ -845,7 +851,8 @@ tr.standings-row--correctable {
   cursor: pointer;
 }
 
-tr.standings-row--correctable:hover {
+/* Specificity above .table--banded striping so hover works on even rows. */
+.table--banded > tbody > tr.standings-row--correctable:hover {
   background: #e8f0ff;
 }
 

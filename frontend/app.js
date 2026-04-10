@@ -295,7 +295,7 @@
           ${
             items.length === 0
               ? `<p class="hint">${se.noSeasonsYet}</p>`
-              : `<div class="table-wrap"><table><thead><tr><th>${se.tableYear}</th><th class="season-review-col">Prüfungen<br>offen</th><th>${se.tableLastImport}</th><th class="season-coverage-col">${se.tableCoverage}</th><th>${se.tableAction}</th></tr></thead><tbody>${rows}</tbody></table></div>`
+              : `<div class="table-wrap"><table class="table--banded"><thead><tr><th>${se.tableYear}</th><th class="season-review-col">Prüfungen<br>offen</th><th>${se.tableLastImport}</th><th class="season-coverage-col">${se.tableCoverage}</th><th>${se.tableAction}</th></tr></thead><tbody>${rows}</tbody></table></div>`
           }
         </div>
         <div class="card season-entry-create-card">
@@ -859,7 +859,7 @@
             <p class="hint">${st.rulesHint}</p>
             ${state.standingsCorrectionMode ? `<p class="hint correction-mode-banner">${sid.correctionBanner}</p>` : ""}
             <div class="table-wrap">
-              <table>
+              <table class="table--banded">
                 <thead><tr><th>${st.thPlatz}</th><th>${st.thName}</th><th>${st.thYob}</th><th>${st.thClub}</th><th>${st.thDistanceTotal}</th><th>${st.thPointsTotal}</th></tr></thead>
                 <tbody>${standingsRows || `<tr><td colspan="6">${st.emptyStandings}</td></tr>`}</tbody>
               </table>
@@ -868,7 +868,7 @@
           <div class="card">
             <h3>${st.perRaceTitle}</h3>
             <div class="table-wrap">
-              <table class="standings-per-race-table">
+              <table class="standings-per-race-table table--banded">
                 <thead><tr><th>${st.thPlatz}</th><th class="standings-aw-col" title="${escapeHtml(
                   st.thAusserWertungTitle
                 )}" aria-label="${escapeHtml(st.thAusserWertungTitle)}">${st.thAusserWertungShort}</th><th>${st.thName}</th>${resultHeaders}<th>${st.thDistanceShort}</th><th>${st.thPointsTotal}</th></tr></thead>
