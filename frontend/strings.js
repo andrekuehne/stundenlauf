@@ -274,7 +274,6 @@
         'Auswahl verknüpft mit bestehender Person/Team; "neue Person anlegen" erstellt bewusst einen zusätzlichen Datensatz.',
       mergeAccept: "Mit ausgewählter Person/Team zusammenführen",
       mergeNewIdentity: "Keine passt: neue Person anlegen",
-      skipReview: "Überspringen",
       inferenceDetectedBoth: (typeLabel, racePart) => `Erkannt: ${typeLabel} · ${racePart}`,
       inferenceDetectedTypeOnly: (typeLabel) =>
         `Erkannt: ${typeLabel} · Laufnummer nicht im Dateinamen – bitte Laufnummer wählen.`,

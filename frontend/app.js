@@ -65,6 +65,7 @@
     importFilePath: "",
     importSourceType: "",
     importRaceNo: null,
+    matchingSettingsExpanded: false,
     standingsCorrectionMode: false,
     standingsMergeMode: false,
     mergeSurvivor: null,
@@ -1711,8 +1712,12 @@
           <div class="row">
             <button id="importRaceBtn" class="primary"${importReady ? "" : " disabled"}>${iv.importRace}</button>
           </div>
-          <div class="import-settings-panel">
-            <h4>${iv.matchingSettings}</h4>
+          <div class="import-settings-panel${state.matchingSettingsExpanded ? "" : " is-collapsed"}">
+            <button type="button" class="matching-settings-toggle" id="matchingSettingsToggle" aria-expanded="${state.matchingSettingsExpanded}" aria-controls="matchingSettingsBody">
+              <span class="matching-settings-chevron" aria-hidden="true"></span>
+              <span class="matching-settings-toggle-label">${iv.matchingSettings}</span>
+            </button>
+            <div id="matchingSettingsBody" class="matching-settings-body"${state.matchingSettingsExpanded ? "" : " hidden"}>
             <div class="tabs matching-mode-tabs" role="tablist" aria-label="${iv.matchingSettings}">
               <button type="button" class="tab matching-mode-tab${strictNormalizedOnly ? " active" : ""}" data-matching-primary="strict" role="tab" aria-selected="${strictNormalizedOnly}">${iv.matchingModeStrict}</button>
               <button type="button" class="tab matching-mode-tab${primaryFuzzy ? " active" : ""}" data-matching-primary="fuzzy" role="tab" aria-selected="${primaryFuzzy}">${iv.matchingModeFuzzy}</button>
@@ -1752,6 +1757,7 @@
               </div>
             </div>
             <p class="hint matching-settings-hint">${matchingHint}</p>
+            </div>
           </div>
         </aside>
         <section class="card import-review-column">
@@ -1767,7 +1773,6 @@
                <div class="row merge-actions-row">
                  <button id="acceptReviewBtn" class="primary">${iv.mergeAccept}</button>
                  <button id="newIdentityReviewBtn" class="secondary">${iv.mergeNewIdentity}</button>
-                 <button id="skipReviewBtn" class="secondary">${iv.skipReview}</button>
                </div>
                <div class="table-wrap">
                  <table class="merge-review-table merge-review-table--unified">
@@ -1861,6 +1866,11 @@
       }
       await renderImportView();
     };
+
+    document.getElementById("matchingSettingsToggle").addEventListener("click", async () => {
+      state.matchingSettingsExpanded = !state.matchingSettingsExpanded;
+      await renderImportView();
+    });
 
     for (const btn of document.querySelectorAll("[data-matching-primary]")) {
       btn.addEventListener("click", () => {
@@ -2076,10 +2086,6 @@
           }
         });
       }
-      document.getElementById("skipReviewBtn").addEventListener("click", async () => {
-        state.reviewIndex = Math.min(state.reviewIndex + 1, state.reviewQueue.length - 1);
-        await renderImportView();
-      });
       document.getElementById("acceptReviewBtn").addEventListener("click", async () => {
         const target = state.reviewSelections[reviewKey] || getDefaultCandidateUid(review);
         if (!target) {
