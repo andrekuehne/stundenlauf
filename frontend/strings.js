@@ -198,6 +198,7 @@
       singles: "Einzel",
       couples: "Paare",
       thName: "Name",
+      thNameYear: "Name (Jg.)",
       raceNumber: "Laufnummer",
       raceSelectPlaceholder: "Bitte wählen…",
       importRace: "Lauf importieren",
@@ -229,10 +230,11 @@
       thMatch: "Treffer %",
       thAction: "Aktion",
       thStartnr: "Startnr.",
-      thDistance: "Distanz",
-      thPoints: "Punkte",
-      selectCandidate: "Wählen",
-      selectedCandidate: "Ausgewählt",
+      thWertung: "Wertung",
+      selectCandidate: "☐",
+      selectedCandidate: "✅",
+      selectCandidateAria: "Kandidat auswählen",
+      selectedCandidateAria: "Ausgewählt",
       mergeHint:
         'Auswahl rechts verknüpft mit bestehender Person/Team; "neue Person anlegen" erstellt bewusst einen zusätzlichen Datensatz.',
       mergeAccept: "Mit ausgewählter Person/Team zusammenführen",
@@ -241,10 +243,6 @@
       inferenceDetectedBoth: (typeLabel, racePart) => `Erkannt: ${typeLabel} · ${racePart}`,
       inferenceDetectedTypeOnly: (typeLabel) =>
         `Erkannt: ${typeLabel} · Laufnummer nicht im Dateinamen – bitte Laufnummer wählen.`,
-      inferenceDetectedRaceOnly: (racePart) =>
-        `Erkannt: ${racePart} · Lauftyp nicht aus dem Dateinamen – bitte Einzel oder Paare wählen.`,
-      inferenceNone:
-        "Keine Erkennung aus dem Dateinamen – bitte Lauftyp und Laufnummer wählen.",
       raceWord: "Lauf",
     },
     preview: {

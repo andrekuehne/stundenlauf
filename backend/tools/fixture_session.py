@@ -85,7 +85,8 @@ def ordered_import_paths(data_dir: Path) -> list[Path]:
         n = parse_race_no(f)
         if n <= 0:
             raise ValueError(
-                f"Could not parse Lauf number from filename (expected 'Lauf <n>'): {f.name}"
+                f"Could not parse Lauf number from filename "
+                f"(expected 'Lauf <n>' or exactly one isolated digit 1–9): {f.name}"
             )
 
     singles_by_race: dict[int, list[Path]] = defaultdict(list)

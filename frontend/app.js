@@ -1074,44 +1074,39 @@
   }
 
   function inferImportRaceNoFromBasename(name) {
-    const m = String(name).match(/Lauf\s+(\d+)/i);
-    if (!m) {
+    const s = String(name).trim();
+    const mLauf = s.match(/Lauf\s+(\d+)/i);
+    if (mLauf) {
+      const n = parseInt(mLauf[1], 10);
+      return Number.isFinite(n) && n >= 1 ? n : null;
+    }
+    const isolated = [...s.matchAll(/(?<!\d)\d(?!\d)/g)];
+    if (isolated.length !== 1) {
       return null;
     }
-    const n = parseInt(m[1], 10);
+    const n = parseInt(isolated[0][0], 10);
     return Number.isFinite(n) && n >= 1 ? n : null;
   }
 
   function inferImportSourceTypeFromBasename(name) {
-    const lower = String(name).toLowerCase();
-    if (lower.includes("paare")) {
-      return "couples";
-    }
-    if (lower.includes("einzel") || lower.includes("singles")) {
-      return "singles";
-    }
-    return null;
+    const lower = String(name).trim().toLowerCase();
+    return lower.includes("paare") ? "couples" : "singles";
   }
 
   function buildImportInferenceLine(basename) {
     const iv = STR.importView;
-    if (!basename) {
+    const base = String(basename).trim();
+    if (!base) {
       return "";
     }
-    const inferredType = inferImportSourceTypeFromBasename(basename);
-    const inferredRace = inferImportRaceNoFromBasename(basename);
-    const typeLabel = inferredType === "singles" ? iv.singles : inferredType === "couples" ? iv.couples : null;
+    const inferredType = inferImportSourceTypeFromBasename(base);
+    const inferredRace = inferImportRaceNoFromBasename(base);
+    const typeLabel = inferredType === "singles" ? iv.singles : iv.couples;
     const racePart = inferredRace != null ? `${iv.raceWord} ${inferredRace}` : null;
-    if (typeLabel && racePart) {
+    if (racePart) {
       return iv.inferenceDetectedBoth(typeLabel, racePart);
     }
-    if (typeLabel && !racePart) {
-      return iv.inferenceDetectedTypeOnly(typeLabel);
-    }
-    if (!typeLabel && racePart) {
-      return iv.inferenceDetectedRaceOnly(racePart);
-    }
-    return iv.inferenceNone;
+    return iv.inferenceDetectedTypeOnly(typeLabel);
   }
 
   function isImportReady() {
@@ -1126,7 +1121,7 @@
     const base = basenameFromPath(filePath);
     const inferredType = inferImportSourceTypeFromBasename(base);
     const inferredRace = inferImportRaceNoFromBasename(base);
-    state.importSourceType = inferredType || "";
+    state.importSourceType = base.trim() ? inferredType : "";
     state.importRaceNo = inferredRace;
   }
 
@@ -1186,22 +1181,52 @@
     return `${review.race_event_uid}::${review.entry_uid}`;
   }
 
-  function displayDistance(distanceKm) {
-    if (distanceKm == null) {
-      return "-";
+  /** Singles: "Name (year)". Couples: "Name1 (y1) / Name2 (y2)" — matches API ` / ` composite fields. */
+  function formatMergeNameYearLine(preview) {
+    const pr = STR.preview;
+    if (!preview) {
+      return pr.unknown;
     }
-    return `${distanceKm}${STR.units.kmSuffix}`;
+    const sep = " / ";
+    const display = (preview.display_name && String(preview.display_name).trim()) || "";
+    const nameTokens = display ? display.split(sep).map((t) => t.trim()).filter(Boolean) : [];
+    const yobRaw = preview.yob;
+    const yobJoined = yobRaw == null || yobRaw === "" ? "" : String(yobRaw);
+    const yobTokens = yobJoined ? yobJoined.split(sep).map((t) => t.trim()).filter((t) => t.length) : [];
+    const yFor = (i) => (yobTokens[i] != null && yobTokens[i] !== "" ? yobTokens[i] : "-");
+
+    if (nameTokens.length >= 2) {
+      return nameTokens.map((name, i) => `${name} (${yFor(i)})`).join(sep);
+    }
+    const name = nameTokens[0] || pr.unknown;
+    const y =
+      yobTokens[0] || (preview.yob != null && preview.yob !== "" ? String(preview.yob) : "-");
+    return `${name} (${y})`;
+  }
+
+  function mergeCellLines(innerHtml) {
+    return `<span class="merge-cell-lines">${innerHtml}</span>`;
+  }
+
+  /** Same pattern as standings per-race cells: `x km / y P`, or em dash if no distance. */
+  function formatIncomingWertung(resultPreview) {
+    const d = resultPreview?.distance_km;
+    if (d == null) {
+      return STR.matrix.cellNo;
+    }
+    const p = resultPreview?.points;
+    if (p == null || p === "") {
+      return `${d} km / ${STR.matrix.cellNo}`;
+    }
+    return STR.units.raceCell(d, p);
   }
 
   function renderIncomingTableRow(preview, resultPreview, startnr) {
-    const pr = STR.preview;
     return `<tr class="incoming-row">
-      <td>${preview?.display_name || pr.unknown}</td>
-      <td>${preview?.yob || "-"}</td>
-      <td>${preview?.club || "-"}</td>
-      <td>${startnr || "-"}</td>
-      <td>${displayDistance(resultPreview?.distance_km)}</td>
-      <td>${resultPreview?.points ?? "-"}</td>
+      <td>${mergeCellLines(escapeHtml(formatMergeNameYearLine(preview)))}</td>
+      <td>${mergeCellLines(escapeHtml(`${preview?.club || "-"}`))}</td>
+      <td>${mergeCellLines(escapeHtml(`${startnr || "-"}`))}</td>
+      <td>${mergeCellLines(escapeHtml(formatIncomingWertung(resultPreview)))}</td>
     </tr>`;
   }
 
@@ -1211,7 +1236,7 @@
     const previewByUid = new Map((review.candidate_previews || []).filter(Boolean).map((item) => [item.uid, item]));
     const candidateUids = review.candidate_uids || [];
     if (!candidateUids.length) {
-      return `<tr><td colspan="6">${rt.noCandidates}</td></tr>`;
+      return `<tr><td colspan="5">${mergeCellLines(escapeHtml(rt.noCandidates))}</td></tr>`;
     }
     return candidateUids
       .map((candidateUid, index) => {
@@ -1220,18 +1245,20 @@
         const isSelected = selectedCandidateUid === candidateUid;
         const selectedClass = isSelected ? " selected-candidate-row" : "";
         const buttonLabel = isSelected ? iv.selectedCandidate : iv.selectCandidate;
+        const buttonAria = isSelected ? iv.selectedCandidateAria : iv.selectCandidateAria;
         const confidences = review.candidate_confidences;
         const aligned = Array.isArray(confidences) && confidences.length === candidateUids.length;
         const rowConfidence = aligned ? confidences[index] : null;
         const matchCell =
           aligned && rowConfidence != null ? `${confidencePercent(rowConfidence)}%` : "-";
+        const escapedLabel = escapeHtml(buttonLabel);
+        const escapedAria = escapeHtml(buttonAria);
         return `<tr class="candidate-row${selectedClass}" data-candidate-row="${candidateUid}">
-          <td>${rank}</td>
-          <td>${preview?.display_name || STR.preview.unknown}</td>
-          <td>${preview?.yob || "-"}</td>
-          <td>${preview?.club || "-"}</td>
-          <td>${matchCell}</td>
-          <td><button class="secondary select-candidate-btn" data-candidate-uid="${candidateUid}">${buttonLabel}</button></td>
+          <td>${mergeCellLines(escapeHtml(String(rank)))}</td>
+          <td>${mergeCellLines(escapeHtml(formatMergeNameYearLine(preview)))}</td>
+          <td>${mergeCellLines(escapeHtml(`${preview?.club || "-"}`))}</td>
+          <td>${mergeCellLines(escapeHtml(matchCell))}</td>
+          <td><span class="merge-cell-lines merge-cell-lines--action"><button type="button" class="secondary select-candidate-btn" data-candidate-uid="${candidateUid}" aria-label="${escapedAria}">${escapedLabel}</button></span></td>
         </tr>`;
       })
       .join("");
@@ -1358,8 +1385,14 @@
                  <section class="merge-review-column">
                    <h4>${iv.incomingHeading}</h4>
                    <div class="table-wrap">
-                     <table>
-                       <thead><tr><th>${iv.thName}</th><th>${stStandings.thYob}</th><th>${stStandings.thClub}</th><th>${iv.thStartnr}</th><th>${iv.thDistance}</th><th>${iv.thPoints}</th></tr></thead>
+                     <table class="merge-review-table merge-review-table--incoming">
+                       <colgroup>
+                         <col class="merge-col-in-name" />
+                         <col class="merge-col-in-club" />
+                         <col class="merge-col-in-startnr" />
+                         <col class="merge-col-in-wertung" />
+                       </colgroup>
+                       <thead><tr><th>${iv.thNameYear}</th><th>${stStandings.thClub}</th><th>${iv.thStartnr}</th><th>${iv.thWertung}</th></tr></thead>
                        <tbody>${renderIncomingTableRow(review.entry_preview, review.result_preview, review.startnr)}</tbody>
                      </table>
                    </div>
@@ -1367,8 +1400,15 @@
                  <section class="merge-review-column">
                    <h4>${iv.candidatesHeading}</h4>
                    <div class="table-wrap">
-                     <table>
-                       <thead><tr><th>${iv.thRank}</th><th>${iv.thName}</th><th>${stStandings.thYob}</th><th>${stStandings.thClub}</th><th>${iv.thMatch}</th><th>${iv.thAction}</th></tr></thead>
+                     <table class="merge-review-table merge-review-table--candidates">
+                       <colgroup>
+                         <col class="merge-col-cand-rank" />
+                         <col class="merge-col-cand-name" />
+                         <col class="merge-col-cand-club" />
+                         <col class="merge-col-cand-match" />
+                         <col class="merge-col-cand-action" />
+                       </colgroup>
+                       <thead><tr><th>${iv.thRank}</th><th>${iv.thNameYear}</th><th>${stStandings.thClub}</th><th>${iv.thMatch}</th><th>${iv.thAction}</th></tr></thead>
                        <tbody>${renderCandidateTableRows(
                          review,
                          state.reviewSelections[reviewSelectionKey(review)] || getDefaultCandidateUid(review)

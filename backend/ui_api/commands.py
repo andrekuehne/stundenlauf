@@ -6,9 +6,10 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 from backend.domain.identity import person_with_updated_identity, yob_bounds
-from backend.domain.models import Couple, FieldResolution, MatchingDecision, Person, RaceEntryMatchMeta
+from backend.domain.models import Couple, FieldResolution, MatchingDecision, Person, RaceEntry, RaceEntryMatchMeta
 from backend.ingestion.service import import_excel_into_project
 from backend.matching.config import MatchingConfig
+from backend.matching.normalize import normalize_club, parse_person_name
 from backend.ranking.engine import recompute_project_standings
 from backend.storage.repository import JsonProjectRepository
 from backend.ui_api.errors import not_found, validation_error
@@ -16,6 +17,98 @@ from backend.ui_api.errors import not_found, validation_error
 
 def _iso_now() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat()
+
+
+def _clone_person_identity(source: Person) -> Person:
+    return Person(
+        name=source.name,
+        yob=source.yob,
+        gender=source.gender,
+        club=source.club,
+        canonical_given=source.canonical_given,
+        canonical_family=source.canonical_family,
+        club_normalized=source.club_normalized,
+    )
+
+
+def _clone_couple_members(source: Couple) -> Couple:
+    return Couple(member_a=_clone_person_identity(source.member_a), member_b=_clone_person_identity(source.member_b))
+
+
+def _new_singles_identity_from_review(entry: RaceEntry, candidate: Person) -> tuple[Person, Literal["incoming_meta", "clone_candidate"]]:
+    mm = entry.match_meta
+    raw = (mm.incoming_display_name or "").strip() if mm else ""
+    if not raw or (mm is not None and mm.incoming_kind == "team"):
+        return _clone_person_identity(candidate), "clone_candidate"
+    parsed = parse_person_name(raw)
+    yob = mm.incoming_yob if mm.incoming_yob is not None else candidate.yob
+    club = mm.incoming_club
+    return (
+        Person(
+            name=raw,
+            yob=yob,
+            gender=candidate.gender,
+            club=club,
+            canonical_given=parsed.given,
+            canonical_family=parsed.family,
+            club_normalized=normalize_club(club),
+        ),
+        "incoming_meta",
+    )
+
+
+def _new_team_identity_from_review(entry: RaceEntry, candidate: Couple) -> tuple[Couple, Literal["incoming_meta", "clone_candidate"]]:
+    mm = entry.match_meta
+    if mm is None or mm.incoming_kind != "team":
+        return _clone_couple_members(candidate), "clone_candidate"
+    raw = (mm.incoming_display_name or "").strip()
+    parts = [p.strip() for p in raw.split(" / ") if p.strip()]
+    if len(parts) < 2:
+        return _clone_couple_members(candidate), "clone_candidate"
+    name_a, name_b = parts[0], parts[1]
+    yob_a, yob_b = candidate.member_a.yob, candidate.member_b.yob
+    yt = (mm.incoming_yob_text or "").strip()
+    yparts: list[str] = []
+    if yt:
+        yparts = [p.strip() for p in yt.split(" / ")]
+        if yparts:
+            try:
+                yob_a = int(yparts[0])
+            except ValueError:
+                pass
+        if len(yparts) > 1:
+            try:
+                yob_b = int(yparts[1])
+            except ValueError:
+                pass
+    club_a, club_b = candidate.member_a.club, candidate.member_b.club
+    cc = (mm.incoming_club or "").strip()
+    if cc:
+        cparts = [p.strip() for p in cc.split(" / ")]
+        if cparts:
+            club_a = cparts[0] or club_a
+        if len(cparts) > 1:
+            club_b = cparts[1] or club_b
+    pa, pb = parse_person_name(name_a), parse_person_name(name_b)
+    ma = Person(
+        name=name_a,
+        yob=yob_a,
+        gender=candidate.member_a.gender,
+        club=club_a,
+        canonical_given=pa.given,
+        canonical_family=pa.family,
+        club_normalized=normalize_club(club_a),
+    )
+    mb = Person(
+        name=name_b,
+        yob=yob_b,
+        gender=candidate.member_b.gender,
+        club=club_b,
+        canonical_given=pb.given,
+        canonical_family=pb.family,
+        club_normalized=normalize_club(club_b),
+    )
+    return Couple(member_a=ma, member_b=mb), "incoming_meta"
 
 
 def import_race(
@@ -108,25 +201,9 @@ def apply_match_decision(project_file: Path, payload: dict[str, Any]) -> dict[st
             source_team = next((item for item in document.couples if item.uid == entry.team_uid), None)
             if source_team is None:
                 raise validation_error("entry team candidate was not found")
-            member_a = Person(
-                name=source_team.member_a.name,
-                yob=source_team.member_a.yob,
-                gender=source_team.member_a.gender,
-                club=source_team.member_a.club,
-                canonical_given=source_team.member_a.canonical_given,
-                canonical_family=source_team.member_a.canonical_family,
-                club_normalized=source_team.member_a.club_normalized,
-            )
-            member_b = Person(
-                name=source_team.member_b.name,
-                yob=source_team.member_b.yob,
-                gender=source_team.member_b.gender,
-                club=source_team.member_b.club,
-                canonical_given=source_team.member_b.canonical_given,
-                canonical_family=source_team.member_b.canonical_family,
-                club_normalized=source_team.member_b.club_normalized,
-            )
-            created_team = Couple(member_a=member_a, member_b=member_b)
+            created_team, _team_identity_source = _new_team_identity_from_review(entry, source_team)
+            member_a = created_team.member_a
+            member_b = created_team.member_b
             target_team_uid = created_team.uid
             target_participant_uid = None
             target_uid = created_team.uid
@@ -137,15 +214,7 @@ def apply_match_decision(project_file: Path, payload: dict[str, Any]) -> dict[st
             source_person = next((item for item in document.people if item.uid == source_person_uid), None)
             if source_person is None:
                 raise validation_error("entry participant candidate was not found")
-            created_person = Person(
-                name=source_person.name,
-                yob=source_person.yob,
-                gender=source_person.gender,
-                club=source_person.club,
-                canonical_given=source_person.canonical_given,
-                canonical_family=source_person.canonical_family,
-                club_normalized=source_person.club_normalized,
-            )
+            created_person, _ = _new_singles_identity_from_review(entry, source_person)
             target_participant_uid = created_person.uid
             target_team_uid = None
             target_uid = created_person.uid

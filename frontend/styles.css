@@ -462,6 +462,78 @@ th {
   margin-bottom: 12px;
 }
 
+.merge-review-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.merge-review-table--incoming col.merge-col-in-name {
+  width: 40%;
+}
+.merge-review-table--incoming col.merge-col-in-club {
+  width: 26%;
+}
+.merge-review-table--incoming col.merge-col-in-startnr {
+  width: 12%;
+}
+.merge-review-table--incoming col.merge-col-in-wertung {
+  width: 22%;
+}
+
+.merge-review-table--candidates col.merge-col-cand-rank {
+  width: 7%;
+}
+.merge-review-table--candidates col.merge-col-cand-name {
+  width: 36%;
+}
+.merge-review-table--candidates col.merge-col-cand-club {
+  width: 26%;
+}
+.merge-review-table--candidates col.merge-col-cand-match {
+  width: 11%;
+}
+.merge-review-table--candidates col.merge-col-cand-action {
+  width: 20%;
+}
+
+.merge-review-table th,
+.merge-review-table td {
+  vertical-align: top;
+}
+
+.merge-review-table td {
+  overflow-wrap: break-word;
+}
+
+.merge-review-table thead th {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.merge-review-table .merge-cell-lines {
+  display: block;
+  line-height: 1.35;
+  min-height: calc(2 * 1.35em);
+}
+
+.merge-review-table .merge-cell-lines--action {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.merge-review-table .merge-cell-lines--action .select-candidate-btn {
+  flex: 0 0 3.5rem;
+  width: 3.5rem;
+  min-width: 3.5rem;
+  max-width: 3.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .import-add-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 380px;

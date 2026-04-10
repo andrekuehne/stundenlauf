@@ -14,6 +14,7 @@ from backend.domain.models import (
     StandingsSnapshot,
 )
 from backend.ranking.rules import RULESET_V1_LEGACY_TOP4
+from backend.ingestion.adapters.common import parse_race_no
 from backend.tools.fixture_session import (
     entity_display_name,
     ordered_import_paths,
@@ -22,6 +23,23 @@ from backend.tools.fixture_session import (
     standings_snapshot_to_csv,
 )
 from backend.storage.schema_v2 import SCHEMA_VERSION_V2
+
+
+class TestParseRaceNo(unittest.TestCase):
+    def test_lauf_prefix_any_width(self) -> None:
+        self.assertEqual(parse_race_no(Path("Ergebnisliste MW Lauf 10.xlsx")), 10)
+
+    def test_single_isolated_digit(self) -> None:
+        self.assertEqual(parse_race_no(Path("Ergebnisliste MW_3.xlsx")), 3)
+
+    def test_zero_isolated_digit_rejected(self) -> None:
+        self.assertEqual(parse_race_no(Path("Ergebnisliste MW_0.xlsx")), 0)
+
+    def test_multiple_isolated_digits_rejected(self) -> None:
+        self.assertEqual(parse_race_no(Path("a1b2.xlsx")), 0)
+
+    def test_no_digit_rejected(self) -> None:
+        self.assertEqual(parse_race_no(Path("nope.xlsx")), 0)
 
 
 class TestOrderedImportPaths(unittest.TestCase):
@@ -58,6 +76,25 @@ class TestOrderedImportPaths(unittest.TestCase):
             with self.assertRaises(ValueError) as ctx:
                 ordered_import_paths(tmp_path)
             self.assertIn("Multiple singles", str(ctx.exception))
+
+    def test_orders_underscore_style_names(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            (tmp_path / "Ergebnisliste MW_2.xlsx").touch()
+            (tmp_path / "Ergebnisliste MW_Paare_2.xlsx").touch()
+            (tmp_path / "Ergebnisliste MW_1.xlsx").touch()
+            (tmp_path / "Ergebnisliste MW_Paare_1.xlsx").touch()
+            got = ordered_import_paths(tmp_path)
+            names = [p.name for p in got]
+            self.assertEqual(
+                names,
+                [
+                    "Ergebnisliste MW_1.xlsx",
+                    "Ergebnisliste MW_Paare_1.xlsx",
+                    "Ergebnisliste MW_2.xlsx",
+                    "Ergebnisliste MW_Paare_2.xlsx",
+                ],
+            )
 
     def test_raises_without_lauf_in_filename(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

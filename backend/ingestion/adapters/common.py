@@ -31,10 +31,15 @@ def file_sha256(path: Path) -> str:
 
 
 def parse_race_no(path: Path) -> int:
-    match = re.search(r"Lauf\s+(\d+)", path.name, flags=re.IGNORECASE)
-    if match is None:
+    name = path.name
+    lauf = re.search(r"Lauf\s+(\d+)", name, flags=re.IGNORECASE)
+    if lauf is not None:
+        return int(lauf.group(1))
+    isolated = re.findall(r"(?<!\d)\d(?!\d)", name)
+    if len(isolated) != 1:
         return 0
-    return int(match.group(1))
+    n = int(isolated[0])
+    return n if n >= 1 else 0
 
 
 def imported_now_iso() -> str:

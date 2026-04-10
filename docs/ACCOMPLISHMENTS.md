@@ -17,6 +17,12 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-10 - Fix create_new_identity using suggested candidate name
+- Requirement/Milestone: [R4, R6; M3]
+- What shipped: `apply_match_decision` with `create_new_identity` now builds new singles (and Paarlauf) identities from `RaceEntryMatchMeta` incoming row fields when present, instead of cloning the review-linked candidate person/team.
+- Evidence: `backend/ui_api/commands.py`, `tests/test_f08_ui_api.py::test_apply_match_decision_new_identity_uses_incoming_row_not_candidate_name`; `uv run pytest tests/test_f08_ui_api.py -k apply_match_decision`
+- Impact: choosing “Neue Identität” after a fuzzy suggestion no longer creates a duplicate with the wrong (suggested) name.
+
 ### 2026-04-10 - Per-candidate match scores in review queue (GUI)
 - Requirement/Milestone: [R4, R6, R8; M3]
 - What shipped: Persist fuzzy similarity per ranked candidate (`candidate_confidences` aligned with `candidate_uids`), expose via `get_review_queue`, and render each candidate row with its own percentage; imports and stored match meta always populate the field for review rows.

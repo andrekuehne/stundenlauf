@@ -1230,6 +1230,74 @@ class TestF08UiApi(unittest.TestCase):
             self.assertEqual(queue_after["status"], "ok")
             self.assertEqual(queue_after["payload"]["count"], 0)
 
+    def test_apply_match_decision_new_identity_uses_incoming_row_not_candidate_name(self) -> None:
+        """Regression: review entry's participant_uid points at top candidate; new identity must copy import row."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.WOMEN)
+            candidate = Person(
+                uid="participant_suggest",
+                name="Lena Hesse",
+                yob=1990,
+                gender=Gender.F,
+                club="TSV Alt",
+            )
+            mm = RaceEntryMatchMeta(
+                route="review",
+                confidence=0.72,
+                top_candidate_uid=candidate.uid,
+                candidate_uids=(candidate.uid,),
+                candidate_confidences=(0.72,),
+                incoming_display_name="Leni Henkel",
+                incoming_yob=1991,
+                incoming_club="VfL Neu",
+                incoming_kind="participant",
+            )
+            review_entry = RaceEntry(
+                entry_uid="entry_leni_review",
+                participant_uid=candidate.uid,
+                startnr="42",
+                result=EntryResult(distance_km=11.0, points=22.0),
+                match_meta=mm,
+            )
+            event = RaceEvent(
+                race_event_uid="race_event_leni",
+                category=category,
+                race_date="2026-01-05",
+                race_no=1,
+                source_file="fixture.xlsx",
+                source_sha256="sha_leni",
+                imported_at="2026-01-05T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp",
+                entries=(review_entry,),
+            )
+            doc = ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(candidate,), events=(event,))
+            JsonProjectRepository(project_path).save(recompute_project_standings(doc))
+
+            bridge = PywebviewApiBridge(str(project_path))
+            applied = bridge.invoke(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_new_id_incoming",
+                    "method": "apply_match_decision",
+                    "payload": {
+                        "race_event_uid": "race_event_leni",
+                        "entry_uid": "entry_leni_review",
+                        "decision_action": "create_new_identity",
+                        "rationale": "not the same person",
+                    },
+                }
+            )
+            self.assertEqual(applied["status"], "ok")
+
+            loaded = JsonProjectRepository(project_path).load()
+            new_people = [p for p in loaded.people if p.uid != candidate.uid]
+            self.assertEqual(len(new_people), 1)
+            self.assertEqual(new_people[0].name, "Leni Henkel")
+            self.assertEqual(new_people[0].yob, 1991)
+            self.assertEqual(new_people[0].club, "VfL Neu")
+
     def test_get_review_queue_includes_confidence_label_and_sorted_desc(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project_path = Path(temp_dir) / "project.json"
