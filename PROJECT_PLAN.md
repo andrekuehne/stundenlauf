@@ -80,6 +80,7 @@ Checkboxes mark **product-level** satisfaction. Capabilities delivered only via 
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-04-10 | Unified matching review table with diff highlighting | Replaced side-by-side two-column merge review with single stacked comparison table; incoming entry as header row, candidates ranked below with per-field red diff highlighting for name, year, and club mismatches |
 | 2026-04-10 | Shipped F14 season hard reset (keep year) | Added `reset_series_year` in ui-api-v1 and season-entry reset action so operators can clear season data in place without deleting/recreating the season year |
 | 2026-04-10 | Shipped F13 season-entry density and coverage preview | Rebalanced startup layout, added compact local last-import formatting, and exposed per-season singles/couples race matrix in season overview |
 | 2026-04-10 | Shipped F12 season import/export portability workflow | Added season backup/restore in GUI and UI API with manifest+checksum validation, schema/format guards, and atomic import/replace safety |

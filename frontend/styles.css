@@ -438,24 +438,22 @@ th {
   line-height: 1.15;
 }
 
-.merge-review-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: var(--space);
-  margin-top: 0;
-}
-
-.merge-review-column h4 {
-  margin: 0 0 10px;
-}
-
 .incoming-row td {
   background: #eef6ff;
   font-weight: 600;
 }
 
+.merge-incoming-separator td {
+  border-bottom: 3px solid var(--accent);
+}
+
 .selected-candidate-row td {
   background: #e9f7ee;
+}
+
+.merge-review-table td.merge-diff-cell {
+  background: #fff0f0;
+  color: #c0392b;
 }
 
 .merge-actions-row {
@@ -467,33 +465,26 @@ th {
   width: 100%;
 }
 
-.merge-review-table--incoming col.merge-col-in-name {
-  width: 40%;
+.merge-review-table--unified col.merge-col-rank {
+  width: 5%;
 }
-.merge-review-table--incoming col.merge-col-in-club {
-  width: 26%;
+.merge-review-table--unified col.merge-col-name {
+  width: 32%;
 }
-.merge-review-table--incoming col.merge-col-in-startnr {
-  width: 12%;
-}
-.merge-review-table--incoming col.merge-col-in-wertung {
+.merge-review-table--unified col.merge-col-club {
   width: 22%;
 }
-
-.merge-review-table--candidates col.merge-col-cand-rank {
+.merge-review-table--unified col.merge-col-match {
+  width: 10%;
+}
+.merge-review-table--unified col.merge-col-startnr {
   width: 7%;
 }
-.merge-review-table--candidates col.merge-col-cand-name {
-  width: 36%;
+.merge-review-table--unified col.merge-col-wertung {
+  width: 14%;
 }
-.merge-review-table--candidates col.merge-col-cand-club {
-  width: 26%;
-}
-.merge-review-table--candidates col.merge-col-cand-match {
-  width: 11%;
-}
-.merge-review-table--candidates col.merge-col-cand-action {
-  width: 20%;
+.merge-review-table--unified col.merge-col-action {
+  width: 10%;
 }
 
 .merge-review-table th,
@@ -868,10 +859,6 @@ tr.standings-row--correctable:hover {
 
   .standings-sidebar {
     position: static;
-  }
-
-  .merge-review-layout {
-    grid-template-columns: 1fr;
   }
 
   .import-add-layout {

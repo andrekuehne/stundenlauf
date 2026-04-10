@@ -220,10 +220,10 @@
       reviewTitle: "Zusammenführungen prüfen",
       noOpenReviews: "Keine offenen Prüfungen.",
       reviewProgress: (current, total) => `Prüfung ${current} von ${total}`,
-      reviewHintLeftRight:
-        "Links sehen Sie den neu eingehenden Eintrag. Rechts sehen Sie nur bereits vorhandene Personen/Teams aus der Datenbasis.",
+      reviewHintLayout:
+        "Oben sehen Sie den eingehenden Eintrag. Darunter die vorhandenen Kandidaten in absteigender Treffersicherheit. Abweichende Felder sind rot hervorgehoben.",
       reviewHintNoMatch:
-        'Wenn rechts niemand dieselbe reale Person/dasselbe reale Team ist, wählen Sie unten "Keine passt: neue Person anlegen".',
+        'Wenn kein Kandidat dieselbe reale Person/dasselbe reale Team ist, wählen Sie "Keine passt: neue Person anlegen".',
       incomingHeading: "Neuer eingehender Eintrag",
       candidatesHeading: "Mögliche Treffer (beste Übereinstimmung zuerst)",
       thRank: "Rang",
@@ -235,8 +235,9 @@
       selectedCandidate: "✅",
       selectCandidateAria: "Kandidat auswählen",
       selectedCandidateAria: "Ausgewählt",
+      incomingRangLabel: "Neu",
       mergeHint:
-        'Auswahl rechts verknüpft mit bestehender Person/Team; "neue Person anlegen" erstellt bewusst einen zusätzlichen Datensatz.',
+        'Auswahl verknüpft mit bestehender Person/Team; "neue Person anlegen" erstellt bewusst einen zusätzlichen Datensatz.',
       mergeAccept: "Mit ausgewählter Person/Team zusammenführen",
       mergeNewIdentity: "Keine passt: neue Person anlegen",
       skipReview: "Überspringen",

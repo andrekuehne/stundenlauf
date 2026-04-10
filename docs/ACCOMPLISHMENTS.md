@@ -17,6 +17,12 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-10 - Unified matching review table with diff highlighting
+- Requirement/Milestone: [R6, R8; M4]
+- What shipped: Replaced side-by-side two-column merge review layout with a single stacked comparison table. Incoming entry appears as a visually anchored header row; candidates are ranked rows below with shared columns. Fields that differ from the incoming entry (name, year-of-birth, club) are highlighted in red for instant visual distinction.
+- Evidence: `frontend/app.js` (unified table render, `normalizeForDiff`, `nameDiffClass`, `clubDiffClass`), `frontend/styles.css` (`.merge-diff-cell`, `.merge-incoming-separator`, unified colgroup), `frontend/strings.js` (new `reviewHintLayout`, `incomingRangLabel`)
+- Impact: eliminates left-right eye scanning during review; differing fields are immediately visible, reducing mental load and review time per entry.
+
 ### 2026-04-10 - Fix create_new_identity using suggested candidate name
 - Requirement/Milestone: [R4, R6; M3]
 - What shipped: `apply_match_decision` with `create_new_identity` now builds new singles (and Paarlauf) identities from `RaceEntryMatchMeta` incoming row fields when present, instead of cloning the review-linked candidate person/team.

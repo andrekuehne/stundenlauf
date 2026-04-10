@@ -1221,22 +1221,42 @@
     return STR.units.raceCell(d, p);
   }
 
+  function normalizeForDiff(val) {
+    if (val == null || val === "") return "";
+    return String(val).trim().toLowerCase();
+  }
+
+  function nameDiffClass(incomingPreview, candidatePreview) {
+    const nameSame = normalizeForDiff(incomingPreview?.display_name) === normalizeForDiff(candidatePreview?.display_name);
+    const yobSame = normalizeForDiff(incomingPreview?.yob) === normalizeForDiff(candidatePreview?.yob);
+    return nameSame && yobSame ? "" : "merge-diff-cell";
+  }
+
+  function clubDiffClass(incomingPreview, candidatePreview) {
+    return normalizeForDiff(incomingPreview?.club) === normalizeForDiff(candidatePreview?.club) ? "" : "merge-diff-cell";
+  }
+
   function renderIncomingTableRow(preview, resultPreview, startnr) {
-    return `<tr class="incoming-row">
+    const iv = STR.importView;
+    return `<tr class="incoming-row merge-incoming-separator">
+      <td>${mergeCellLines(escapeHtml(iv.incomingRangLabel))}</td>
       <td>${mergeCellLines(escapeHtml(formatMergeNameYearLine(preview)))}</td>
       <td>${mergeCellLines(escapeHtml(`${preview?.club || "-"}`))}</td>
+      <td></td>
       <td>${mergeCellLines(escapeHtml(`${startnr || "-"}`))}</td>
       <td>${mergeCellLines(escapeHtml(formatIncomingWertung(resultPreview)))}</td>
+      <td></td>
     </tr>`;
   }
 
   function renderCandidateTableRows(review, selectedCandidateUid) {
     const rt = STR.reviewTable;
     const iv = STR.importView;
+    const incomingPreview = review.entry_preview;
     const previewByUid = new Map((review.candidate_previews || []).filter(Boolean).map((item) => [item.uid, item]));
     const candidateUids = review.candidate_uids || [];
     if (!candidateUids.length) {
-      return `<tr><td colspan="5">${mergeCellLines(escapeHtml(rt.noCandidates))}</td></tr>`;
+      return `<tr><td colspan="7">${mergeCellLines(escapeHtml(rt.noCandidates))}</td></tr>`;
     }
     return candidateUids
       .map((candidateUid, index) => {
@@ -1253,11 +1273,15 @@
           aligned && rowConfidence != null ? `${confidencePercent(rowConfidence)}%` : "-";
         const escapedLabel = escapeHtml(buttonLabel);
         const escapedAria = escapeHtml(buttonAria);
+        const nameDiff = nameDiffClass(incomingPreview, preview);
+        const clubDiff = clubDiffClass(incomingPreview, preview);
         return `<tr class="candidate-row${selectedClass}" data-candidate-row="${candidateUid}">
           <td>${mergeCellLines(escapeHtml(String(rank)))}</td>
-          <td>${mergeCellLines(escapeHtml(formatMergeNameYearLine(preview)))}</td>
-          <td>${mergeCellLines(escapeHtml(`${preview?.club || "-"}`))}</td>
+          <td class="${nameDiff}">${mergeCellLines(escapeHtml(formatMergeNameYearLine(preview)))}</td>
+          <td class="${clubDiff}">${mergeCellLines(escapeHtml(`${preview?.club || "-"}`))}</td>
           <td>${mergeCellLines(escapeHtml(matchCell))}</td>
+          <td></td>
+          <td></td>
           <td><span class="merge-cell-lines merge-cell-lines--action"><button type="button" class="secondary select-candidate-btn" data-candidate-uid="${candidateUid}" aria-label="${escapedAria}">${escapedLabel}</button></span></td>
         </tr>`;
       })
@@ -1372,7 +1396,7 @@
           !review
             ? `<p class="ok">${iv.noOpenReviews}</p>`
             : `<p>${iv.reviewProgress(state.reviewIndex + 1, state.reviewQueue.length)}</p>
-               <p class="hint">${iv.reviewHintLeftRight}</p>
+               <p class="hint">${iv.reviewHintLayout}</p>
                <p class="hint">${iv.reviewHintNoMatch}</p>
                <p class="hint">${FMT.reviewConfidenceHtml(confidenceLabel(review.confidence), confidencePct)}</p>
                <p class="hint">${iv.mergeHint}</p>
@@ -1381,41 +1405,26 @@
                  <button id="newIdentityReviewBtn" class="secondary">${iv.mergeNewIdentity}</button>
                  <button id="skipReviewBtn" class="secondary">${iv.skipReview}</button>
                </div>
-               <div class="merge-review-layout">
-                 <section class="merge-review-column">
-                   <h4>${iv.incomingHeading}</h4>
-                   <div class="table-wrap">
-                     <table class="merge-review-table merge-review-table--incoming">
-                       <colgroup>
-                         <col class="merge-col-in-name" />
-                         <col class="merge-col-in-club" />
-                         <col class="merge-col-in-startnr" />
-                         <col class="merge-col-in-wertung" />
-                       </colgroup>
-                       <thead><tr><th>${iv.thNameYear}</th><th>${stStandings.thClub}</th><th>${iv.thStartnr}</th><th>${iv.thWertung}</th></tr></thead>
-                       <tbody>${renderIncomingTableRow(review.entry_preview, review.result_preview, review.startnr)}</tbody>
-                     </table>
-                   </div>
-                 </section>
-                 <section class="merge-review-column">
-                   <h4>${iv.candidatesHeading}</h4>
-                   <div class="table-wrap">
-                     <table class="merge-review-table merge-review-table--candidates">
-                       <colgroup>
-                         <col class="merge-col-cand-rank" />
-                         <col class="merge-col-cand-name" />
-                         <col class="merge-col-cand-club" />
-                         <col class="merge-col-cand-match" />
-                         <col class="merge-col-cand-action" />
-                       </colgroup>
-                       <thead><tr><th>${iv.thRank}</th><th>${iv.thNameYear}</th><th>${stStandings.thClub}</th><th>${iv.thMatch}</th><th>${iv.thAction}</th></tr></thead>
-                       <tbody>${renderCandidateTableRows(
-                         review,
-                         state.reviewSelections[reviewSelectionKey(review)] || getDefaultCandidateUid(review)
-                       )}</tbody>
-                     </table>
-                   </div>
-                 </section>
+               <div class="table-wrap">
+                 <table class="merge-review-table merge-review-table--unified">
+                   <colgroup>
+                     <col class="merge-col-rank" />
+                     <col class="merge-col-name" />
+                     <col class="merge-col-club" />
+                     <col class="merge-col-match" />
+                     <col class="merge-col-startnr" />
+                     <col class="merge-col-wertung" />
+                     <col class="merge-col-action" />
+                   </colgroup>
+                   <thead><tr><th>${iv.thRank}</th><th>${iv.thNameYear}</th><th>${stStandings.thClub}</th><th>${iv.thMatch}</th><th>${iv.thStartnr}</th><th>${iv.thWertung}</th><th>${iv.thAction}</th></tr></thead>
+                   <tbody>
+                     ${renderIncomingTableRow(review.entry_preview, review.result_preview, review.startnr)}
+                     ${renderCandidateTableRows(
+                       review,
+                       state.reviewSelections[reviewSelectionKey(review)] || getDefaultCandidateUid(review)
+                     )}
+                   </tbody>
+                 </table>
                </div>`
         }
         </section>
