@@ -901,6 +901,37 @@ th {
   margin-top: 10px;
 }
 
+.import-merge-correct-compare {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space);
+  margin-bottom: var(--space);
+  padding-bottom: var(--space);
+  border-bottom: 1px solid var(--border);
+}
+
+.import-merge-correct-heading {
+  margin: 0 0 8px;
+  font-size: var(--font-small);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.import-merge-correct-col {
+  min-width: 0;
+}
+
+.import-merge-correct-preview {
+  margin: 0 0 10px;
+  font-size: var(--font-base);
+  line-height: 1.35;
+}
+
+.import-merge-correct-label {
+  color: var(--muted);
+  font-size: var(--font-small);
+}
+
 .standings-main-head {
   display: flex;
   flex-wrap: wrap;
@@ -1014,6 +1045,29 @@ tr.standings-row--correctable {
 
 tr.standings-per-race-row.standings-row--excluded td:not(.standings-aw-cell) {
   opacity: 0.72;
+}
+
+.history-audit-card td.history-audit-detail-cell {
+  vertical-align: top;
+  max-width: 36rem;
+}
+
+.history-audit-detail {
+  line-height: 1.45;
+  text-align: left;
+}
+
+.history-audit-detail__block {
+  margin-top: 0.4rem;
+}
+
+.history-audit-detail__block:first-child {
+  margin-top: 0;
+}
+
+.history-audit-meta {
+  font-size: var(--font-small);
+  color: var(--muted);
 }
 
 @media (max-width: 1200px) {

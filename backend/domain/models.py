@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 from uuid import uuid4
 
 from backend.domain.enums import Division, Gender, RaceDuration, RaceEventState
@@ -46,6 +46,7 @@ class MatchingDecision:
     rationale: str = ""
     field_resolutions: tuple[FieldResolution, ...] = ()
     feature_scores: dict[str, float] = field(default_factory=dict)
+    identity_timeline: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)

@@ -75,6 +75,7 @@
   let requestCounter = 0;
   let lastStandingsRows = [];
   let identityModalRow = null;
+  let importMergeCorrectContext = null;
 
   const seasonEntryView = document.getElementById("seasonEntryView");
   const shellView = document.getElementById("shellView");
@@ -1012,6 +1013,7 @@
 
   function closeIdentityModal() {
     identityModalRow = null;
+    importMergeCorrectContext = null;
     if (identityModalBody) {
       identityModalBody.innerHTML = "";
     }
@@ -1084,6 +1086,7 @@
     if (!identityModalTitle || !identityModalBody || !identityCorrectionModal) {
       return;
     }
+    importMergeCorrectContext = null;
     identityModalRow = row;
     identityModalTitle.textContent = id.modalTitle;
     identityModalBody.innerHTML = buildIdentityModalBodyHtml(row);
@@ -1450,6 +1453,18 @@
     return `${review.race_event_uid}::${review.entry_uid}`;
   }
 
+  function buildApplyMatchLinkPayload(review, targetUid, candidatePreview, rationale) {
+    const base = {
+      race_event_uid: review.race_event_uid,
+      entry_uid: review.entry_uid,
+      rationale: rationale || "manual review accept",
+    };
+    if (candidatePreview && candidatePreview.kind === "team") {
+      return { ...base, target_team_uid: targetUid };
+    }
+    return { ...base, target_participant_uid: targetUid };
+  }
+
   function mergeCellLines(innerHtml) {
     return `<span class="merge-cell-lines">${innerHtml}</span>`;
   }
@@ -1529,6 +1544,246 @@
 
   function clubDiffClass(incomingPreview, candidatePreview) {
     return normalizeForDiff(incomingPreview?.club) === normalizeForDiff(candidatePreview?.club) ? "" : "merge-diff-cell";
+  }
+
+  function teamPreviewToTeamMembers(preview) {
+    if (!preview || preview.kind !== "team" || !preview.member_a || !preview.member_b) {
+      return null;
+    }
+    return [
+      { member: "a", name: preview.member_a.name || "", yob: preview.member_a.yob, club: preview.member_a.club },
+      { member: "b", name: preview.member_b.name || "", yob: preview.member_b.yob, club: preview.member_b.club },
+    ];
+  }
+
+  function buildImportMergeCorrectModalBodyHtml(review, targetUid, candidatePreview) {
+    const iv = STR.importView;
+    const mc = iv.mergeCorrect;
+    const st = STR.standings;
+    const id = st.identity;
+    const bounds = identityYobBounds();
+    const err = `<p id="identityModalInlineError" class="danger-text hidden"></p>`;
+    const incoming = review.entry_preview;
+    const incName = mergeCellLines(renderMergeNameYobStackedHtml(incoming));
+    const incClub = mergeCellLines(renderMergeClubStackedHtml(incoming));
+    const candName = mergeCellLines(renderMergeNameYobStackedHtml(candidatePreview));
+    const candClub = mergeCellLines(renderMergeClubStackedHtml(candidatePreview));
+    const compare = `<div class="import-merge-correct-compare">
+      <div class="import-merge-correct-col">
+        <h4 class="import-merge-correct-heading">${escapeHtml(mc.compareIncoming)}</h4>
+        <p class="import-merge-correct-preview"><span class="import-merge-correct-label">${escapeHtml(st.thName)} / ${escapeHtml(st.thYob)}</span><br />${incName}</p>
+        <p class="import-merge-correct-preview"><span class="import-merge-correct-label">${escapeHtml(st.thClub)}</span><br />${incClub}</p>
+      </div>
+      <div class="import-merge-correct-col">
+        <h4 class="import-merge-correct-heading">${escapeHtml(mc.compareExisting)}</h4>
+        <p class="import-merge-correct-preview"><span class="import-merge-correct-label">${escapeHtml(st.thName)} / ${escapeHtml(st.thYob)}</span><br />${candName}</p>
+        <p class="import-merge-correct-preview"><span class="import-merge-correct-label">${escapeHtml(st.thClub)}</span><br />${candClub}</p>
+      </div>
+    </div>
+    <p class="hint">${escapeHtml(mc.editHint)}</p>`;
+
+    if (candidatePreview.kind === "team") {
+      const members = teamPreviewToTeamMembers(candidatePreview);
+      if (!members || members.length < 2) {
+        return `${err}<p class="danger-text">${id.errTeamMembers}</p>`;
+      }
+      const mA = members.find((m) => m.member === "a") || members[0];
+      const mB = members.find((m) => m.member === "b") || members[1];
+      function memberInputs(memberKey, label, m) {
+        const yDisplay = typeof m.yob === "number" && m.yob >= bounds.min ? String(m.yob) : "";
+        return `<div class="identity-member-block">
+        <h4>${escapeHtml(label)}</h4>
+        <div class="identity-field-grid">
+          <div><label for="importMergeInName_${memberKey}">${st.thName}</label><input id="importMergeInName_${memberKey}" type="text" value="${escapeHtml(m.name || "")}" autocomplete="off" /></div>
+          <div><label for="importMergeInClub_${memberKey}">${st.thClub}</label><input id="importMergeInClub_${memberKey}" type="text" value="${escapeHtml(m.club == null ? "" : m.club)}" autocomplete="off" /></div>
+          <div><label for="importMergeInYob_${memberKey}">${st.thYob}</label><input id="importMergeInYob_${memberKey}" type="number" min="${bounds.min}" max="${bounds.max}" step="1" value="${escapeHtml(yDisplay)}" /></div>
+        </div>
+      </div>`;
+      }
+      return `${compare}${err}<p class="hint">${escapeHtml(id.excelHint)}</p>
+        ${memberInputs("a", id.memberA, mA)}${memberInputs("b", id.memberB, mB)}
+        <div class="identity-member-actions"><button type="button" class="primary" id="importMergeCorrectSubmit">${escapeHtml(mc.submit)}</button></div>`;
+    }
+
+    const y = candidatePreview.yob;
+    const yDisplay = typeof y === "number" && y >= bounds.min ? String(y) : "";
+    const nm = candidatePreview.display_name || "";
+    const cl = candidatePreview.club == null ? "" : candidatePreview.club;
+    return `${compare}${err}<p class="hint">${escapeHtml(id.excelHint)}</p>
+      <div class="identity-field-grid">
+        <div><label for="importMergeInName">${st.thName}</label><input id="importMergeInName" type="text" value="${escapeHtml(nm)}" autocomplete="off" /></div>
+        <div><label for="importMergeInClub">${st.thClub}</label><input id="importMergeInClub" type="text" value="${escapeHtml(cl)}" autocomplete="off" /></div>
+        <div><label for="importMergeInYob">${st.thYob}</label><input id="importMergeInYob" type="number" min="${bounds.min}" max="${bounds.max}" step="1" value="${escapeHtml(yDisplay)}" /></div>
+      </div>
+      <div class="identity-member-actions"><button type="button" class="primary" id="importMergeCorrectSubmit">${escapeHtml(mc.submit)}</button></div>`;
+  }
+
+  function openImportMergeCorrectModal(review, targetUid, candidatePreview, reviewKey) {
+    const mc = STR.importView.mergeCorrect;
+    if (!identityModalTitle || !identityModalBody || !identityCorrectionModal || !candidatePreview) {
+      return;
+    }
+    identityModalRow = null;
+    const initialSingle =
+      candidatePreview.kind === "team"
+        ? null
+        : {
+            name: String(candidatePreview.display_name || "").trim(),
+            yob: typeof candidatePreview.yob === "number" ? candidatePreview.yob : null,
+            club: candidatePreview.club == null ? "" : String(candidatePreview.club).trim(),
+          };
+    let initialTeam = null;
+    if (candidatePreview.kind === "team") {
+      const members = teamPreviewToTeamMembers(candidatePreview);
+      if (members) {
+        initialTeam = {};
+        for (const m of members) {
+          initialTeam[m.member] = {
+            name: String(m.name || "").trim(),
+            yob: typeof m.yob === "number" ? m.yob : null,
+            club: m.club == null ? "" : String(m.club).trim(),
+          };
+        }
+      }
+    }
+    importMergeCorrectContext = {
+      review,
+      targetUid,
+      candidatePreview,
+      reviewKey,
+      initialSingle,
+      initialTeam,
+    };
+    identityModalTitle.textContent = mc.modalTitle;
+    identityModalBody.innerHTML = buildImportMergeCorrectModalBodyHtml(review, targetUid, candidatePreview);
+    identityCorrectionModal.classList.remove("hidden");
+    identityCorrectionModal.setAttribute("aria-hidden", "false");
+    const submitBtn = document.getElementById("importMergeCorrectSubmit");
+    if (submitBtn) {
+      submitBtn.addEventListener("click", () => void submitImportMergeCorrect());
+    }
+  }
+
+  async function submitImportMergeCorrect() {
+    const ctx = importMergeCorrectContext;
+    if (!ctx) {
+      return;
+    }
+    const id = STR.standings.identity;
+    const mc = STR.importView.mergeCorrect;
+    clearIdentityModalInlineError();
+    const bounds = identityYobBounds();
+    const rationale = "import review merge and correct";
+    const linkPayload = buildApplyMatchLinkPayload(ctx.review, ctx.targetUid, ctx.candidatePreview, rationale);
+    const linkResp = await api("apply_match_decision", linkPayload);
+    if (linkResp.status === "error") {
+      showIdentityModalInlineError(getApiErrorMessage(linkResp.error, STR.status.mergeSaveFailed));
+      return;
+    }
+
+    const normClub = (v) => (v == null || String(v).trim() === "" ? "" : String(v).trim());
+
+    if (ctx.candidatePreview.kind === "team") {
+      if (!ctx.initialTeam) {
+        showIdentityModalInlineError(id.errTeamMembers);
+        return;
+      }
+      for (const member of ["a", "b"]) {
+        const nameEl = document.getElementById(`importMergeInName_${member}`);
+        const clubEl = document.getElementById(`importMergeInClub_${member}`);
+        const yobEl = document.getElementById(`importMergeInYob_${member}`);
+        const name = (nameEl && nameEl.value.trim()) || "";
+        const clubVal = normClub(clubEl && clubEl.value);
+        const yobRaw = (yobEl && yobEl.value.trim()) || "";
+        if (!name) {
+          showIdentityModalInlineError(id.errName);
+          return;
+        }
+        const yob = parseInt(yobRaw, 10);
+        if (!Number.isFinite(yob)) {
+          showIdentityModalInlineError(id.errYob);
+          return;
+        }
+        if (yob < bounds.min || yob > bounds.max) {
+          showIdentityModalInlineError(id.errYobRange(bounds.min, bounds.max));
+          return;
+        }
+        const init = ctx.initialTeam[member];
+        if (
+          init &&
+          init.name === name &&
+          init.yob === yob &&
+          normClub(init.club) === clubVal
+        ) {
+          continue;
+        }
+        const resp = await api("update_participant_identity", {
+          series_year: state.seriesYear,
+          team_uid: ctx.targetUid,
+          member,
+          name,
+          yob,
+          club: clubVal,
+        });
+        if (resp.status === "error") {
+          showIdentityModalInlineError(getApiErrorMessage(resp.error, STR.errors.desktopApiUnavailable));
+          return;
+        }
+      }
+    } else {
+      const nameEl = document.getElementById("importMergeInName");
+      const clubEl = document.getElementById("importMergeInClub");
+      const yobEl = document.getElementById("importMergeInYob");
+      const name = (nameEl && nameEl.value.trim()) || "";
+      const clubVal = normClub(clubEl && clubEl.value);
+      const yobRaw = (yobEl && yobEl.value.trim()) || "";
+      if (!name) {
+        showIdentityModalInlineError(id.errName);
+        return;
+      }
+      const yob = parseInt(yobRaw, 10);
+      if (!Number.isFinite(yob)) {
+        showIdentityModalInlineError(id.errYob);
+        return;
+      }
+      if (yob < bounds.min || yob > bounds.max) {
+        showIdentityModalInlineError(id.errYobRange(bounds.min, bounds.max));
+        return;
+      }
+      const init = ctx.initialSingle;
+      if (
+        init &&
+        init.name === name &&
+        init.yob === yob &&
+        normClub(init.club) === clubVal
+      ) {
+        closeIdentityModal();
+        delete state.reviewSelections[ctx.reviewKey];
+        state.reviewIndex = 0;
+        await loadOverview();
+        await renderImportView();
+        setStatus(mc.successStatus, false);
+        return;
+      }
+      const resp = await api("update_participant_identity", {
+        series_year: state.seriesYear,
+        participant_uid: ctx.targetUid,
+        name,
+        yob,
+        club: clubVal,
+      });
+      if (resp.status === "error") {
+        showIdentityModalInlineError(getApiErrorMessage(resp.error, STR.errors.desktopApiUnavailable));
+        return;
+      }
+    }
+
+    closeIdentityModal();
+    delete state.reviewSelections[ctx.reviewKey];
+    state.reviewIndex = 0;
+    await loadOverview();
+    await renderImportView();
+    setStatus(mc.successStatus, false);
   }
 
   function candidateReviewDisplayForRow(review, index) {
@@ -1680,6 +1935,8 @@
       .map((n) => `<option value="${n}"${state.importRaceNo === n ? " selected" : ""}>${n}</option>`)
       .join("");
     const importReady = isImportReady();
+    const reviewsOpen = state.reviewQueue.length > 0;
+    const importAllowed = importReady && !reviewsOpen;
     const inferenceText = importBasename
       ? buildImportInferenceLine(importBasename)
       : iv.pickResultFile;
@@ -1691,26 +1948,31 @@
             <h3>${iv.sidebarImportedRuns}</h3>
             ${renderImportedRunsMatrix(importedRaceInfo)}
           </div>
+          ${
+            reviewsOpen
+              ? `<p class="hint import-blocked-by-reviews-hint">${escapeHtml(iv.importBlockedByOpenReviews)}</p>`
+              : ""
+          }
           <div class="import-file-row">
-            <button id="pickFileBtn" class="secondary" type="button">${iv.pickFile}</button>
+            <button id="pickFileBtn" class="secondary" type="button"${reviewsOpen ? " disabled" : ""}>${iv.pickFile}</button>
             <input id="filePathInput" type="text" class="import-file-name" readonly value="${escapeHtml(
               importBasename
             )}" placeholder="${iv.noFilePlaceholder}" />
           </div>
           <p class="import-inference-hint">${escapeHtml(inferenceText)}</p>
           <div class="import-type-toggle">
-            <button type="button" id="sourceTypeSinglesBtn" class="secondary${singlesActive}">${iv.singles}</button>
-            <button type="button" id="sourceTypeCouplesBtn" class="secondary${couplesActive}">${iv.couples}</button>
+            <button type="button" id="sourceTypeSinglesBtn" class="secondary${singlesActive}"${reviewsOpen ? " disabled" : ""}>${iv.singles}</button>
+            <button type="button" id="sourceTypeCouplesBtn" class="secondary${couplesActive}"${reviewsOpen ? " disabled" : ""}>${iv.couples}</button>
           </div>
           <div class="import-race-row">
             <label for="raceNoSelect">${iv.raceNumber}</label>
-            <select id="raceNoSelect">
+            <select id="raceNoSelect"${reviewsOpen ? " disabled" : ""}>
               <option value=""${state.importRaceNo == null ? " selected" : ""}>${iv.raceSelectPlaceholder}</option>
               ${raceOptions}
             </select>
           </div>
           <div class="row">
-            <button id="importRaceBtn" class="primary"${importReady ? "" : " disabled"}>${iv.importRace}</button>
+            <button id="importRaceBtn" class="primary"${importAllowed ? "" : " disabled"}>${iv.importRace}</button>
           </div>
           <div class="import-settings-panel${state.matchingSettingsExpanded ? "" : " is-collapsed"}">
             <button type="button" class="matching-settings-toggle" id="matchingSettingsToggle" aria-expanded="${state.matchingSettingsExpanded}" aria-controls="matchingSettingsBody">
@@ -1772,6 +2034,7 @@
                <p class="hint">${iv.mergeHint}</p>
                <div class="row merge-actions-row">
                  <button id="acceptReviewBtn" class="primary">${iv.mergeAccept}</button>
+                 <button id="mergeCorrectReviewBtn" class="secondary">${iv.mergeCorrect.button}</button>
                  <button id="newIdentityReviewBtn" class="secondary">${iv.mergeNewIdentity}</button>
                </div>
                <div class="table-wrap">
@@ -2031,6 +2294,10 @@
       await renderImportView();
     });
     document.getElementById("importRaceBtn").addEventListener("click", async () => {
+      if (state.reviewQueue.length > 0) {
+        setStatus(`${STR.status.prefix}${iv.importBlockedByOpenReviews}`, true);
+        return;
+      }
       const filePath = state.importFilePath.trim();
       if (!isImportReady()) {
         setStatus(STR.status.importIncomplete, true);
@@ -2052,6 +2319,10 @@
       await loadOverview();
     });
     document.getElementById("pickFileBtn").addEventListener("click", async () => {
+      if (state.reviewQueue.length > 0) {
+        setStatus(`${STR.status.prefix}${iv.importBlockedByOpenReviews}`, true);
+        return;
+      }
       const picked = await api("pick_file", {});
       if (picked.status !== "ok") {
         setStatus(STR.status.pickFileFailed, true);
@@ -2086,18 +2357,20 @@
           }
         });
       }
+      const previewByUidForReview = new Map(
+        (review.candidate_previews || []).filter(Boolean).map((item) => [item.uid, item])
+      );
       document.getElementById("acceptReviewBtn").addEventListener("click", async () => {
         const target = state.reviewSelections[reviewKey] || getDefaultCandidateUid(review);
         if (!target) {
           setStatus(STR.status.noCandidate, true);
           return;
         }
-        const response = await api("apply_match_decision", {
-          race_event_uid: review.race_event_uid,
-          entry_uid: review.entry_uid,
-          target_participant_uid: target,
-          rationale: "manual review accept",
-        });
+        const candidatePreview = previewByUidForReview.get(target);
+        const response = await api(
+          "apply_match_decision",
+          buildApplyMatchLinkPayload(review, target, candidatePreview, "manual review accept")
+        );
         if (response.status === "error") {
           setStatus(STR.status.mergeSaveFailed, true);
           return;
@@ -2107,6 +2380,19 @@
         state.reviewIndex = 0;
         await loadOverview();
         await renderImportView();
+      });
+      document.getElementById("mergeCorrectReviewBtn").addEventListener("click", async () => {
+        const target = state.reviewSelections[reviewKey] || getDefaultCandidateUid(review);
+        if (!target) {
+          setStatus(STR.status.noCandidate, true);
+          return;
+        }
+        const candidatePreview = previewByUidForReview.get(target);
+        if (!candidatePreview) {
+          setStatus(STR.status.noCandidate, true);
+          return;
+        }
+        openImportMergeCorrectModal(review, target, candidatePreview, reviewKey);
       });
       document.getElementById("newIdentityReviewBtn").addEventListener("click", async () => {
         const response = await api("apply_match_decision", {
@@ -2126,6 +2412,97 @@
         await renderImportView();
       });
     }
+  }
+
+  function formatHistoryAuditDetail(item, hi) {
+    const it = item.identity_timeline;
+    const fallbackMerge = () => {
+      const keep = item.target_team_uid || item.target_participant_uid || "—";
+      const drop = item.merged_absorbed_uid || "—";
+      return `${escapeHtml(String(keep))} ← ${escapeHtml(String(drop))}`;
+    };
+    const fallbackCorrection = () => {
+      const t = item.target_team_uid || item.target_participant_uid || "—";
+      return escapeHtml(String(t));
+    };
+    if (!it || typeof it !== "object") {
+      if (item.kind === "identity_merge") {
+        return fallbackMerge();
+      }
+      if (item.kind === "identity_correction") {
+        return fallbackCorrection();
+      }
+      return "—";
+    }
+
+    const esc = escapeHtml;
+    const fmtClub = (c) => {
+      const s = c == null ? "" : String(c).trim();
+      return s ? esc(s) : "—";
+    };
+    const fmtYob = (y) => (y != null && y !== "" ? esc(String(y)) : "—");
+
+    const actorHtml = (title, actor) => {
+      if (!actor || typeof actor !== "object") {
+        return "";
+      }
+      let body = `${esc(String(actor.display_name || "—"))}<br>`;
+      body += `${fmtYob(actor.yob)} · ${fmtClub(actor.club)}`;
+      const members = actor.team_members;
+      if (Array.isArray(members) && members.length) {
+        for (const m of members) {
+          const ml = m.member === "a" ? hi.auditMemberA : hi.auditMemberB;
+          const c = m.club != null && String(m.club).trim() ? String(m.club) : "—";
+          body += `<br><span class="history-audit-meta">${esc(ml)}:</span> ${esc(String(m.name || "—"))} · Jg. ${fmtYob(m.yob)} · ${esc(c)}`;
+        }
+      }
+      body += `<br><span class="history-audit-meta">${esc(hi.auditUid)}:</span> ${esc(String(actor.uid || "—"))}`;
+      return `<div class="history-audit-detail__block"><strong>${esc(title)}</strong><br>${body}</div>`;
+    };
+
+    if (it.kind === "identity_merge") {
+      const parts = [];
+      if (it.category_key) {
+        parts.push(`<div class="history-audit-meta">${esc(hi.auditCategory)}: ${esc(String(it.category_key))}</div>`);
+      }
+      parts.push(actorHtml(hi.auditMergeSurvivor, it.survivor));
+      parts.push(actorHtml(hi.auditMergeAbsorbed, it.absorbed));
+      return `<div class="history-audit-detail">${parts.join("")}</div>`;
+    }
+
+    if (it.kind === "identity_correction") {
+      const parts = [];
+      if (it.team_display_name) {
+        parts.push(
+          `<div class="history-audit-meta">${esc(hi.auditTeamContext)}: ${esc(String(it.team_display_name))}</div>`,
+        );
+        const mem = it.member === "a" ? hi.auditMemberA : it.member === "b" ? hi.auditMemberB : null;
+        if (mem) {
+          parts.push(`<div class="history-audit-meta">${esc(mem)}</div>`);
+        }
+      }
+      const line = (label, f) => {
+        const name = f && typeof f === "object" ? f.name : null;
+        const yob = f && typeof f === "object" ? f.yob : null;
+        const club = f && typeof f === "object" ? f.club : null;
+        return `<div class="history-audit-detail__block"><strong>${esc(label)}</strong><br>${esc(String(name || "—"))} · Jg. ${fmtYob(yob)} · ${fmtClub(club)}</div>`;
+      };
+      parts.push(line(hi.auditBefore, it.before));
+      parts.push(line(hi.auditAfter, it.after));
+      const uid = item.target_team_uid || item.target_participant_uid;
+      if (uid) {
+        parts.push(`<div class="history-audit-meta">${esc(hi.auditUid)}: ${esc(String(uid))}</div>`);
+      }
+      return `<div class="history-audit-detail">${parts.join("")}</div>`;
+    }
+
+    if (item.kind === "identity_merge") {
+      return fallbackMerge();
+    }
+    if (item.kind === "identity_correction") {
+      return fallbackCorrection();
+    }
+    return "—";
   }
 
   async function renderHistoryView() {
@@ -2198,19 +2575,11 @@
     const auditRows = auditItems
       .filter((item) => item.kind === "identity_merge" || item.kind === "identity_correction")
       .map((item) => {
-        let detail = "";
-        if (item.kind === "identity_merge") {
-          const keep = item.target_team_uid || item.target_participant_uid || "—";
-          const drop = item.merged_absorbed_uid || "—";
-          detail = `${escapeHtml(String(keep))} ← ${escapeHtml(String(drop))}`;
-        } else if (item.kind === "identity_correction") {
-          const t = item.target_team_uid || item.target_participant_uid || "—";
-          detail = escapeHtml(String(t));
-        }
+        const detail = formatHistoryAuditDetail(item, hi);
         return `<tr>
           <td>${escapeHtml(String(item.timestamp || "-"))}</td>
           <td>${escapeHtml(kindLabel(item.kind))}</td>
-          <td>${detail}</td>
+          <td class="history-audit-detail-cell">${detail}</td>
         </tr>`;
       })
       .join("");

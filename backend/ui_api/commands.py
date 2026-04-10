@@ -29,6 +29,28 @@ def _iso_now() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat()
 
 
+def _person_identity_fields(person: Person) -> dict[str, Any]:
+    return {"name": person.name, "yob": person.yob, "club": person.club or ""}
+
+
+def _couple_display_name(couple: Couple) -> str:
+    return f"{couple.member_a.name} / {couple.member_b.name}"
+
+
+def _identity_timeline_actor_from_standings_row(row: dict[str, Any]) -> dict[str, Any]:
+    actor: dict[str, Any] = {
+        "entity_kind": row["entity_kind"],
+        "uid": str(row["entity_uid"]),
+        "display_name": row["display_name"],
+        "yob": row["yob"],
+        "club": row["club"] if row.get("club") is not None else "",
+    }
+    team_members = row.get("team_members")
+    if team_members:
+        actor["team_members"] = list(team_members)
+    return actor
+
+
 def _clone_person_identity(source: Person) -> Person:
     return Person(
         name=source.name,
@@ -250,6 +272,12 @@ def merge_standings_entities(project_file: Path, payload: dict[str, Any]) -> dic
         scope_series_year=series_year,
         rationale=str(payload.get("rationale", "")).strip(),
         feature_scores={"identity_merge": 1.0},
+        identity_timeline={
+            "kind": "identity_merge",
+            "category_key": category_key,
+            "survivor": _identity_timeline_actor_from_standings_row(rs),
+            "absorbed": _identity_timeline_actor_from_standings_row(ra),
+        },
     )
     updated = replace(
         merged_doc,
@@ -558,6 +586,14 @@ def update_participant_identity(project_file: Path, payload: dict[str, Any]) -> 
         new_couples = document.couples
         target_pt: str | None = participant_uid
         target_tm: str | None = None
+        identity_timeline: dict[str, Any] = {
+            "kind": "identity_correction",
+            "member": None,
+            "team_uid": None,
+            "team_display_name": None,
+            "before": _person_identity_fields(old),
+            "after": _person_identity_fields(updated_person),
+        }
     else:
         assert team_uid is not None and member is not None
         cidx = next((i for i, c in enumerate(document.couples) if c.uid == team_uid), None)
@@ -580,6 +616,14 @@ def update_participant_identity(project_file: Path, payload: dict[str, Any]) -> 
         new_people[midx] = new_member
         target_pt = new_member.uid
         target_tm = team_uid
+        identity_timeline = {
+            "kind": "identity_correction",
+            "member": member,
+            "team_uid": team_uid,
+            "team_display_name": _couple_display_name(couple),
+            "before": _person_identity_fields(target_old),
+            "after": _person_identity_fields(new_member),
+        }
 
     decision = MatchingDecision(
         decided_at=_iso_now(),
@@ -591,6 +635,7 @@ def update_participant_identity(project_file: Path, payload: dict[str, Any]) -> 
         scope_series_year=series_year,
         rationale=str(payload.get("rationale", "")).strip(),
         feature_scores={"identity_correction": 1.0},
+        identity_timeline=identity_timeline,
     )
     updated_doc = replace(
         document,

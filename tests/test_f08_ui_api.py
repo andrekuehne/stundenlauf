@@ -824,6 +824,29 @@ class TestF08UiApi(unittest.TestCase):
             self.assertEqual(len(st["payload"]["rows"]), 1)
             self.assertEqual(st["payload"]["rows"][0]["entity_uid"], keep_uid)
 
+            timeline = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_timeline_merge",
+                    "method": "get_year_timeline",
+                    "payload": {"series_year": 2026},
+                }
+            )
+            self.assertEqual(timeline["status"], "ok")
+            merge_items = [
+                item
+                for item in timeline["payload"]["items"]
+                if item.get("event_type") == "matching_decision" and item.get("kind") == "identity_merge"
+            ]
+            self.assertTrue(merge_items)
+            snap = merge_items[0].get("identity_timeline") or {}
+            self.assertEqual(snap.get("kind"), "identity_merge")
+            self.assertEqual(snap.get("category_key"), cat)
+            self.assertEqual((snap.get("survivor") or {}).get("display_name"), "Keep")
+            self.assertEqual((snap.get("survivor") or {}).get("uid"), keep_uid)
+            self.assertEqual((snap.get("absorbed") or {}).get("display_name"), "Drop")
+            self.assertEqual((snap.get("absorbed") or {}).get("uid"), drop_uid)
+
     def test_merge_standings_entities_rejects_overlapping_races(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project_path = Path(temp_dir) / "project.json"
@@ -1809,6 +1832,75 @@ class TestF08UiApi(unittest.TestCase):
             self.assertEqual(item["entry_preview"]["yob"], "1987 / 1992")
             self.assertEqual(item["candidate_previews"][0]["yob"], "1987 / 1992")
 
+    def test_apply_match_decision_team_review_uses_target_team_uid(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.COUPLES_MIXED)
+            team = Couple(
+                uid="team_review_apply_1",
+                member_a=Person(name="Alex Beispiel", yob=1987, gender=Gender.M, club="TSV"),
+                member_b=Person(name="Sina Beispiel", yob=1992, gender=Gender.F, club="TSV"),
+            )
+            review_entry = RaceEntry(
+                entry_uid="entry_review_team_apply_1",
+                team_uid=team.uid,
+                startnr="41",
+                result=EntryResult(distance_km=9.8, points=18.0),
+                match_meta=RaceEntryMatchMeta(
+                    route="review",
+                    confidence=0.8,
+                    top_candidate_uid=team.uid,
+                    candidate_uids=(team.uid,),
+                    candidate_confidences=(0.8,),
+                    features={"name_similarity": 0.8},
+                ),
+            )
+            event = RaceEvent(
+                race_event_uid="race_event_review_team_apply_1",
+                category=category,
+                race_date="2026-02-10",
+                race_no=2,
+                source_file="fixture_review_team_apply.xlsx",
+                source_sha256="sha-review-team-apply",
+                imported_at="2026-02-10T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp-review-team-apply",
+                entries=(review_entry,),
+            )
+            doc = ProjectDocument(schema_version=SCHEMA_VERSION_V2, couples=(team,), events=(event,))
+            JsonProjectRepository(project_path).save(recompute_project_standings(doc))
+            service = UiApiService(project_path)
+            applied = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_apply_team_review",
+                    "method": "apply_match_decision",
+                    "payload": {
+                        "race_event_uid": "race_event_review_team_apply_1",
+                        "entry_uid": "entry_review_team_apply_1",
+                        "target_team_uid": team.uid,
+                        "rationale": "manual review accept team",
+                    },
+                }
+            )
+            self.assertEqual(applied["status"], "ok")
+            loaded = JsonProjectRepository(project_path).load()
+            ev = next(e for e in loaded.events if e.race_event_uid == "race_event_review_team_apply_1")
+            ent = next(x for x in ev.entries if x.entry_uid == "entry_review_team_apply_1")
+            self.assertEqual(ent.team_uid, team.uid)
+            self.assertIsNone(ent.participant_uid)
+            self.assertEqual(ent.match_meta.route, "auto")
+            after_q = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_q_after_team_apply",
+                    "method": "get_review_queue",
+                    "payload": {},
+                }
+            )
+            self.assertEqual(after_q["status"], "ok")
+            self.assertEqual(after_q["payload"]["count"], 0)
+
     def test_get_review_queue_uses_incoming_team_yobs_for_left_preview(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project_path = Path(temp_dir) / "project.json"
@@ -2120,6 +2212,17 @@ class TestF08UiApi(unittest.TestCase):
                 if item.get("event_type") == "matching_decision"
             ]
             self.assertIn("identity_correction", kinds)
+            corr = next(
+                item
+                for item in timeline["payload"]["items"]
+                if item.get("event_type") == "matching_decision" and item.get("kind") == "identity_correction"
+            )
+            it = corr.get("identity_timeline") or {}
+            self.assertEqual(it.get("kind"), "identity_correction")
+            self.assertEqual((it.get("before") or {}).get("name"), "Max Mustermann")
+            self.assertEqual((it.get("before") or {}).get("yob"), 1990)
+            self.assertEqual((it.get("after") or {}).get("name"), "Max Fixed")
+            self.assertEqual((it.get("after") or {}).get("yob"), 1990)
 
     def test_update_participant_identity_not_in_wrong_year_timeline(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

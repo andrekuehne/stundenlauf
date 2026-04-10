@@ -273,7 +273,19 @@
       mergeHint:
         'Auswahl verknüpft mit bestehender Person/Team; "neue Person anlegen" erstellt bewusst einen zusätzlichen Datensatz.',
       mergeAccept: "Mit ausgewählter Person/Team zusammenführen",
+      mergeCorrect: {
+        button: "Zusammenführen und Daten korrigieren",
+        modalTitle: "Zusammenführen und Daten korrigieren",
+        compareIncoming: "Eingehend (Datei)",
+        compareExisting: "Bestehender Datensatz",
+        editHint:
+          "Unten können Sie den zu verknüpfenden bestehenden Datensatz korrigieren (Name, Jahrgang, Verein). Anschließend werden Verknüpfung und Korrektur gespeichert.",
+        submit: "Zusammenführen und speichern",
+        successStatus: "Zusammenführung und Datenkorrektur wurden übernommen.",
+      },
       mergeNewIdentity: "Keine passt: neue Person anlegen",
+      importBlockedByOpenReviews:
+        "Solange offene Zusammenführungs-Prüfungen bestehen, kann kein weiterer Lauf importiert werden. Bitte zuerst alle Prüfungen abschließen.",
       inferenceDetectedBoth: (typeLabel, racePart) => `Erkannt: ${typeLabel} · ${racePart}`,
       inferenceDetectedTypeOnly: (typeLabel) =>
         `Erkannt: ${typeLabel} · Laufnummer nicht im Dateinamen – bitte Laufnummer wählen.`,
@@ -317,6 +329,15 @@
       kindIdentityMerge: "Duplikate zusammengeführt",
       kindIdentityCorrection: "Identität korrigiert",
       kindMatchingOther: "Zuordnung",
+      auditCategory: "Kategorie",
+      auditMergeSurvivor: "Behalten (Ziel)",
+      auditMergeAbsorbed: "Zusammengeführt (Quelle)",
+      auditBefore: "Vorher",
+      auditAfter: "Nachher",
+      auditMemberA: "Mitglied A",
+      auditMemberB: "Mitglied B",
+      auditTeamContext: "Paar",
+      auditUid: "UID",
     },
   };
 

@@ -481,21 +481,22 @@ def get_audit_timeline(document: ProjectDocument, payload: dict[str, Any]) -> di
             continue
         if by_race_event_uid and decision.race_event_uid != by_race_event_uid:
             continue
-        entries.append(
-            {
-                "event_type": "matching_decision",
-                "timestamp": decision.decided_at,
-                "decision_uid": decision.decision_uid,
-                "race_event_uid": decision.race_event_uid,
-                "entry_uid": decision.entry_uid,
-                "kind": decision.kind,
-                "row_fingerprint": decision.row_fingerprint,
-                "target_participant_uid": decision.target_participant_uid,
-                "target_team_uid": decision.target_team_uid,
-                "merged_absorbed_uid": decision.merged_absorbed_uid,
-                "scope_series_year": decision.scope_series_year,
-            }
-        )
+        item: dict[str, Any] = {
+            "event_type": "matching_decision",
+            "timestamp": decision.decided_at,
+            "decision_uid": decision.decision_uid,
+            "race_event_uid": decision.race_event_uid,
+            "entry_uid": decision.entry_uid,
+            "kind": decision.kind,
+            "row_fingerprint": decision.row_fingerprint,
+            "target_participant_uid": decision.target_participant_uid,
+            "target_team_uid": decision.target_team_uid,
+            "merged_absorbed_uid": decision.merged_absorbed_uid,
+            "scope_series_year": decision.scope_series_year,
+        }
+        if decision.identity_timeline is not None:
+            item["identity_timeline"] = dict(decision.identity_timeline)
+        entries.append(item)
     entries.sort(key=lambda item: (item.get("timestamp", ""), item.get("event_type", "")), reverse=True)
     return {"items": entries[:limit], "count": min(limit, len(entries))}
 

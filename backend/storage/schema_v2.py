@@ -263,6 +263,8 @@ def _matching_decision_to_dict(decision: MatchingDecision) -> dict[str, Any]:
     }
     if decision.merged_absorbed_uid is not None:
         out["merged_absorbed_uid"] = decision.merged_absorbed_uid
+    if decision.identity_timeline is not None:
+        out["identity_timeline"] = dict(decision.identity_timeline)
     return out
 
 
@@ -289,6 +291,7 @@ def _matching_decision_from_dict(payload: dict[str, Any]) -> MatchingDecision:
         rationale=str(payload.get("rationale", "")),
         field_resolutions=frs,
         feature_scores={str(k): float(v) for k, v in payload.get("feature_scores", {}).items()},
+        identity_timeline=dict(payload["identity_timeline"]) if payload.get("identity_timeline") is not None else None,
     )
 
 

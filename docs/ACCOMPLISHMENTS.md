@@ -17,6 +17,27 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-11 - Historie: human-readable identity merge & correction details
+- Requirement/Milestone: [R6, R8; M5]
+- What shipped: `MatchingDecision.identity_timeline` stores display snapshots at merge/correction time; `get_year_timeline` / `get_audit_timeline` expose `identity_timeline`; **Historie** renders multi-line German-labeled survivor/absorbed and vorher/nachher with UID fallback for older data.
+- Evidence: `backend/domain/models.py`, `backend/storage/schema_v2.py`, `backend/ui_api/commands.py`, `backend/ui_api/queries.py`, `frontend/app.js`, `frontend/strings.js`, `frontend/styles.css`, `docs/api/ui-api-v1.md`, `tests/test_f08_ui_api.py`; `uv run pytest`
+- Impact: Operators can interpret audit rows without decoding UIDs alone.
+- Follow-up: none
+
+### 2026-04-11 - Import tab: block new file import while merge reviews are open
+- Requirement/Milestone: [R6, R8; M5]
+- What shipped: On **Lauf importieren**, **Datei auswählen**, Einzel/Paar, Laufnummer and **Lauf importieren** stay disabled until the review queue from `get_review_queue` is empty; a short hint explains why.
+- Evidence: `frontend/app.js`, `frontend/strings.js`; `uv run pytest tests/test_f08_ui_api.py` (unchanged contract)
+- Impact: Operators finish identity merge decisions before stacking another import.
+- Follow-up: none
+
+### 2026-04-11 - F19 Import review: merge and correct canonical identity
+- Requirement/Milestone: [R6, R8; M5]
+- What shipped: On **Lauf importieren** review, **Zusammenführen und Daten korrigieren** opens a comparison + edit dialog (reuse of the identity modal), then runs `apply_match_decision` and conditional `update_participant_identity` for changed fields. The standard accept button now sends `target_team_uid` for Paarlauf candidates instead of misusing `target_participant_uid`.
+- Evidence: `frontend/app.js`, `frontend/strings.js`, `frontend/styles.css`, `docs/api/ui-api-v1.md`, `docs/features/F19-import-merge-with-identity-correction-ui.md`, `tests/test_f08_ui_api.py`; `uv run pytest tests/test_f08_ui_api.py`
+- Impact: Operators can fix typos while seeing incoming vs existing data; couples review linking is API-correct.
+- Follow-up: optional `window.confirm` before link+correct if operators want an extra safety step.
+
 ### 2026-04-10 - F17 Import merge review granular diffs + couple alignment
 - Requirement/Milestone: [R6, R8; M5]
 - What shipped: Display-only helpers build `candidate_review_displays[]` on `get_review_queue`: Paarlauf candidates can reorder members for comparison when the swapped pairing scores higher; name/YOB/club mismatches are exposed as per-fragment `diff` flags. The import review table renders inline highlights (`.merge-diff-part`) instead of coloring whole cells, with fallback to the previous behavior if hints are absent.

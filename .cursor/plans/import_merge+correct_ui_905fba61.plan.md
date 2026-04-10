@@ -4,13 +4,13 @@ overview: Add an import-review action next to the existing merge buttons that op
 todos:
   - id: fix-apply-payload
     content: Add buildApplyMatchLinkPayload (participant vs team); refactor acceptReviewBtn; add API test for target_team_uid
-    status: pending
+    status: completed
   - id: import-merge-modal
     content: "New import-review button; reuse #identityCorrectionModal with comparison + prefill from candidate_preview; submit apply_match_decision then update_participant_identity"
-    status: pending
+    status: completed
   - id: strings-styles-docs
     content: German strings, minimal CSS, docs/features note + ACCOMPLISHMENTS (+ PROJECT_PLAN if used)
-    status: pending
+    status: completed
 isProject: false
 ---
 

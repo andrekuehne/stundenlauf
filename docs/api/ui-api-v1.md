@@ -192,6 +192,9 @@ This document defines the frontend-facing Python API contract for the pywebview 
   - `source_sha256` (stable import-batch key)
   - `source_file` (human-readable source path/name where available)
 - `matching_decision` rows additionally include (when present): `target_participant_uid`, `target_team_uid`, `merged_absorbed_uid` (for `identity_merge`), `scope_series_year`.
+- For `kind` `identity_merge` and `identity_correction`, `identity_timeline` (when present) carries human-readable snapshots for Historie-style UIs:
+  - **`identity_merge`**: `{ "kind": "identity_merge", "category_key", "survivor": actor, "absorbed": actor }` where each `actor` is `{ "entity_kind", "uid", "display_name", "yob", "club", "team_members"?: [...] }` (team rows mirror standings `team_members`: `{ "member", "name", "yob", "club" }`).
+  - **`identity_correction`**: `{ "kind": "identity_correction", "member": null|"a"|"b", "team_uid", "team_display_name", "before": { "name", "yob", "club" }, "after": { "name", "yob", "club" } }` (`team_*` set only for Paarlauf member edits). Older project files may omit `identity_timeline`; clients can fall back to UIDs.
 
 ### `get_review_queue`
 - Payload:
@@ -221,7 +224,7 @@ This document defines the frontend-facing Python API contract for the pywebview 
   - `series_year` (optional filter)
   - `race_event_uid` (optional filter)
   - `limit` (optional, default 200)
-- Returns import/rollback/matching decision timeline entries.
+- Returns import/rollback/matching decision timeline entries (same `matching_decision` fields as `get_year_timeline`, including optional `identity_timeline` for identity merge/correction).
 
 ### `import_race`
 - Payload:
@@ -246,6 +249,7 @@ This document defines the frontend-facing Python API contract for the pywebview 
   - `target_participant_uid` or `target_team_uid` (required when `decision_action=link_existing`)
   - `rationale` (optional)
   - `field_resolutions[]` (optional)
+- **Client note:** for Paarlauf review rows, the selected candidate UID is a **team** (`Couple.uid`); send `target_team_uid`, not `target_participant_uid`. Sending a team UID as `target_participant_uid` would corrupt the entry. The import GUI (F19) routes this from `candidate_previews[].kind === "team"`.
 - Returns decision result (`decision_uid`, target UID, status).
 
 ### `update_participant_identity`
