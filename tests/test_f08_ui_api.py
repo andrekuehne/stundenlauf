@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -295,6 +298,123 @@ class TestF08UiApi(unittest.TestCase):
             )
             self.assertEqual(deleted["status"], "error")
             self.assertEqual(deleted["error"]["code"], "NOT_FOUND")
+
+    def test_export_series_year_writes_manifest_and_payload_zip(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = Path(temp_dir)
+            service = UiApiService(workspace_dir=workspace)
+            created = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_export_create",
+                    "method": "create_series_year",
+                    "payload": {"series_year": 2026},
+                }
+            )
+            project_file = Path(created["payload"]["project_file"])
+            _seed_project_for_year(project_file, 2026)
+            export_file = workspace / "exports" / "s2026.stundenlauf-season.zip"
+            exported = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_export",
+                    "method": "export_series_year",
+                    "payload": {"series_year": 2026, "destination_path": str(export_file)},
+                }
+            )
+            self.assertEqual(exported["status"], "ok")
+            self.assertTrue(export_file.exists())
+            self.assertGreater(exported["payload"]["bytes_written"], 0)
+            with zipfile.ZipFile(export_file, "r") as archive:
+                self.assertCountEqual(
+                    archive.namelist(),
+                    ["manifest.json", "session_project.json"],
+                )
+                manifest = json.loads(archive.read("manifest.json").decode("utf-8"))
+                session_bytes = archive.read("session_project.json")
+            self.assertEqual(manifest["series_year"], 2026)
+            self.assertEqual(manifest["schema_version"], SCHEMA_VERSION_V2)
+            self.assertEqual(manifest["sha256_session_project"], hashlib.sha256(session_bytes).hexdigest())
+
+    def test_import_series_year_rejects_checksum_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            archive_path = Path(temp_dir) / "bad.stundenlauf-season.zip"
+            payload_bytes = b'{"schema_version":2,"people":[],"couples":[],"events":[],"matching_decisions":[],"standings_snapshots":[]}'
+            bad_manifest = {
+                "format_version": 1,
+                "schema_version": 2,
+                "series_year": 2026,
+                "events_total": 0,
+                "sha256_session_project": "deadbeef",
+            }
+            with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+                archive.writestr("manifest.json", json.dumps(bad_manifest))
+                archive.writestr("session_project.json", payload_bytes)
+            service = UiApiService(workspace_dir=Path(temp_dir))
+            imported = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_import_bad_checksum",
+                    "method": "import_series_year",
+                    "payload": {"file_path": str(archive_path)},
+                }
+            )
+            self.assertEqual(imported["status"], "error")
+            self.assertEqual(imported["error"]["code"], "VALIDATION_ERROR")
+
+    def test_import_series_year_can_replace_existing_when_confirmed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = Path(temp_dir)
+            service = UiApiService(workspace_dir=workspace)
+            created = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_import_create",
+                    "method": "create_series_year",
+                    "payload": {"series_year": 2026},
+                }
+            )
+            project_file = Path(created["payload"]["project_file"])
+            _seed_project_for_year(project_file, 2026)
+            exported = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_export_for_import",
+                    "method": "export_series_year",
+                    "payload": {"series_year": 2026},
+                }
+            )
+            self.assertEqual(exported["status"], "ok")
+            # Make local season different first.
+            JsonProjectRepository(project_file).save(ProjectDocument(schema_version=SCHEMA_VERSION_V2))
+
+            no_replace = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_import_no_replace",
+                    "method": "import_series_year",
+                    "payload": {"file_path": exported["payload"]["export_file"]},
+                }
+            )
+            self.assertEqual(no_replace["status"], "error")
+            self.assertEqual(no_replace["error"]["code"], "VALIDATION_ERROR")
+
+            replaced = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_import_replace",
+                    "method": "import_series_year",
+                    "payload": {
+                        "file_path": exported["payload"]["export_file"],
+                        "replace_existing": True,
+                        "confirm_replace_series_year": 2026,
+                    },
+                }
+            )
+            self.assertEqual(replaced["status"], "ok")
+            self.assertTrue(replaced["payload"]["replaced_existing"])
+            restored = JsonProjectRepository(project_file).load()
+            self.assertEqual(len(restored.events), 1)
 
     def test_envelope_requires_api_version_and_request_id(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

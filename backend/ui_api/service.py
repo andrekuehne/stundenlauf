@@ -44,6 +44,8 @@ class UiApiService:
             "create_series_year": lambda payload: workspace.create_series_year(self.workspace_dir, payload),
             "open_series_year": lambda payload: self._open_series_year(payload),
             "delete_series_year": lambda payload: self._delete_series_year(payload),
+            "export_series_year": lambda payload: workspace.export_series_year(self.workspace_dir, payload),
+            "import_series_year": lambda payload: self._import_series_year(payload),
             "get_matching_config": lambda payload: self._get_matching_config(payload),
             "set_matching_config": lambda payload: self._set_matching_config(payload),
             "get_project_state": lambda payload: queries.get_project_state_filtered(self._load(), payload),
@@ -88,6 +90,11 @@ class UiApiService:
         result = workspace.delete_series_year(self.workspace_dir, payload)
         if self.project_file is not None and self.project_file.parent == Path(result["deleted_path"]):
             self.project_file = None
+        return result
+
+    def _import_series_year(self, payload: dict[str, Any]) -> dict[str, Any]:
+        result = workspace.import_series_year(self.workspace_dir, payload)
+        self.project_file = Path(result["project_file"])
         return result
 
     def _get_matching_config(self, payload: dict[str, Any]) -> dict[str, Any]:

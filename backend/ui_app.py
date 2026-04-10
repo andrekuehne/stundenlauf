@@ -24,11 +24,22 @@ def launch_ui(workspace_dir: Path, project_file: Path | None = None) -> None:
         min_size=(1280, 720),
     )
 
-    def pick_file() -> str | None:
+    def pick_file(kind: str) -> str | None:
+        file_types = ("Excel (*.xlsx;*.xls)",)
+        if kind == "season_export":
+            file_types = ("Stundenlauf Saison (*.zip)",)
+        selected = window.create_file_dialog(webview.FileDialog.OPEN, allow_multiple=False, file_types=file_types)
+        if not selected:
+            return None
+        return str(selected[0])
+
+    def pick_save_file(suggested_name: str) -> str | None:
+        fallback_name = "stundenlauf-season.stundenlauf-season.zip"
+        file_name = suggested_name.strip() or fallback_name
         selected = window.create_file_dialog(
-            webview.FileDialog.OPEN,
-            allow_multiple=False,
-            file_types=("Excel (*.xlsx;*.xls)",),
+            webview.FileDialog.SAVE,
+            save_filename=file_name,
+            file_types=("Stundenlauf Saison (*.zip)",),
         )
         if not selected:
             return None
@@ -38,6 +49,7 @@ def launch_ui(workspace_dir: Path, project_file: Path | None = None) -> None:
         project_file=str(project_file) if project_file is not None else None,
         workspace_dir=str(workspace_dir),
         file_picker=pick_file,
+        save_file_picker=pick_save_file,
     )
     window.expose(bridge.invoke)
     webview.start(debug=False, http_server=True, gui="edgechromium")

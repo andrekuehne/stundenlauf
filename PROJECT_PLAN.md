@@ -35,13 +35,13 @@ Checkboxes mark **product-level** satisfaction. Capabilities delivered only via 
 | M2 | Excel ingestion and merge pipeline | 2026-06-15 | Complete (F02 backend + CLI shipped) |
 | M3 | Matching workflow and ranking engine | 2026-07-15 | In progress (F03/F04 backend shipped; F05 interactive review deferred; F06/F07 validation tooling landed first) |
 | M4 | German UI integration in desktop shell | 2026-08-15 | Complete (F05 desktop frontend shell + workflows shipped on top of F08 API) |
-| M5 | Hardening, validation, and first production use | 2026-09-15 | In progress (F06/F07 tooling and F08 API contract/regression tests landed) |
+| M5 | Hardening, validation, and first production use | 2026-09-15 | In progress (F06/F07 tooling, F08 API contract/regression tests, and F12 season portability import/export landed) |
 
 ## Current Phase
 
 - Phase: Backend stack F01–F04, validation tooling F06/F07, API layer F08, and desktop GUI F05 are shipped; current focus is hardening for first production use.
-- Planning status: Feature plans `F01`–`F11` are implemented; continue KPI-grounded hardening, usability validation with organizers, and fixture coverage expansion.
-- Delivery status: **F01** domain/storage; **F02** Excel ingestion, merge, CLI import; **F03** matching pipeline, audit, and decision replay; **F04** standings (`v1_legacy_top4`) on import and rollback; **F06** sequential fixture import + standings export; **F07** organizer-vs-project comparison workbooks; **F08** versioned Python frontend API layer (`backend/ui_api`, `docs/api/ui-api-v1.md`, pywebview bridge + tests) with additive year-level workspace methods; **F09** canonical identity correction (`update_participant_identity`, audit `identity_correction` + `scope_series_year`, timeline/count fixes); **F05** German reactive pywebview frontend (`frontend/`) including season entry/open/create workflow, standings tables, import/review flow, and history rollback UX; **F10** standings-driven identity correction modal (`get_standings.team_members`, correction mode + `update_participant_identity` from **Aktuelle Wertung**); **F11** strict normalized auto-match (`strict_normalized_auto_only`, full scan + fuzzy-auto downgrade, Import GUI checkbox).
+- Planning status: Feature plans `F01`–`F12` are implemented; continue KPI-grounded hardening, usability validation with organizers, and fixture coverage expansion.
+- Delivery status: **F01** domain/storage; **F02** Excel ingestion, merge, CLI import; **F03** matching pipeline, audit, and decision replay; **F04** standings (`v1_legacy_top4`) on import and rollback; **F06** sequential fixture import + standings export; **F07** organizer-vs-project comparison workbooks; **F08** versioned Python frontend API layer (`backend/ui_api`, `docs/api/ui-api-v1.md`, pywebview bridge + tests) with additive year-level workspace methods; **F09** canonical identity correction (`update_participant_identity`, audit `identity_correction` + `scope_series_year`, timeline/count fixes); **F05** German reactive pywebview frontend (`frontend/`) including season entry/open/create workflow, standings tables, import/review flow, and history rollback UX; **F10** standings-driven identity correction modal (`get_standings.team_members`, correction mode + `update_participant_identity` from **Aktuelle Wertung**); **F11** strict normalized auto-match (`strict_normalized_auto_only`, full scan + fuzzy-auto downgrade, Import GUI checkbox); **F12** season import/export (`export_series_year`/`import_series_year`, portable `.stundenlauf-season.zip`, GUI export row action + import conflict flow).
 - Immediate next step: Run focused UAT with non-technical end users, tune copy/contrast/interaction friction, and broaden automated GUI contract coverage around real fixture datasets.
 
 ## Success Metrics (KPIs)
@@ -80,6 +80,7 @@ Checkboxes mark **product-level** satisfaction. Capabilities delivered only via 
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-04-10 | Shipped F12 season import/export portability workflow | Added season backup/restore in GUI and UI API with manifest+checksum validation, schema/format guards, and atomic import/replace safety |
 | 2026-04-09 | Shipped F11 strict normalized auto-match | Session flag + matcher path for auto only on exact normalized identity; Import GUI option disables fuzzy auto controls while active |
 | 2026-04-09 | Shipped F10 standings identity correction GUI | German correction mode and modal on **Aktuelle Wertung**; `get_standings` team rows include `team_members` for stacked Läufer A/B forms |
 | 2026-04-09 | Shipped F09 canonical identity correction | UI API + domain mutation to fix canonical name/club/YOB from standings context with year-scoped audit |

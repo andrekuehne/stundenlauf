@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-10 - F12 Season import/export with safe restore
+- Requirement/Milestone: [R1, R7, R8; M5]
+- What shipped: Added season-level export/import in GUI and UI API (`export_series_year`, `import_series_year`) using `.stundenlauf-season.zip` with `manifest.json` + checksum validation, schema/format compatibility checks, and atomic write/replace behavior; season entry now includes per-row export and a global import action with German conflict prompts (cancel/new year/replace with typed confirmation).
+- Evidence: `backend/ui_api/workspace.py`, `backend/ui_api/service.py`, `backend/ui_api/pywebview_bridge.py`, `backend/ui_app.py`, `frontend/app.js`, `frontend/strings.js`, `docs/api/ui-api-v1.md`, `tests/test_f08_ui_api.py`; `uv run pytest tests/test_f08_ui_api.py`
+- Impact: non-technical users can reliably back up and move complete seasons between machines without manual filesystem handling or partial-write risk.
+- Follow-up: consider a dedicated preview/inspect step before import to show manifest metadata and simplify conflict choice UI beyond prompt-based flow.
+
 ### 2026-04-10 - Import matching panel: mode tabs and copy
 - Requirement/Milestone: [R4, R6, R8; M5]
 - What shipped: Import **Matching-Einstellungen** use a three-mode tab row (Strikt / Fuzzy-Automatik / Manuell) with fuzzy sub-tabs (*Nur 100 %-Ähnlichkeit* / *Ab Schwelle*) and a grid-aligned threshold control; German copy distinguishes strict normalized identity from 100 % fuzzy score; new UI sessions default to strict mode (`UiApiService` + frontend initial state).

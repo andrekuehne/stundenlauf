@@ -53,6 +53,46 @@ This document defines the frontend-facing Python API contract for the pywebview 
   - mismatched confirmation returns `VALIDATION_ERROR`
   - unknown year returns `NOT_FOUND`
 
+### `export_series_year`
+- Payload:
+  - `series_year` (required)
+  - `destination_path` (optional; explicit save location ending in `.stundenlauf-season.zip`)
+- Exports one season into a portable archive and returns:
+  - `series_year`
+  - `export_file` (written path)
+  - `bytes_written`
+  - `events_total`
+  - `sha256_session_project`
+- Archive format:
+  - filename extension: `.stundenlauf-season.zip`
+  - root entries (exactly): `manifest.json`, `session_project.json`
+  - `manifest.json` minimum fields:
+    - `format_version` (currently `1`)
+    - `exported_at` (ISO timestamp)
+    - `schema_version`
+    - `series_year`
+    - `events_total`
+    - `sha256_session_project`
+
+### `import_series_year`
+- Payload:
+  - `file_path` (required; exported `.stundenlauf-season.zip`)
+  - `target_series_year` (optional override; defaults to `manifest.series_year`)
+  - `replace_existing` (optional bool, default `false`)
+  - `confirm_replace_series_year` (required when replacing; must equal resolved target year)
+- Validates archive shape + manifest + payload checksum + schema compatibility before any write.
+- Conflict behavior:
+  - target year missing: import succeeds
+  - target year exists and `replace_existing=false`: returns `VALIDATION_ERROR`
+  - target year exists and replace requested without matching confirmation: `VALIDATION_ERROR`
+  - target year exists and replace confirmed: atomic replace
+- Returns:
+  - `series_year` (resolved target year)
+  - `project_file`
+  - `replaced_existing` (bool)
+  - `events_total`
+  - `source_file`
+
 ### `get_matching_config`
 - Payload: none
 - Returns current matching configuration for the active UI session (a new `UiApiService` session defaults to `strict_normalized_auto_only=true` for safer imports; the desktop Import view uses the same default before the first API round-trip):
@@ -232,6 +272,7 @@ This document defines the frontend-facing Python API contract for the pywebview 
 - `REIMPORT_PARTIAL_ROLLBACK_REQUIRED`: same source hash is only partially rolled back; full source-batch rollback is required before reimport.
 - `RACE_NOT_FOUND`: referenced race event UID does not exist.
 - `NOT_FOUND`: generic entity lookup miss.
+- `UNSUPPORTED_IMPORT_FORMAT`: import archive format version or schema is not supported by this build.
 - `INTERNAL_ERROR`: unhandled backend exception.
 
 ## Compatibility Policy

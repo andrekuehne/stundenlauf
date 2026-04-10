@@ -33,6 +33,14 @@ def not_found(entity: str, value: str) -> ApiError:
     )
 
 
+def unsupported_import_format(message: str, **details: Any) -> ApiError:
+    return ApiError(
+        code="UNSUPPORTED_IMPORT_FORMAT",
+        message_key="error.unsupported_import_format",
+        details={"message": message, **details},
+    )
+
+
 def map_exception(exc: Exception) -> ApiErrorDTO:
     if isinstance(exc, ApiError):
         return exc.to_dto()
