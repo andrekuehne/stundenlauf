@@ -67,6 +67,9 @@ class UiApiService:
             "update_participant_identity": lambda payload: commands.update_participant_identity(
                 self._require_active_project_file(), payload
             ),
+            "set_ranking_eligibility": lambda payload: commands.set_ranking_eligibility(
+                self._require_active_project_file(), payload
+            ),
             "rollback_race": lambda payload: commands.rollback_race(self._require_active_project_file(), payload),
             "rollback_source_batch": lambda payload: commands.rollback_source_batch(
                 self._require_active_project_file(), payload

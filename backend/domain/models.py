@@ -179,3 +179,5 @@ class ProjectDocument:
     events: tuple[RaceEvent, ...] = ()
     matching_decisions: tuple[MatchingDecision, ...] = ()
     standings: StandingsSnapshot | None = None
+    # (category_key, excluded entity_uid set) pairs; immutable for frozen document
+    ranking_exclusions: tuple[tuple[str, frozenset[str]], ...] = ()

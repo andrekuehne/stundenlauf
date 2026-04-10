@@ -40,6 +40,10 @@ def to_dict(document: ProjectDocument) -> dict[str, Any]:
     }
     if document.standings is not None:
         out["standings"] = _standings_snapshot_to_dict(document.standings)
+    if document.ranking_exclusions:
+        out["ranking_exclusions"] = {
+            ck: sorted(uids) for ck, uids in document.ranking_exclusions
+        }
     return out
 
 
@@ -56,6 +60,7 @@ def from_dict(payload: dict[str, Any]) -> ProjectDocument:
     )
     standings_raw = payload.get("standings")
     standings = _standings_snapshot_from_dict(standings_raw) if standings_raw is not None else None
+    ranking_exclusions = _ranking_exclusions_from_payload(payload.get("ranking_exclusions"))
 
     return ProjectDocument(
         schema_version=SCHEMA_VERSION_V2,
@@ -65,7 +70,20 @@ def from_dict(payload: dict[str, Any]) -> ProjectDocument:
         events=events,
         matching_decisions=matching_decisions,
         standings=standings,
+        ranking_exclusions=ranking_exclusions,
     )
+
+
+def _ranking_exclusions_from_payload(raw: Any) -> tuple[tuple[str, frozenset[str]], ...]:
+    if not raw or not isinstance(raw, dict):
+        return ()
+    pairs: list[tuple[str, frozenset[str]]] = []
+    for category_key, uids in raw.items():
+        ck = str(category_key)
+        if not isinstance(uids, list):
+            continue
+        pairs.append((ck, frozenset(str(u) for u in uids)))
+    return tuple(sorted(pairs, key=lambda item: item[0]))
 
 
 def _person_to_dict(person: Person) -> dict[str, Any]:

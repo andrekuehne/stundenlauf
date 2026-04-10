@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -133,6 +134,85 @@ class TestF02SyntheticValidation(unittest.TestCase):
                 if entry.match_meta is not None and entry.match_meta.route == "review"
             ]
             self.assertEqual(len(review_entries), 0)
+
+    def test_import_clears_ranking_exclusions(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            stub1 = SimpleNamespace(
+                meta=SimpleNamespace(
+                    source_file="fixture_a.xlsx",
+                    source_sha256="sha_rank_clear_a",
+                    imported_at="2026-02-05T10:00:00+00:00",
+                    parser_version="v1",
+                    schema_fingerprint="fp",
+                ),
+                singles_sections=(
+                    ParsedSectionSingles(
+                        context=ImportRaceContext(
+                            series_year=2026,
+                            race_no=1,
+                            duration=RaceDuration.HOUR,
+                            division=Division.MEN,
+                            event_date="2026-02-05",
+                        ),
+                        rows=(
+                            ImportRowSingles(
+                                startnr="1",
+                                name="Only Runner",
+                                yob=2010,
+                                club="TSV",
+                                distance_km=5.0,
+                                points=10.0,
+                            ),
+                        ),
+                    ),
+                ),
+                couples_sections=(),
+            )
+            with patch("backend.ingestion.service.parse_singles_workbook", return_value=stub1):
+                import_excel_into_project(project_path, Path("a.xlsx"), series_year=2026, source_type="singles")
+            repo = JsonProjectRepository(project_path)
+            doc = repo.load()
+            uid = doc.people[0].uid
+            ck = doc.events[0].category.key
+            doc = replace(doc, ranking_exclusions=((ck, frozenset({uid})),))
+            repo.save(doc)
+
+            stub2 = SimpleNamespace(
+                meta=SimpleNamespace(
+                    source_file="fixture_b.xlsx",
+                    source_sha256="sha_rank_clear_b",
+                    imported_at="2026-02-06T10:00:00+00:00",
+                    parser_version="v1",
+                    schema_fingerprint="fp",
+                ),
+                singles_sections=(
+                    ParsedSectionSingles(
+                        context=ImportRaceContext(
+                            series_year=2026,
+                            race_no=2,
+                            duration=RaceDuration.HOUR,
+                            division=Division.MEN,
+                            event_date="2026-02-06",
+                        ),
+                        rows=(
+                            ImportRowSingles(
+                                startnr="2",
+                                name="Second Runner",
+                                yob=2011,
+                                club="TSV",
+                                distance_km=4.0,
+                                points=8.0,
+                            ),
+                        ),
+                    ),
+                ),
+                couples_sections=(),
+            )
+            with patch("backend.ingestion.service.parse_singles_workbook", return_value=stub2):
+                import_excel_into_project(project_path, Path("b.xlsx"), series_year=2026, source_type="singles")
+            doc2 = repo.load()
+            self.assertEqual(doc2.ranking_exclusions, ())
 
     def test_true_duplicate_row_in_same_race_fails_import(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

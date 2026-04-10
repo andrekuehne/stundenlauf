@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Literal
 
@@ -93,6 +94,7 @@ def import_excel_into_project(
             reports.append(report)
 
     document = recompute_project_standings(document)
+    document = replace(document, ranking_exclusions=())
     repo.save(document)
     return ImportResult(
         noop=False,

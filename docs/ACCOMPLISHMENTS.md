@@ -17,6 +17,12 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-10 - F15 Ranking eligibility (Außer Wertung)
+- Requirement/Milestone: [R5, R8; M5]
+- What shipped: Persisted per-category `ranking_exclusions` on the project document; **Aktuelle Wertung** shows only Endwertung-eligible rows; **Laufübersicht** lists everyone with an **a. W.** checkbox, effective `platz` (null + **—** when excluded), and `set_ranking_eligibility` in the UI API. Successful imports clear all exclusions. Season zip carries exclusions inside `session_project.json`.
+- Evidence: `backend/domain/models.py`, `backend/storage/schema_v2.py`, `backend/ui_api/ranking_display.py`, `backend/ui_api/queries.py`, `backend/ui_api/commands.py`, `backend/ui_api/service.py`, `backend/ingestion/service.py`, `frontend/app.js`, `frontend/strings.js`, `frontend/styles.css`, `docs/api/ui-api-v1.md`, `docs/features/F15-ranking-eligibility-exclusions.md`, `tests/test_f08_ui_api.py`, `tests/test_f15_ranking_display.py`, `tests/test_f02_ingestion.py`, `tests/test_f01_storage.py`; `uv run pytest`
+- Impact: organizers can keep full per-race visibility while publishing a clean official ranking table; exclusions reset after each new import so flags are not stale.
+
 ### 2026-04-10 - Unified matching review table with diff highlighting
 - Requirement/Milestone: [R6, R8; M4]
 - What shipped: Replaced side-by-side two-column merge review layout with a single stacked comparison table. Incoming entry appears as a visually anchored header row; candidates are ranked rows below with shared columns. Fields that differ from the incoming entry (name, year-of-birth, club) are highlighted in red for instant visual distinction.

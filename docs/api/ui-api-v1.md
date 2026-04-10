@@ -91,6 +91,7 @@ This document defines the frontend-facing Python API contract for the pywebview 
     - `series_year`
     - `events_total`
     - `sha256_session_project`
+  - The embedded `session_project.json` is the full v2 project document (including optional `ranking_exclusions` when present).
 
 ### `import_series_year`
 - Payload:
@@ -140,8 +141,10 @@ This document defines the frontend-facing Python API contract for the pywebview 
 ### `get_standings`
 - Payload:
   - `category_key` (required)
-- Returns standings metadata (`ruleset_version`, `calculated_at`, `category_key`) and `rows[]` with:
-  - `platz`, `entity_kind` (`participant` | `team`), `entity_uid`
+- Returns standings metadata (`ruleset_version`, `calculated_at`, `category_key`) and `rows[]` for the **official Endwertung** (ranking-eligible participants/teams only):
+  - Entities marked **Außer Wertung** for this category are **omitted** from `rows` (they still appear in `get_category_current_results_table`).
+  - `platz` is sequential `1..n` over returned rows (among eligible only), preserving the snapshot tie order.
+  - `entity_kind` (`participant` | `team`), `entity_uid`
   - `display_name`, `yob`, `club` (for teams, composite strings with `" / "` between members where applicable)
   - `punkte_gesamt`, `distanz_gesamt`, `contribution_by_race` (map of `race_event_uid` → counts toward total)
   - `team_members` (only when `entity_kind` is `team`): `[{ "member": "a"|"b", "name", "yob", "club" }]` — per-member canonical fields for identity correction UIs (`club` is `""` when unset).
@@ -152,7 +155,11 @@ This document defines the frontend-facing Python API contract for the pywebview 
   - `max_races` (optional)
 - Returns:
   - `meta.category_key`, `meta.category_label`, `meta.race_headers`, `meta.max_races`
-  - `rows[]` with identity columns (`platz`, `display_name`, `yob`, `club`)
+  - `rows[]` for **all** entities in the category standings table (including Außer Wertung), with:
+    - `platz` — integer rank among **eligible** rows only, or `null` when `ausser_wertung` is true
+    - `entity_uid`, `entity_kind` (`participant` | `team`)
+    - `ausser_wertung` (bool) — `true` when excluded from Endwertung / final `platz` (matches the Laufübersicht checkbox)
+    - `display_name`, `yob`, `club`
   - `rows[].race_cells[]` with `{ race_no, race_event_uid, distance_km|null, points|null, counts_toward_total }`
   - `rows[].distanz_gesamt`, `rows[].punkte_gesamt`
 
@@ -214,6 +221,7 @@ This document defines the frontend-facing Python API contract for the pywebview 
   - `race_no` (optional integer `>= 1`; when set, overrides the Laufnummer normally inferred from the filename via `Lauf <n>` in the basename)
 - Returns import summary (`noop`, `rows_imported`, `merged_event_uids`, matching report).
 - Uses the active session matching configuration from `set_matching_config`.
+- On successful merge and save, **clears** all `ranking_exclusions` for the project (fresh operator decisions after new data).
 - Duplicate/reimport safety behavior:
   - if the same source hash is already active, returns `IMPORT_DUPLICATE` error (no silent noop).
   - if the same source hash is partially rolled back (mixed active + rolled back), returns `REIMPORT_PARTIAL_ROLLBACK_REQUIRED`.
@@ -243,6 +251,15 @@ This document defines the frontend-facing Python API contract for the pywebview 
 - Updates canonical `Person` fields (and derived name/club normalization used for matching). Gender is not editable.
 - Returns `decision_uid`, `status` (`applied`), `participant_uid` (edited person, including team member UID), `team_uid` (set for team edits), `scope_series_year`.
 - Appends a `matching_decisions` entry with `kind=identity_correction` (visible in `get_year_timeline` / `get_audit_timeline` for the same `series_year`).
+
+### `set_ranking_eligibility`
+- Payload:
+  - `category_key` (required)
+  - `entity_uid` (required)
+  - `ausser_wertung` (required bool) — `true` = excluded from Endwertung (same as checkbox checked in the Laufübersicht)
+- Validates that `entity_uid` appears in the category standings snapshot; otherwise `VALIDATION_ERROR`.
+- Persists under `ProjectDocument.ranking_exclusions` (per category). Does **not** recompute standings.
+- Returns `category_key`, `entity_uid`, `ausser_wertung`.
 
 ### `rollback_race`
 - Payload:

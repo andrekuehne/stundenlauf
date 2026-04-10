@@ -13,6 +13,8 @@ from backend.matching.normalize import normalize_club, parse_person_name
 from backend.ranking.engine import recompute_project_standings
 from backend.storage.repository import JsonProjectRepository
 from backend.ui_api.errors import not_found, validation_error
+from backend.ui_api.queries import _find_category, _table_by_category_key
+from backend.ui_api.ranking_display import update_ranking_exclusions
 
 
 def _iso_now() -> str:
@@ -165,6 +167,34 @@ def import_race(
             "replay_overrides": result.matching_report.replay_overrides,
             "candidate_counts": list(result.matching_report.candidate_counts),
         },
+    }
+
+
+def set_ranking_eligibility(project_file: Path, payload: dict[str, Any]) -> dict[str, Any]:
+    category_key = str(payload.get("category_key", "")).strip()
+    entity_uid = str(payload.get("entity_uid", "")).strip()
+    if not category_key:
+        raise validation_error("category_key is required")
+    if not entity_uid:
+        raise validation_error("entity_uid is required")
+    if "ausser_wertung" not in payload:
+        raise validation_error("ausser_wertung is required")
+    ausser_wertung = bool(payload["ausser_wertung"])
+
+    repo = JsonProjectRepository(project_file)
+    document = repo.load()
+    _find_category(document, category_key)
+    _, rows = _table_by_category_key(document, category_key)
+    allowed = {str(r["entity_uid"]) for r in rows}
+    if entity_uid not in allowed:
+        raise validation_error("entity_uid is not in standings for this category")
+
+    updated = update_ranking_exclusions(document.ranking_exclusions, category_key, entity_uid, ausser_wertung)
+    repo.save(replace(document, ranking_exclusions=updated))
+    return {
+        "category_key": category_key,
+        "entity_uid": entity_uid,
+        "ausser_wertung": ausser_wertung,
     }
 
 

@@ -15,6 +15,7 @@ from backend.ui_api.mappers import (
     teams_by_uid,
     yob_for_row,
 )
+from backend.ui_api.ranking_display import apply_ranking_exclusions_to_rows, ranking_exclusion_set
 
 
 def _matching_decision_in_filtered_year(
@@ -139,7 +140,9 @@ def get_standings(document: ProjectDocument, payload: dict[str, Any]) -> dict[st
         raise validation_error("category_key is required")
     _find_category(document, category_key)
     meta, rows = _table_by_category_key(document, category_key)
-    return {"meta": meta, "rows": rows}
+    excluded = ranking_exclusion_set(document, category_key)
+    eligible, _ = apply_ranking_exclusions_to_rows(rows, excluded)
+    return {"meta": meta, "rows": eligible}
 
 
 def _entry_by_entity_uid(events: list[RaceEvent], entity_uid: str) -> dict[str, RaceEntry]:
@@ -168,8 +171,10 @@ def get_category_current_results_table(document: ProjectDocument, payload: dict[
         active_events = active_events[:max_races]
 
     meta, standings_rows = _table_by_category_key(document, category_key)
+    excluded = ranking_exclusion_set(document, category_key)
+    _, full_rows = apply_ranking_exclusions_to_rows(standings_rows, excluded)
     response_rows: list[dict[str, Any]] = []
-    for row in standings_rows:
+    for row in full_rows:
         by_event = _entry_by_entity_uid(active_events, row["entity_uid"])
         race_cells: list[dict[str, Any]] = []
         for event in active_events:
@@ -188,6 +193,9 @@ def get_category_current_results_table(document: ProjectDocument, payload: dict[
         response_rows.append(
             {
                 "platz": row["platz"],
+                "entity_uid": row["entity_uid"],
+                "entity_kind": row["entity_kind"],
+                "ausser_wertung": row["ausser_wertung"],
                 "display_name": row["display_name"],
                 "yob": row["yob"],
                 "club": row["club"],

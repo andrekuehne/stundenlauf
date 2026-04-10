@@ -16,6 +16,40 @@ from backend.storage.schema_v2 import SCHEMA_VERSION_V2
 from backend.ui_api import API_VERSION_V1, PywebviewApiBridge, UiApiService
 
 
+def _seed_two_men_2026(path: Path) -> None:
+    category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.MEN)
+    p1 = Person(uid="p_alpha", name="Alpha", yob=1990, gender=Gender.M, club="A")
+    p2 = Person(uid="p_beta", name="Beta", yob=1991, gender=Gender.M, club="B")
+    event = RaceEvent(
+        race_event_uid="race_two_men",
+        category=category,
+        race_date="2026-01-05",
+        race_no=1,
+        source_file="fixture.xlsx",
+        source_sha256="sha_two",
+        imported_at="2026-01-05T10:00:00+00:00",
+        parser_version="v1",
+        schema_fingerprint="fp",
+        entries=(
+            RaceEntry(
+                entry_uid="entry_a",
+                participant_uid=p1.uid,
+                startnr="1",
+                result=EntryResult(distance_km=10.0, points=20.0),
+            ),
+            RaceEntry(
+                entry_uid="entry_b",
+                participant_uid=p2.uid,
+                startnr="2",
+                result=EntryResult(distance_km=9.0, points=18.0),
+            ),
+        ),
+    )
+    doc = ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(p1, p2), events=(event,))
+    doc = recompute_project_standings(doc)
+    JsonProjectRepository(path).save(doc)
+
+
 def _seed_project(path: Path) -> None:
     category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.MEN)
     old_category = RaceSeriesCategory(year=2025, duration=RaceDuration.HOUR, division=Division.MEN)
@@ -622,6 +656,86 @@ class TestF08UiApi(unittest.TestCase):
             self.assertEqual(payload["meta"]["race_headers"], ["1. Lauf"])
             self.assertGreaterEqual(len(payload["rows"]), 1)
             self.assertIn("race_cells", payload["rows"][0])
+            row0 = payload["rows"][0]
+            self.assertIn("entity_uid", row0)
+            self.assertIn("entity_kind", row0)
+            self.assertIn("ausser_wertung", row0)
+            self.assertFalse(row0["ausser_wertung"])
+
+    def test_ranking_eligibility_excludes_from_standings_not_overview(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_two_men_2026(project_path)
+            service = UiApiService(project_path)
+            cat = "2026:hour:men"
+            standings = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_st_1",
+                    "method": "get_standings",
+                    "payload": {"category_key": cat},
+                }
+            )
+            self.assertEqual(standings["status"], "ok")
+            self.assertEqual(len(standings["payload"]["rows"]), 2)
+            top_uid = standings["payload"]["rows"][0]["entity_uid"]
+            self.assertEqual(standings["payload"]["rows"][0]["platz"], 1)
+
+            set_resp = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_set_aw",
+                    "method": "set_ranking_eligibility",
+                    "payload": {"category_key": cat, "entity_uid": top_uid, "ausser_wertung": True},
+                }
+            )
+            self.assertEqual(set_resp["status"], "ok")
+
+            standings2 = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_st_2",
+                    "method": "get_standings",
+                    "payload": {"category_key": cat},
+                }
+            )
+            self.assertEqual(len(standings2["payload"]["rows"]), 1)
+            self.assertEqual(standings2["payload"]["rows"][0]["platz"], 1)
+
+            overview = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_ov",
+                    "method": "get_category_current_results_table",
+                    "payload": {"category_key": cat},
+                }
+            )
+            self.assertEqual(len(overview["payload"]["rows"]), 2)
+            by_uid = {r["entity_uid"]: r for r in overview["payload"]["rows"]}
+            self.assertIsNone(by_uid[top_uid]["platz"])
+            self.assertTrue(by_uid[top_uid]["ausser_wertung"])
+            other = next(uid for uid in by_uid if uid != top_uid)
+            self.assertEqual(by_uid[other]["platz"], 1)
+            self.assertFalse(by_uid[other]["ausser_wertung"])
+
+    def test_set_ranking_eligibility_rejects_unknown_entity(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_two_men_2026(project_path)
+            service = UiApiService(project_path)
+            resp = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_bad_uid",
+                    "method": "set_ranking_eligibility",
+                    "payload": {
+                        "category_key": "2026:hour:men",
+                        "entity_uid": "participant_nope",
+                        "ausser_wertung": True,
+                    },
+                }
+            )
+            self.assertEqual(resp["status"], "error")
 
     def test_list_categories_filters_by_year(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

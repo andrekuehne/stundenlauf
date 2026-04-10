@@ -684,7 +684,8 @@
     }
   }
 
-  async function renderStandingsView() {
+  async function renderStandingsView(options = {}) {
+    const preserveStandingsScroll = Boolean(options.preserveStandingsScroll);
     const st = STR.standings;
     const sid = st.identity;
     const importedRaceInfo = buildImportedRaceInfo();
@@ -741,6 +742,19 @@
       return;
     }
 
+    let savedStandingsScrollTop = 0;
+    let savedPerRaceWrapScroll = { top: 0, left: 0 };
+    if (preserveStandingsScroll) {
+      const scrollEl = standingsView.querySelector(".standings-content");
+      if (scrollEl) {
+        savedStandingsScrollTop = scrollEl.scrollTop;
+      }
+      const perRaceWrap = standingsView.querySelector(".standings-per-race-table")?.closest(".table-wrap");
+      if (perRaceWrap) {
+        savedPerRaceWrapScroll = { top: perRaceWrap.scrollTop, left: perRaceWrap.scrollLeft };
+      }
+    }
+
     const rawStandingsRows = standingsResponse.payload.rows || [];
     lastStandingsRows = rawStandingsRows;
     const standingsRows = rawStandingsRows
@@ -753,7 +767,9 @@
       })
       .join("");
 
-    const resultHeaders = (resultsResponse.payload.meta.race_headers || []).map((item) => `<th>${item}</th>`).join("");
+    const raceHeadersList = resultsResponse.payload.meta.race_headers || [];
+    const resultHeaders = raceHeadersList.map((item) => `<th>${item}</th>`).join("");
+    const overviewColspan = 5 + raceHeadersList.length;
     const resultRows = (resultsResponse.payload.rows || [])
       .map((row) => {
         const cells = row.race_cells
@@ -764,7 +780,15 @@
             return `<td>${STR.units.raceCell(cell.distance_km, cell.points)}</td>`;
           })
           .join("");
-        return `<tr><td>${row.platz}</td><td>${row.display_name}</td>${cells}<td>${row.distanz_gesamt}</td><td>${row.punkte_gesamt}</td></tr>`;
+        const platzDisp = row.platz == null ? st.platzExcludedSentinel : row.platz;
+        const excludedClass = row.ausser_wertung ? " standings-row--excluded" : "";
+        const uid = escapeHtml(row.entity_uid || "");
+        const aria = escapeHtml(st.ausserWertungAria(row.display_name || ""));
+        const checked = row.ausser_wertung ? " checked" : "";
+        const awCell = `<td class="standings-aw-cell"><input type="checkbox"${checked} data-set-ranking-eligibility data-entity-uid="${uid}" aria-label="${aria}" /></td>`;
+        return `<tr class="standings-per-race-row${excludedClass}"><td>${platzDisp}</td>${awCell}<td>${escapeHtml(
+          row.display_name || ""
+        )}</td>${cells}<td>${row.distanz_gesamt}</td><td>${row.punkte_gesamt}</td></tr>`;
       })
       .join("");
     standingsView.innerHTML = `
@@ -804,15 +828,37 @@
           <div class="card">
             <h3>${st.perRaceTitle}</h3>
             <div class="table-wrap">
-              <table>
-                <thead><tr><th>${st.thPlatz}</th><th>${st.thName}</th>${resultHeaders}<th>${st.thDistanceShort}</th><th>${st.thPointsTotal}</th></tr></thead>
-                <tbody>${resultRows || `<tr><td colspan="5">${st.emptyRaceRows}</td></tr>`}</tbody>
+              <table class="standings-per-race-table">
+                <thead><tr><th>${st.thPlatz}</th><th class="standings-aw-col" title="${escapeHtml(
+                  st.thAusserWertungTitle
+                )}" aria-label="${escapeHtml(st.thAusserWertungTitle)}">${st.thAusserWertungShort}</th><th>${st.thName}</th>${resultHeaders}<th>${st.thDistanceShort}</th><th>${st.thPointsTotal}</th></tr></thead>
+                <tbody>${resultRows || `<tr><td colspan="${overviewColspan}">${st.emptyRaceRows}</td></tr>`}</tbody>
               </table>
             </div>
           </div>
         </div>
       </div>
     `;
+    for (const input of standingsView.querySelectorAll("input[data-set-ranking-eligibility]")) {
+      input.addEventListener("change", async () => {
+        const uid = input.getAttribute("data-entity-uid");
+        if (!uid || !state.selectedCategory) {
+          return;
+        }
+        const ausser = input.checked;
+        const res = await api("set_ranking_eligibility", {
+          category_key: state.selectedCategory,
+          entity_uid: uid,
+          ausser_wertung: ausser,
+        });
+        if (res.status === "error") {
+          input.checked = !ausser;
+          setStatus(`${STR.status.prefix}${res.error?.message || STR.status.mergeSaveFailed}`, true);
+          return;
+        }
+        await renderStandingsView({ preserveStandingsScroll: true });
+      });
+    }
     for (const button of standingsView.querySelectorAll("button[data-category-btn]")) {
       button.addEventListener("click", async () => {
         const categoryKey = button.getAttribute("data-category-btn");
@@ -822,6 +868,22 @@
         state.selectedCategory = categoryKey;
         await renderStandingsView();
       });
+    }
+
+    if (preserveStandingsScroll) {
+      const applyScrollRestore = () => {
+        const scrollEl = standingsView.querySelector(".standings-content");
+        if (scrollEl) {
+          scrollEl.scrollTop = savedStandingsScrollTop;
+        }
+        const perRaceWrap = standingsView.querySelector(".standings-per-race-table")?.closest(".table-wrap");
+        if (perRaceWrap) {
+          perRaceWrap.scrollTop = savedPerRaceWrapScroll.top;
+          perRaceWrap.scrollLeft = savedPerRaceWrapScroll.left;
+        }
+      };
+      applyScrollRestore();
+      requestAnimationFrame(applyScrollRestore);
     }
   }
 

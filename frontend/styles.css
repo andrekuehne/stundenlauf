@@ -848,6 +848,22 @@ tr.standings-row--correctable:hover {
   background: #e8f0ff;
 }
 
+.standings-per-race-table th.standings-aw-col,
+.standings-per-race-table td.standings-aw-cell {
+  width: 2.75rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.standings-per-race-table td.standings-aw-cell input {
+  margin: 0;
+  cursor: pointer;
+}
+
+tr.standings-per-race-row.standings-row--excluded td:not(.standings-aw-cell) {
+  opacity: 0.72;
+}
+
 @media (max-width: 1200px) {
   .grid-2 {
     grid-template-columns: 1fr;

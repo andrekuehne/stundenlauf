@@ -34,6 +34,7 @@ def build_sample_document() -> ProjectDocument:
         couples=(team,),
         events=(event,),
         matching_decisions=(),
+        ranking_exclusions=((event.category.key, frozenset({"participant_1"})),),
     )
 
 
@@ -45,6 +46,12 @@ class TestF01Storage(unittest.TestCase):
         self.assertEqual(decoded.schema_version, SCHEMA_VERSION_V2)
         self.assertEqual(decoded.project_uid, "project_1")
         self.assertEqual(decoded.events[0].entries[0].startnr, "17")
+        self.assertEqual(decoded.ranking_exclusions, ((doc.events[0].category.key, frozenset({"participant_1"})),))
+
+    def test_ranking_exclusions_optional_on_disk(self) -> None:
+        doc = ProjectDocument(schema_version=SCHEMA_VERSION_V2)
+        decoded = from_dict(to_dict(doc))
+        self.assertEqual(decoded.ranking_exclusions, ())
 
     def test_deserialize_rejects_unknown_schema_version(self) -> None:
         with self.assertRaises(ValidationError):
