@@ -35,7 +35,7 @@ class TestAggregateLikeStandings(unittest.TestCase):
         )
         pk, dk = aggregate_row_like_standings(pairs)
         self.assertEqual(pk, 151.0)
-        self.assertAlmostEqual(dk, 19.09, places=2)
+        self.assertAlmostEqual(dk, 19.094, places=3)
 
 
 class TestMergeDuplicateGt(unittest.TestCase):

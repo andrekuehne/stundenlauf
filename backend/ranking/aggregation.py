@@ -8,7 +8,7 @@ class TopNAggregation:
     """Result of legacy v1 'best N or all available' for points and distance."""
 
     punkte_gesamt: float
-    distanz_gesamt: float  # rounded to 2 decimals for distance total
+    distanz_gesamt: float  # rounded to ruleset distance_decimals for distance total
     selected_race_event_uids: tuple[str, ...]
     dropped_race_event_uids: tuple[str, ...]
 
@@ -17,7 +17,7 @@ def sum_top_n_or_all_points_and_distance(
     race_rows: tuple[tuple[str, float, float], ...],
     *,
     n: int = 4,
-    distance_decimals: int = 2,
+    distance_decimals: int = 3,
 ) -> TopNAggregation:
     """
     For each race row: (race_event_uid, points, distance_km).

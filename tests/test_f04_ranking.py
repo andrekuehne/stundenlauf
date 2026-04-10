@@ -30,7 +30,7 @@ class TestF04Aggregation(unittest.TestCase):
         rows = (("e1", 10.0, 1.1), ("e2", 5.0, 2.2), ("e3", 1.0, 3.3))
         agg = sum_top_n_or_all_points_and_distance(rows, n=4)
         self.assertAlmostEqual(agg.punkte_gesamt, 16.0)
-        self.assertAlmostEqual(agg.distanz_gesamt, round(1.1 + 2.2 + 3.3, 2))
+        self.assertAlmostEqual(agg.distanz_gesamt, round(1.1 + 2.2 + 3.3, 3))
         self.assertEqual(len(agg.dropped_race_event_uids), 0)
 
     def test_top4_only_best_values_when_count_gt_4(self) -> None:
@@ -61,10 +61,10 @@ class TestF04Aggregation(unittest.TestCase):
         )
         self.assertEqual(agg.dropped_race_event_uids, ("c_fifth",))
 
-    def test_distance_total_rounded_to_2_decimals(self) -> None:
+    def test_distance_total_rounded_to_3_decimals(self) -> None:
         rows = (("e1", 1.0, 1.234), ("e2", 1.0, 2.345))
         agg = sum_top_n_or_all_points_and_distance(rows, n=4)
-        self.assertAlmostEqual(agg.distanz_gesamt, round(1.234 + 2.345, 2))
+        self.assertAlmostEqual(agg.distanz_gesamt, round(1.234 + 2.345, 3))
 
 
 class TestF04RankingEngine(unittest.TestCase):

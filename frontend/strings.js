@@ -3,6 +3,15 @@
  * Logic stays in app.js; API payloads and rationales remain English.
  */
 (function (global) {
+  /** Display km with three fractional digits and German decimal comma (e.g. 12,340). */
+  function formatKm(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) {
+      return String(value ?? "");
+    }
+    return n.toFixed(3).replace(".", ",");
+  }
+
   const UIStrings = {
     shell: {
       appTitle: "HSG Uni Greifswald Triathlon Laufgruppe - Stundenlauf-Auswertung",
@@ -193,7 +202,7 @@
     units: {
       kmSuffix: " km",
       pointsSuffix: " P",
-      raceCell: (distanceKm, points) => `${distanceKm} km / ${points} P`,
+      raceCell: (distanceKm, points) => `${formatKm(distanceKm)} km / ${points} P`,
     },
     importView: {
       sidebarImportedRuns: "Importierte Läufe",
@@ -302,5 +311,6 @@
     seasonLabel,
     reviewOpenCount,
     reviewConfidenceHtml,
+    formatKm,
   };
 })(window);

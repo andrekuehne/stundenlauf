@@ -13,10 +13,10 @@ class Ruleset:
 
     version_id: str
     top_n: int = 4
-    distance_decimals: int = 2
+    distance_decimals: int = 3
     primary_sort: Literal["points_desc"] = "points_desc"
     tie_break: Literal["distance_desc"] = "distance_desc"
 
 
 def default_ruleset_v1() -> Ruleset:
-    return Ruleset(version_id=RULESET_V1_LEGACY_TOP4, top_n=4, distance_decimals=2)
+    return Ruleset(version_id=RULESET_V1_LEGACY_TOP4, top_n=4, distance_decimals=3)

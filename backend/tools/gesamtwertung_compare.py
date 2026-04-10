@@ -125,7 +125,7 @@ def aggregate_row_like_standings(
     pairs: tuple[tuple[float, float], ...],
     *,
     top_n: int = 4,
-    distance_decimals: int = 2,
+    distance_decimals: int = 3,
 ) -> tuple[float, float]:
     """Same top-N rule as project standings, using synthetic race ids for ordering ties."""
     if not pairs:

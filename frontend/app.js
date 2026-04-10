@@ -799,7 +799,7 @@
     lastStandingsRows = rawStandingsRows;
     const standingsRows = rawStandingsRows
       .map((row, idx) => {
-        const rowCells = `<td>${row.platz}</td><td>${row.display_name}</td><td>${row.yob || "-"}</td><td>${row.club || "-"}</td><td>${row.distanz_gesamt}</td><td>${row.punkte_gesamt}</td>`;
+        const rowCells = `<td>${row.platz}</td><td>${row.display_name}</td><td>${row.yob || "-"}</td><td>${row.club || "-"}</td><td>${FMT.formatKm(row.distanz_gesamt)}</td><td>${row.punkte_gesamt}</td>`;
         if (state.standingsCorrectionMode) {
           return `<tr class="standings-row--correctable" data-row-index="${idx}">${rowCells}</tr>`;
         }
@@ -828,7 +828,7 @@
         const awCell = `<td class="standings-aw-cell"><input type="checkbox"${checked} data-set-ranking-eligibility data-entity-uid="${uid}" aria-label="${aria}" /></td>`;
         return `<tr class="standings-per-race-row${excludedClass}"><td>${platzDisp}</td>${awCell}<td>${escapeHtml(
           row.display_name || ""
-        )}</td>${cells}<td>${row.distanz_gesamt}</td><td>${row.punkte_gesamt}</td></tr>`;
+        )}</td>${cells}<td>${FMT.formatKm(row.distanz_gesamt)}</td><td>${row.punkte_gesamt}</td></tr>`;
       })
       .join("");
     standingsView.innerHTML = `
@@ -1318,7 +1318,7 @@
     }
     const p = resultPreview?.points;
     if (p == null || p === "") {
-      return `${d} km / ${STR.matrix.cellNo}`;
+      return `${FMT.formatKm(d)} km / ${STR.matrix.cellNo}`;
     }
     return STR.units.raceCell(d, p);
   }

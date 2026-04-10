@@ -41,7 +41,7 @@ The initial scoring and ranking rules for v1 are:
    - If more than 4 values exist, sum only the best 4 values.
 3. For distance total (`Distanz gesamt`):
    - Apply the same "best 4 or all available" rule as points.
-   - Round final total distance to 2 decimal places.
+   - Round final total distance to 3 decimal places.
 4. Rank ordering:
    - Primary sort key: `Punkte gesamt` descending.
    - Secondary sort key (tie-break): `Distanz gesamt` descending.
@@ -85,7 +85,7 @@ Notes for implementation:
 ## Implementation Notes (2026-04-08)
 
 - Code: `backend/ranking/` (`aggregation.py`, `rules.py`, `engine.py`); public API via `backend/ranking/__init__.py`.
-- Ruleset id: `v1_legacy_top4` (`RULESET_V1_LEGACY_TOP4`).
+- Ruleset id: `v1_legacy_top4` (`RULESET_V1_LEGACY_TOP4`); cumulative distance rounded to 3 decimals (`Ruleset.distance_decimals`).
 - Domain: `StandingsSnapshot`, `CategoryStandingsTable`, `StandingsRow`, `RaceContribution` on `ProjectDocument.standings` in `backend/domain/models.py`.
 - Persistence: `backend/storage/schema_v2.py` (optional `standings` key); v1→v2 migration sets `standings` default in `backend/storage/migrations.py`.
 - Triggers: `recompute_project_standings` after successful import in `backend/ingestion/service.py`; after `mark_event_rolled_back` in `backend/storage/repository.py`. CLI: `uv run python main.py --project <file> --recompute-standings`.
@@ -139,9 +139,9 @@ Notes for implementation:
 - `top4_ignores_missing_values`
   - Input: values with null gaps.
   - Expectation: nulls excluded from selection and sum.
-- `distance_total_rounded_to_2_decimals`
-  - Input: decimal distances that produce >2 decimal output.
-  - Expectation: `distanz_gesamt` rounded to 2 decimals.
+- `distance_total_rounded_to_3_decimals`
+  - Input: decimal distances that produce >3 decimal output.
+  - Expectation: `distanz_gesamt` rounded to 3 decimals.
 
 ### Unit Test Cases (Ranking Logic)
 
