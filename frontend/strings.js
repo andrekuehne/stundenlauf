@@ -60,8 +60,11 @@
       tableRaces: "Läufe",
       tableReview: "Prüfungen offen",
       tableLastImport: "Letzter Import",
+      tableCoverage: "Läufe enthalten",
       tableAction: "Aktion",
       openSeason: "Öffnen",
+      resetSeason: "Zurücksetzen",
+      resetSeasonTitle: "Saisoninhalt zurücksetzen",
       deleteSeason: "Löschen",
       deleteSeasonTitle: "Saison löschen",
       labelYear: "Jahr",
@@ -86,6 +89,18 @@
         `Löschung abgebrochen: Die Eingabe muss exakt ${year} sein.`,
       deleteFailed: "Saison konnte nicht gelöscht werden.",
       deleteDone: (year) => `Saison ${year} wurde gelöscht.`,
+      resetConfirm: (year) =>
+        `Achtung: Alle Daten der Saison ${year} werden dauerhaft zurückgesetzt.\n` +
+        "Alle Läufe, Prüfdaten, Zuordnungen und Wertungen werden geleert.\n" +
+        "Das Saisonjahr bleibt bestehen.\n\n" +
+        "Tipp: Erstellen Sie vorher einen Export als Sicherung.\n\n" +
+        "Möchten Sie fortfahren?",
+      resetPrompt: (year) =>
+        `Sicherheitsabfrage: Bitte geben Sie ${year} ein, um das Zurücksetzen zu bestätigen.`,
+      resetInputMismatch: (year) =>
+        `Zurücksetzen abgebrochen: Die Eingabe muss exakt ${year} sein.`,
+      resetFailed: "Saison konnte nicht zurückgesetzt werden.",
+      resetDone: (year) => `Saison ${year} wurde zurückgesetzt.`,
       invalidYear: "Bitte geben Sie ein gültiges Jahr ein.",
       createFailed: "Saison konnte nicht angelegt werden.",
       createDone: "Saison wurde angelegt. Sie können jetzt den ersten Lauf importieren.",
@@ -182,6 +197,7 @@
       pickResultFile: "Bitte eine Ergebnisdatei auswählen.",
       singles: "Einzel",
       couples: "Paare",
+      thName: "Name",
       raceNumber: "Laufnummer",
       raceSelectPlaceholder: "Bitte wählen…",
       importRace: "Lauf importieren",
@@ -210,12 +226,13 @@
       incomingHeading: "Neuer eingehender Eintrag",
       candidatesHeading: "Mögliche Treffer (beste Übereinstimmung zuerst)",
       thRank: "Rang",
-      thMatch: "Treffer",
+      thMatch: "Treffer %",
       thAction: "Aktion",
       thStartnr: "Startnr.",
       thDistance: "Distanz",
       thPoints: "Punkte",
-      selectCandidate: "Diesen wählen",
+      selectCandidate: "Wählen",
+      selectedCandidate: "Ausgewählt",
       mergeHint:
         'Auswahl rechts verknüpft mit bestehender Person/Team; "neue Person anlegen" erstellt bewusst einen zusätzlichen Datensatz.',
       mergeAccept: "Mit ausgewählter Person/Team zusammenführen",
@@ -241,7 +258,6 @@
     },
     reviewTable: {
       noCandidates: "Keine Kandidaten vorhanden",
-      selectedSuffix: " (ausgewählt)",
     },
     history: {
       title: "Historie & Korrektur",

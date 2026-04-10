@@ -27,7 +27,12 @@ This document defines the frontend-facing Python API contract for the pywebview 
 ### `list_series_years`
 - Payload: none
 - Returns available season datasets discovered under local workspace storage:
-  - `items[]` with `series_year`, `project_file`, `events_total`, `review_queue_count`, `latest_imported_at`
+  - `items[]` with `series_year`, `project_file`, `events_total`, `review_queue_count`, `latest_imported_at`, `race_coverage`
+    - `latest_imported_at` is an ISO timestamp string (formatting to local display is frontend responsibility)
+    - `race_coverage` contains:
+      - `singles_race_numbers` (`int[]`, unique/sorted active race numbers for Einzel categories)
+      - `couples_race_numbers` (`int[]`, unique/sorted active race numbers for Paare categories)
+      - `race_columns` (`int[]`, display columns starting at 1; defaults to 1..5 and extends to max included race number)
   - top-level `count`
 
 ### `create_series_year`
@@ -49,6 +54,19 @@ This document defines the frontend-facing Python API contract for the pywebview 
   - `confirm_series_year` (required, must exactly match `series_year`)
 - Deletes the full season dataset directory under workspace storage and returns:
   - `series_year`, `deleted=true`, `deleted_path`
+- Safety notes:
+  - mismatched confirmation returns `VALIDATION_ERROR`
+  - unknown year returns `NOT_FOUND`
+
+### `reset_series_year`
+- Payload:
+  - `series_year` (required)
+  - `confirm_series_year` (required, must exactly match `series_year`)
+- Resets the season dataset in place (keeps year directory and `session_project.json` path) and returns:
+  - `series_year`, `reset=true`, `project_file`
+- Behaviour notes:
+  - writes a fresh empty project document (equivalent to a newly created season)
+  - prior file content is replaced via repository atomic save, which also writes `session_project.json.bak`
 - Safety notes:
   - mismatched confirmation returns `VALIDATION_ERROR`
   - unknown year returns `NOT_FOUND`

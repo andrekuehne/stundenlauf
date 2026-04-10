@@ -199,6 +199,10 @@ class TestF08UiApi(unittest.TestCase):
             self.assertEqual(listed["status"], "ok")
             self.assertEqual(listed["payload"]["count"], 1)
             self.assertEqual(listed["payload"]["items"][0]["series_year"], 2026)
+            race_coverage = listed["payload"]["items"][0]["race_coverage"]
+            self.assertEqual(race_coverage["singles_race_numbers"], [])
+            self.assertEqual(race_coverage["couples_race_numbers"], [])
+            self.assertEqual(race_coverage["race_columns"], [1, 2, 3, 4, 5])
 
             opened = service.handle(
                 {
@@ -220,6 +224,102 @@ class TestF08UiApi(unittest.TestCase):
             )
             self.assertEqual(project_state["status"], "ok")
             self.assertEqual(project_state["payload"]["counts"]["events_total"], 0)
+
+    def test_list_series_years_includes_race_coverage_for_active_events(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = Path(temp_dir)
+            service = UiApiService(workspace_dir=workspace)
+            project_file = workspace / "data" / "series" / "2026" / "session_project.json"
+            men_category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.MEN)
+            couples_category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.COUPLES_MIXED)
+            participant = Person(uid="participant_1", name="Max Muster", yob=1990, gender=Gender.M, club="TSV")
+            team = Couple(
+                uid="team_1",
+                member_a=Person(name="Alex Team", yob=1985, gender=Gender.M, club="TSV"),
+                member_b=Person(name="Nina Team", yob=1988, gender=Gender.F, club="TSV"),
+            )
+            event_single_1 = RaceEvent(
+                race_event_uid="race_single_1",
+                category=men_category,
+                race_date="2026-01-01",
+                race_no=1,
+                source_file="single_1.xlsx",
+                source_sha256="single_1",
+                imported_at="2026-01-01T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp_single_1",
+                entries=(RaceEntry(entry_uid="entry_single_1", participant_uid=participant.uid, startnr="1", result=EntryResult(10.0, 20.0)),),
+            )
+            event_single_7 = RaceEvent(
+                race_event_uid="race_single_7",
+                category=men_category,
+                race_date="2026-02-01",
+                race_no=7,
+                source_file="single_7.xlsx",
+                source_sha256="single_7",
+                imported_at="2026-02-01T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp_single_7",
+                entries=(RaceEntry(entry_uid="entry_single_7", participant_uid=participant.uid, startnr="2", result=EntryResult(11.0, 22.0)),),
+            )
+            event_couples_2 = RaceEvent(
+                race_event_uid="race_couples_2",
+                category=couples_category,
+                race_date="2026-03-01",
+                race_no=2,
+                source_file="couples_2.xlsx",
+                source_sha256="couples_2",
+                imported_at="2026-03-01T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp_couples_2",
+                entries=(RaceEntry(entry_uid="entry_couples_2", team_uid=team.uid, startnr="5", result=EntryResult(9.0, 18.0)),),
+            )
+            event_rolled_back = RaceEvent(
+                race_event_uid="race_single_3_old",
+                category=men_category,
+                race_date="2026-01-15",
+                race_no=3,
+                source_file="single_3_old.xlsx",
+                source_sha256="single_3_old",
+                imported_at="2026-01-15T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp_single_3_old",
+                state=RaceEventState.ROLLED_BACK,
+                entries=(RaceEntry(entry_uid="entry_single_3_old", participant_uid=participant.uid, startnr="3", result=EntryResult(10.5, 21.0)),),
+            )
+            event_invalid_race_no = RaceEvent(
+                race_event_uid="race_single_invalid",
+                category=men_category,
+                race_date="2026-01-20",
+                race_no=0,
+                source_file="single_invalid.xlsx",
+                source_sha256="single_invalid",
+                imported_at="2026-01-20T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp_single_invalid",
+                entries=(RaceEntry(entry_uid="entry_single_invalid", participant_uid=participant.uid, startnr="4", result=EntryResult(8.0, 16.0)),),
+            )
+            doc = ProjectDocument(
+                schema_version=SCHEMA_VERSION_V2,
+                people=(participant,),
+                couples=(team,),
+                events=(event_single_1, event_single_7, event_couples_2, event_rolled_back, event_invalid_race_no),
+            )
+            JsonProjectRepository(project_file).save(doc)
+            listed = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_series_list_coverage",
+                    "method": "list_series_years",
+                    "payload": {},
+                }
+            )
+            self.assertEqual(listed["status"], "ok")
+            self.assertEqual(listed["payload"]["count"], 1)
+            race_coverage = listed["payload"]["items"][0]["race_coverage"]
+            self.assertEqual(race_coverage["singles_race_numbers"], [1, 7])
+            self.assertEqual(race_coverage["couples_race_numbers"], [2])
+            self.assertEqual(race_coverage["race_columns"], [1, 2, 3, 4, 5, 6, 7])
 
     def test_delete_series_year_removes_workspace_season_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -298,6 +398,83 @@ class TestF08UiApi(unittest.TestCase):
             )
             self.assertEqual(deleted["status"], "error")
             self.assertEqual(deleted["error"]["code"], "NOT_FOUND")
+
+    def test_reset_series_year_replaces_dataset_but_keeps_season_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = Path(temp_dir)
+            service = UiApiService(workspace_dir=workspace)
+            created = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_series_create_reset_ok",
+                    "method": "create_series_year",
+                    "payload": {"series_year": 2026},
+                }
+            )
+            self.assertEqual(created["status"], "ok")
+            project_file = Path(created["payload"]["project_file"])
+            _seed_project_for_year(project_file, 2026)
+            before = JsonProjectRepository(project_file).load()
+            self.assertGreater(len(before.events), 0)
+            self.assertGreater(len(before.people), 0)
+
+            reset = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_series_reset_ok",
+                    "method": "reset_series_year",
+                    "payload": {"series_year": 2026, "confirm_series_year": 2026},
+                }
+            )
+            self.assertEqual(reset["status"], "ok")
+            self.assertTrue(reset["payload"]["reset"])
+            self.assertTrue(project_file.parent.exists())
+            self.assertTrue(project_file.exists())
+
+            after = JsonProjectRepository(project_file).load()
+            self.assertEqual(after.schema_version, SCHEMA_VERSION_V2)
+            self.assertEqual(len(after.events), 0)
+            self.assertEqual(len(after.people), 0)
+            self.assertEqual(len(after.couples), 0)
+            self.assertEqual(len(after.matching_decisions), 0)
+
+    def test_reset_series_year_rejects_confirmation_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = Path(temp_dir)
+            service = UiApiService(workspace_dir=workspace)
+            service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_series_create_reset_mismatch",
+                    "method": "create_series_year",
+                    "payload": {"series_year": 2026},
+                }
+            )
+            reset = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_series_reset_mismatch",
+                    "method": "reset_series_year",
+                    "payload": {"series_year": 2026, "confirm_series_year": 2025},
+                }
+            )
+            self.assertEqual(reset["status"], "error")
+            self.assertEqual(reset["error"]["code"], "VALIDATION_ERROR")
+
+    def test_reset_series_year_rejects_unknown_year(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = Path(temp_dir)
+            service = UiApiService(workspace_dir=workspace)
+            reset = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_series_reset_not_found",
+                    "method": "reset_series_year",
+                    "payload": {"series_year": 2040, "confirm_series_year": 2040},
+                }
+            )
+            self.assertEqual(reset["status"], "error")
+            self.assertEqual(reset["error"]["code"], "NOT_FOUND")
 
     def test_export_series_year_writes_manifest_and_payload_zip(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

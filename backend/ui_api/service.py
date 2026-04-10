@@ -44,6 +44,7 @@ class UiApiService:
             "create_series_year": lambda payload: workspace.create_series_year(self.workspace_dir, payload),
             "open_series_year": lambda payload: self._open_series_year(payload),
             "delete_series_year": lambda payload: self._delete_series_year(payload),
+            "reset_series_year": lambda payload: workspace.reset_series_year(self.workspace_dir, payload),
             "export_series_year": lambda payload: workspace.export_series_year(self.workspace_dir, payload),
             "import_series_year": lambda payload: self._import_series_year(payload),
             "get_matching_config": lambda payload: self._get_matching_config(payload),

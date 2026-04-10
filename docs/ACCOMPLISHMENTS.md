@@ -17,6 +17,20 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-10 - F14 Season hard reset (keep year)
+- Requirement/Milestone: [R1, R6, R8; M5]
+- What shipped: Added guarded season hard reset in UI API (`reset_series_year`) and startup GUI so operators can clear all season content in place (events, identities, matching decisions, standings) while keeping the same year slot; reset uses typed-year confirmation and preserves repository atomic backup behavior.
+- Evidence: `backend/ui_api/workspace.py`, `backend/ui_api/service.py`, `docs/api/ui-api-v1.md`, `frontend/app.js`, `frontend/strings.js`, `tests/test_f08_ui_api.py`, `docs/features/F14-season-hard-reset.md`; `uv run pytest tests/test_f08_ui_api.py`
+- Impact: users can reliably restart a season dataset without deleting/recreating the year and without residual merge history affecting the next first import.
+- Follow-up: consider an optional one-click restore flow from latest `.bak` for accidental resets.
+
+### 2026-04-10 - F13 Season entry density and coverage preview
+- Requirement/Milestone: [R1, R8; M5]
+- What shipped: Tightened the startup season screen layout by widening the existing-season overview and compacting the create card, added compact local `Letzter Import` formatting (`HH:MM DD.MM.YYYY`), and added per-season coverage preview (`Einzel`/`Paare` run matrix) directly in the season table via new `list_series_years.race_coverage` payload fields.
+- Evidence: `backend/ui_api/workspace.py`, `docs/api/ui-api-v1.md`, `frontend/app.js`, `frontend/styles.css`, `frontend/strings.js`, `tests/test_f08_ui_api.py`, `docs/features/F13-season-entry-density-and-coverage-preview.md`; `uv run pytest tests/test_f08_ui_api.py`
+- Impact: organizers can assess season completeness and recency at a glance from startup, with less horizontal waste and fewer clicks into other views.
+- Follow-up: optionally add color or tooltip affordances for quick gap highlighting when many runs are present.
+
 ### 2026-04-10 - F12 Season import/export with safe restore
 - Requirement/Milestone: [R1, R7, R8; M5]
 - What shipped: Added season-level export/import in GUI and UI API (`export_series_year`, `import_series_year`) using `.stundenlauf-season.zip` with `manifest.json` + checksum validation, schema/format compatibility checks, and atomic write/replace behavior; season entry now includes per-row export and a global import action with German conflict prompts (cancel/new year/replace with typed confirmation).

@@ -200,18 +200,46 @@
 
   function renderSeasonEntry(items) {
     const se = STR.seasonEntry;
+    const normalizeCoverage = (raceCoverage) => {
+      const coverage = raceCoverage || {};
+      const singlesRaceNumbers = Array.isArray(coverage.singles_race_numbers) ? coverage.singles_race_numbers : [];
+      const couplesRaceNumbers = Array.isArray(coverage.couples_race_numbers) ? coverage.couples_race_numbers : [];
+      const raceColumns = Array.isArray(coverage.race_columns) && coverage.race_columns.length
+        ? coverage.race_columns
+        : [1, 2, 3, 4, 5];
+      return {
+        raceColumns,
+        matrixRows: [
+          { label: STR.matrix.rowSingles, raceNumbers: singlesRaceNumbers },
+          { label: STR.matrix.rowCouples, raceNumbers: couplesRaceNumbers },
+        ],
+      };
+    };
+    const formatSeasonTimestamp = (value) => {
+      const raw = String(value || "").trim();
+      if (!raw) {
+        return "-";
+      }
+      const parsed = new Date(raw);
+      if (Number.isNaN(parsed.getTime())) {
+        return "-";
+      }
+      const pad2 = (num) => String(num).padStart(2, "0");
+      return `${pad2(parsed.getHours())}:${pad2(parsed.getMinutes())} ${pad2(parsed.getDate())}.${pad2(parsed.getMonth() + 1)}.${parsed.getFullYear()}`;
+    };
     const rows = items
       .map(
         (item) =>
           `<tr>
             <td>${item.series_year}</td>
-            <td>${item.events_total}</td>
             <td>${item.review_queue_count}</td>
-            <td>${item.latest_imported_at || "-"}</td>
+            <td>${formatSeasonTimestamp(item.latest_imported_at)}</td>
+            <td class="season-coverage-col">${renderImportedRunsMatrix(normalizeCoverage(item.race_coverage), { compact: true })}</td>
             <td>
               <div class="row">
                 <button class="secondary" data-open-year="${item.series_year}">${se.openSeason}</button>
                 <button class="secondary" data-export-year="${item.series_year}">⇪ ${se.exportSeason}</button>
+                <button class="secondary" data-reset-year="${item.series_year}" title="${se.resetSeasonTitle}">↺ ${se.resetSeason}</button>
                 <button class="danger" data-delete-year="${item.series_year}" title="${se.deleteSeasonTitle}">🗑 ${se.deleteSeason}</button>
               </div>
             </td>
@@ -221,27 +249,25 @@
     seasonEntryView.innerHTML = `
       <h2>${se.pageTitle}</h2>
       <p class="hint">${se.intro}</p>
-      <div class="grid-2">
+      <div class="season-entry-layout">
         <div class="card">
           <h3>${se.existingHeading}</h3>
           ${
             items.length === 0
               ? `<p class="hint">${se.noSeasonsYet}</p>`
-              : `<div class="table-wrap"><table><thead><tr><th>${se.tableYear}</th><th>${se.tableRaces}</th><th>${se.tableReview}</th><th>${se.tableLastImport}</th><th>${se.tableAction}</th></tr></thead><tbody>${rows}</tbody></table></div>`
+              : `<div class="table-wrap"><table><thead><tr><th>${se.tableYear}</th><th class="season-review-col">Prüfungen<br>offen</th><th>${se.tableLastImport}</th><th class="season-coverage-col">${se.tableCoverage}</th><th>${se.tableAction}</th></tr></thead><tbody>${rows}</tbody></table></div>`
           }
         </div>
-        <div class="card">
+        <div class="card season-entry-create-card">
           <h3>${se.newHeading}</h3>
           <p class="hint">${se.newHint}</p>
-          <div class="row">
-            <label for="newYearInput">${se.labelYear}</label>
+          <div class="season-entry-form-grid">
+            <label for="newYearInput" class="season-entry-form-label">${se.labelYear}</label>
             <input id="newYearInput" type="number" placeholder="${se.placeholderYear}" />
-          </div>
-          <div class="row">
-            <label for="newNameInput">${se.labelDisplayName}</label>
+            <label for="newNameInput" class="season-entry-form-label">${se.labelDisplayName}</label>
             <input id="newNameInput" type="text" placeholder="${se.placeholderDisplayName}" />
           </div>
-          <div class="row">
+          <div class="row season-entry-form-actions">
             <button id="createSeasonBtn" class="primary">${se.createSeason}</button>
             <button id="importSeasonBtn" class="secondary">${se.importSeason}</button>
           </div>
@@ -280,6 +306,37 @@
           return;
         }
         setStatus(se.deleteDone(year));
+        await showSeasonEntry();
+      });
+    }
+    for (const button of seasonEntryView.querySelectorAll("button[data-reset-year]")) {
+      button.addEventListener("click", async () => {
+        const year = Number(button.getAttribute("data-reset-year"));
+        const warningAccepted = window.confirm(se.resetConfirm(year));
+        if (!warningAccepted) {
+          return;
+        }
+        const typed = window.prompt(se.resetPrompt(year), "");
+        if (typed === null) {
+          return;
+        }
+        const confirmedYear = Number(String(typed).trim());
+        if (!Number.isInteger(confirmedYear) || confirmedYear !== year) {
+          setStatus(se.resetInputMismatch(year), true);
+          return;
+        }
+        const reset = await api("reset_series_year", {
+          series_year: year,
+          confirm_series_year: confirmedYear,
+        });
+        if (reset.status === "error") {
+          setStatus(reset.error.details.message || se.resetFailed, true);
+          return;
+        }
+        if (state.seriesYear === year) {
+          resetImportDraft();
+        }
+        setStatus(se.resetDone(year));
         await showSeasonEntry();
       });
     }
@@ -592,8 +649,11 @@
     };
   }
 
-  function renderImportedRunsMatrix(importedRaceInfo) {
+  function renderImportedRunsMatrix(importedRaceInfo, options) {
+    const opts = options || {};
     const mx = STR.matrix;
+    const matrixClass = opts.compact ? "imported-runs-matrix imported-runs-matrix--compact" : "imported-runs-matrix";
+    const wrapClass = opts.compact ? "imported-runs-matrix-wrap imported-runs-matrix-wrap--compact" : "imported-runs-matrix-wrap";
     const headers = importedRaceInfo.raceColumns.map((raceNo) => `<th>${raceNo}</th>`).join("");
     const rows = importedRaceInfo.matrixRows
       .map((row) => {
@@ -605,8 +665,8 @@
       })
       .join("");
     return `
-      <div class="imported-runs-matrix-wrap">
-        <table class="imported-runs-matrix">
+      <div class="${wrapClass}">
+        <table class="${matrixClass}">
           <thead><tr><th>${mx.colRun}</th>${headers}</tr></thead>
           <tbody>${rows}</tbody>
         </table>
@@ -1116,6 +1176,12 @@
     return c.low;
   }
 
+  function confidencePercent(confidence) {
+    const value = Number(confidence || 0);
+    const bounded = Math.max(0, Math.min(1, value));
+    return Math.round(bounded * 100);
+  }
+
   function reviewSelectionKey(review) {
     return `${review.race_event_uid}::${review.entry_uid}`;
   }
@@ -1151,15 +1217,16 @@
       .map((candidateUid, index) => {
         const preview = previewByUid.get(candidateUid);
         const rank = index + 1;
-        const selectedClass = selectedCandidateUid === candidateUid ? " selected-candidate-row" : "";
-        const selectedText = selectedCandidateUid === candidateUid ? rt.selectedSuffix : "";
+        const isSelected = selectedCandidateUid === candidateUid;
+        const selectedClass = isSelected ? " selected-candidate-row" : "";
+        const buttonLabel = isSelected ? iv.selectedCandidate : iv.selectCandidate;
         return `<tr class="candidate-row${selectedClass}" data-candidate-row="${candidateUid}">
-          <td>${rank}${selectedText}</td>
+          <td>${rank}</td>
           <td>${preview?.display_name || STR.preview.unknown}</td>
           <td>${preview?.yob || "-"}</td>
           <td>${preview?.club || "-"}</td>
-          <td>${confidenceLabel(review.confidence)}</td>
-          <td><button class="secondary select-candidate-btn" data-candidate-uid="${candidateUid}">${iv.selectCandidate}</button></td>
+          <td>${confidencePercent(review.confidence)}%</td>
+          <td><button class="secondary select-candidate-btn" data-candidate-uid="${candidateUid}">${buttonLabel}</button></td>
         </tr>`;
       })
       .join("");
@@ -1205,7 +1272,7 @@
     const inferenceText = importBasename
       ? buildImportInferenceLine(importBasename)
       : iv.pickResultFile;
-    const confidencePct = Math.round((review && review.confidence ? review.confidence : 0) * 100);
+    const confidencePct = confidencePercent(review && review.confidence ? review.confidence : 0);
     importView.innerHTML = `
       <div class="import-view-layout">
         <aside class="card import-controls-column">

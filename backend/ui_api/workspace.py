@@ -34,6 +34,29 @@ def project_file_for_year(workspace_dir: Path, series_year: int) -> Path:
 
 
 def list_series_years(workspace_dir: Path) -> dict[str, Any]:
+    def _build_race_coverage(doc: ProjectDocument) -> dict[str, Any]:
+        singles_race_numbers: set[int] = set()
+        couples_race_numbers: set[int] = set()
+        for event in doc.events:
+            if event.state.value != "active":
+                continue
+            race_no = int(event.race_no)
+            if race_no <= 0:
+                continue
+            division_value = str(event.category.division.value)
+            if division_value.startswith("couples_"):
+                couples_race_numbers.add(race_no)
+            else:
+                singles_race_numbers.add(race_no)
+        singles = sorted(singles_race_numbers)
+        couples = sorted(couples_race_numbers)
+        max_race = max([5, *singles, *couples]) if (singles or couples) else 5
+        return {
+            "singles_race_numbers": singles,
+            "couples_race_numbers": couples,
+            "race_columns": list(range(1, max_race + 1)),
+        }
+
     series_root = workspace_dir / "data" / "series"
     items: list[dict[str, Any]] = []
     if not series_root.exists():
@@ -61,6 +84,7 @@ def list_series_years(workspace_dir: Path) -> dict[str, Any]:
                 "events_total": len(doc.events),
                 "latest_imported_at": latest_import,
                 "review_queue_count": open_reviews,
+                "race_coverage": _build_race_coverage(doc),
             }
         )
     items.sort(key=lambda item: item["series_year"], reverse=True)
@@ -122,6 +146,32 @@ def delete_series_year(workspace_dir: Path, payload: dict[str, Any]) -> dict[str
         "series_year": series_year,
         "deleted": True,
         "deleted_path": str(season_dir),
+    }
+
+
+def reset_series_year(workspace_dir: Path, payload: dict[str, Any]) -> dict[str, Any]:
+    year_raw = payload.get("series_year")
+    confirm_raw = payload.get("confirm_series_year")
+    if year_raw is None:
+        raise validation_error("series_year is required")
+    if confirm_raw is None:
+        raise validation_error("confirm_series_year is required")
+    series_year = int(year_raw)
+    confirm_series_year = int(confirm_raw)
+    if confirm_series_year != series_year:
+        raise validation_error(
+            "confirm_series_year must match series_year",
+            series_year=series_year,
+            confirm_series_year=confirm_series_year,
+        )
+    project_file = project_file_for_year(workspace_dir, series_year)
+    if not project_file.exists():
+        raise not_found("series_year", str(series_year))
+    JsonProjectRepository(project_file).save(ProjectDocument(schema_version=SCHEMA_VERSION_V2))
+    return {
+        "series_year": series_year,
+        "reset": True,
+        "project_file": str(project_file),
     }
 
 
