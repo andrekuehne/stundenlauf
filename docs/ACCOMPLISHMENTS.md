@@ -17,6 +17,12 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-10 - F17 Import merge review granular diffs + couple alignment
+- Requirement/Milestone: [R6, R8; M5]
+- What shipped: Display-only helpers build `candidate_review_displays[]` on `get_review_queue`: Paarlauf candidates can reorder members for comparison when the swapped pairing scores higher; name/YOB/club mismatches are exposed as per-fragment `diff` flags. The import review table renders inline highlights (`.merge-diff-part`) instead of coloring whole cells, with fallback to the previous behavior if hints are absent.
+- Evidence: `backend/matching/review_display.py`, `backend/ui_api/queries.py`, `docs/api/ui-api-v1.md`, `frontend/app.js`, `frontend/styles.css`, `docs/features/F17-merge-review-display-polish.md`, `tests/test_match_review_display.py`, `tests/test_f08_ui_api.py`; `uv run pytest`
+- Impact: Faster visual scanning during import review; swapped Excel member order no longer obscures a good team match.
+
 ### 2026-04-10 - F16 Standings manual duplicate merge (Einzel/Paar)
 - Requirement/Milestone: [R3, R6, R8; M5]
 - What shipped: Operators can merge two duplicate `Person` or `Couple` identities from **Laufübersicht** when they have no overlapping races in the category: `merge_standings_entities` rewires entries, remaps audit targets, prunes orphans, applies conservative **Außer Wertung** carry-over, appends `identity_merge` decisions (`merged_absorbed_uid`), and recomputes standings. GUI merge mode (mutually exclusive with identity correction), Historie table for `identity_merge` / `identity_correction`, and timeline payload fields for audit UIDs.

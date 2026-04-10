@@ -200,6 +200,13 @@ This document defines the frontend-facing Python API contract for the pywebview 
   - technical IDs (`entry_uid`, `race_event_uid`, `candidate_uids`, `top_candidate_uid`)
   - per-candidate fuzzy scores aligned with `candidate_uids` order (`candidate_confidences[]`, same length as `candidate_uids`)
   - human-readable previews for direct UI rendering (`entry_preview`, `top_candidate_preview`, `candidate_previews[]` with display name / year / club and team member details)
+  - `candidate_review_displays[]` (same length and order as `candidate_uids`): display-only diff hints for the import review table. Each item has:
+    - `kind`: `"participant"` | `"team"` | `"unknown"`
+    - `member_order_swapped` (bool, teams only): when `true`, the two candidate rows are shown in the order that best aligns with the incoming Excel pair (visual only; linking is unchanged).
+    - `lines[]`: one object for singles; two for teams (aligned with `member_order_swapped`). Each line has:
+      - `name_segments[]`: `{ text, diff }` fragments in reading order (given name, space, family name, or a single segment fallback). `diff` means the normalized part differs from the incoming row.
+      - `yob`: `{ text, diff }` — `diff` only if both incoming and candidate years are present and disagree.
+      - `club`: `{ text, diff }` — compared with normalized club strings; empty vs empty counts as match.
   - confidence and explainability fields (`confidence`, `confidence_label`, `features`, `conflict_flags`)
   - compact race metadata under `event` and imported result metrics under `result_preview`.
 - Items are sorted by `confidence` descending.

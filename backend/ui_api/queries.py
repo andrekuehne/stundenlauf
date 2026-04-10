@@ -5,6 +5,7 @@ from typing import Any
 
 from backend.domain.enums import RaceEventState
 from backend.domain.models import Couple, MatchingDecision, Person, ProjectDocument, RaceEntry, RaceEvent, RaceSeriesCategory
+from backend.matching.review_display import build_candidate_review_display
 from backend.ranking.engine import recompute_project_standings
 from backend.ui_api.errors import not_found, validation_error
 from backend.ui_api.mappers import (
@@ -300,6 +301,8 @@ def get_review_queue(document: ProjectDocument, payload: dict[str, Any]) -> dict
             if entry.match_meta is None or entry.match_meta.route != "review":
                 continue
             confidence_value = float(entry.match_meta.confidence or 0.0)
+            entry_preview = _incoming_entry_preview(document, entry)
+            candidate_previews = [_entity_preview(document, candidate_uid) for candidate_uid in entry.match_meta.candidate_uids]
             rows.append(
                 {
                     "race_event_uid": event.race_event_uid,
@@ -307,9 +310,9 @@ def get_review_queue(document: ProjectDocument, payload: dict[str, Any]) -> dict
                     "startnr": entry.startnr,
                     "candidate_uids": list(entry.match_meta.candidate_uids),
                     "candidate_confidences": list(entry.match_meta.candidate_confidences),
-                    "candidate_previews": [
-                        _entity_preview(document, candidate_uid)
-                        for candidate_uid in entry.match_meta.candidate_uids
+                    "candidate_previews": candidate_previews,
+                    "candidate_review_displays": [
+                        build_candidate_review_display(entry_preview, preview) for preview in candidate_previews
                     ],
                     "top_candidate_uid": entry.match_meta.top_candidate_uid,
                     "top_candidate_preview": _entity_preview(document, entry.match_meta.top_candidate_uid),
@@ -317,7 +320,7 @@ def get_review_queue(document: ProjectDocument, payload: dict[str, Any]) -> dict
                     "confidence_label": _confidence_label(confidence_value),
                     "features": dict(entry.match_meta.features),
                     "conflict_flags": list(entry.match_meta.conflict_flags),
-                    "entry_preview": _incoming_entry_preview(document, entry),
+                    "entry_preview": entry_preview,
                     "result_preview": {
                         "distance_km": entry.result.distance_km,
                         "points": entry.result.points,

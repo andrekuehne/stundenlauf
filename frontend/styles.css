@@ -454,11 +454,25 @@ th {
   border-bottom: 3px solid var(--accent);
 }
 
+.merge-review-table tbody tr.candidate-row {
+  cursor: pointer;
+}
+
+.merge-review-table tbody tr.candidate-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 .selected-candidate-row td {
   background: #e9f7ee;
 }
 
 .merge-review-table td.merge-diff-cell {
+  background: #fff0f0;
+  color: #c0392b;
+}
+
+.merge-review-table .merge-diff-part {
   background: #fff0f0;
   color: #c0392b;
 }

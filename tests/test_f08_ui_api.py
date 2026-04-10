@@ -1752,6 +1752,10 @@ class TestF08UiApi(unittest.TestCase):
             item = response["payload"]["items"][0]
             self.assertEqual(item["entry_preview"]["display_name"], "Max Mustermannn")
             self.assertEqual(item["candidate_previews"][0]["display_name"], "Max Mustermann")
+            displays = item["candidate_review_displays"]
+            self.assertEqual(len(displays), len(item["candidate_uids"]))
+            self.assertEqual(displays[0]["kind"], "participant")
+            self.assertEqual(len(displays[0]["lines"]), 1)
 
     def test_get_review_queue_includes_member_yobs_for_team_previews(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1859,6 +1863,12 @@ class TestF08UiApi(unittest.TestCase):
             item = response["payload"]["items"][0]
             self.assertEqual(item["entry_preview"]["yob"], "1987 / 1992")
             self.assertEqual(item["candidate_previews"][0]["yob"], "1980 / 1981")
+            displays = item["candidate_review_displays"]
+            self.assertEqual(len(displays), 1)
+            self.assertEqual(displays[0]["kind"], "team")
+            self.assertEqual(len(displays[0]["lines"]), 2)
+            self.assertTrue(displays[0]["lines"][0]["yob"]["diff"])
+            self.assertTrue(displays[0]["lines"][1]["yob"]["diff"])
 
     def test_get_audit_timeline_accepts_optional_year_filter(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -1449,11 +1449,15 @@
     return `${review.race_event_uid}::${review.entry_uid}`;
   }
 
-  /** Singles: "Name (year)". Couples: "Name1 (y1) / Name2 (y2)" — matches API ` / ` composite fields. */
-  function formatMergeNameYearLine(preview) {
+  function mergeCellLines(innerHtml) {
+    return `<span class="merge-cell-lines">${innerHtml}</span>`;
+  }
+
+  /** Name+YOB for merge table: singles one line; Paare two stacked lines (parity with granular candidate cells). */
+  function renderMergeNameYobStackedHtml(preview) {
     const pr = STR.preview;
     if (!preview) {
-      return pr.unknown;
+      return escapeHtml(pr.unknown);
     }
     const sep = " / ";
     const display = (preview.display_name && String(preview.display_name).trim()) || "";
@@ -1463,17 +1467,39 @@
     const yobTokens = yobJoined ? yobJoined.split(sep).map((t) => t.trim()).filter((t) => t.length) : [];
     const yFor = (i) => (yobTokens[i] != null && yobTokens[i] !== "" ? yobTokens[i] : "-");
 
-    if (nameTokens.length >= 2) {
-      return nameTokens.map((name, i) => `${name} (${yFor(i)})`).join(sep);
+    const isTeam = preview.kind === "team" || nameTokens.length >= 2;
+    if (isTeam && nameTokens.length >= 2) {
+      return nameTokens
+        .map((name, i) => `${escapeHtml(name)} (${escapeHtml(String(yFor(i)))})`)
+        .join("<br />");
     }
-    const name = nameTokens[0] || pr.unknown;
+    const name = escapeHtml(nameTokens[0] || pr.unknown);
     const y =
       yobTokens[0] || (preview.yob != null && preview.yob !== "" ? String(preview.yob) : "-");
-    return `${name} (${y})`;
+    return `${name} (${escapeHtml(String(y))})`;
   }
 
-  function mergeCellLines(innerHtml) {
-    return `<span class="merge-cell-lines">${innerHtml}</span>`;
+  /** Club column: singles one line; Paare stacked when composite uses ` / ` (matches name lines). */
+  function renderMergeClubStackedHtml(preview) {
+    if (!preview) {
+      return escapeHtml("-");
+    }
+    const sep = " / ";
+    const raw = preview.club;
+    if (raw == null || raw === "") {
+      return escapeHtml("-");
+    }
+    const s = String(raw).trim();
+    if (!s) {
+      return escapeHtml("-");
+    }
+    if (preview.kind === "team") {
+      const parts = s.split(sep).map((t) => t.trim()).filter(Boolean);
+      if (parts.length >= 2) {
+        return parts.map((p) => escapeHtml(p)).join("<br />");
+      }
+    }
+    return escapeHtml(s);
   }
 
   /** Same pattern as standings per-race cells: `x km / y P`, or em dash if no distance. */
@@ -1504,12 +1530,57 @@
     return normalizeForDiff(incomingPreview?.club) === normalizeForDiff(candidatePreview?.club) ? "" : "merge-diff-cell";
   }
 
+  function candidateReviewDisplayForRow(review, index) {
+    const list = review.candidate_review_displays;
+    if (!Array.isArray(list) || index < 0 || index >= list.length) {
+      return null;
+    }
+    return list[index] || null;
+  }
+
+  function renderMergeNameYobHtmlFromDisplay(display) {
+    if (!display || !Array.isArray(display.lines) || display.lines.length === 0) {
+      return "";
+    }
+    const lineHtmls = display.lines.map((line) => {
+      const segs = line.name_segments || [];
+      const nameInner = segs
+        .map((seg) => {
+          const inner = escapeHtml(seg.text ?? "");
+          return seg.diff ? `<span class="merge-diff-part">${inner}</span>` : inner;
+        })
+        .join("");
+      const y = line.yob || {};
+      const yInner = escapeHtml(y.text ?? "-");
+      const yHtml = y.diff ? `<span class="merge-diff-part">(${yInner})</span>` : `(${yInner})`;
+      return `${nameInner} ${yHtml}`.trim();
+    });
+    return lineHtmls.join("<br />");
+  }
+
+  function renderMergeClubHtmlFromDisplay(display) {
+    if (!display || !Array.isArray(display.lines) || display.lines.length === 0) {
+      return escapeHtml("-");
+    }
+    if (display.lines.length === 1) {
+      const c = display.lines[0].club || {};
+      const inner = escapeHtml(c.text ?? "-");
+      return c.diff ? `<span class="merge-diff-part">${inner}</span>` : inner;
+    }
+    const part = (line) => {
+      const c = line.club || {};
+      const inner = escapeHtml(c.text ?? "-");
+      return c.diff ? `<span class="merge-diff-part">${inner}</span>` : inner;
+    };
+    return `${part(display.lines[0])}<br />${part(display.lines[1])}`;
+  }
+
   function renderIncomingTableRow(preview, resultPreview, startnr) {
     const iv = STR.importView;
     return `<tr class="incoming-row merge-incoming-separator">
       <td>${mergeCellLines(escapeHtml(iv.incomingRangLabel))}</td>
-      <td>${mergeCellLines(escapeHtml(formatMergeNameYearLine(preview)))}</td>
-      <td>${mergeCellLines(escapeHtml(`${preview?.club || "-"}`))}</td>
+      <td>${mergeCellLines(renderMergeNameYobStackedHtml(preview))}</td>
+      <td>${mergeCellLines(renderMergeClubStackedHtml(preview))}</td>
       <td></td>
       <td>${mergeCellLines(escapeHtml(`${startnr || "-"}`))}</td>
       <td>${mergeCellLines(escapeHtml(formatIncomingWertung(resultPreview)))}</td>
@@ -1541,16 +1612,30 @@
           aligned && rowConfidence != null ? `${confidencePercent(rowConfidence)}%` : "-";
         const escapedLabel = escapeHtml(buttonLabel);
         const escapedAria = escapeHtml(buttonAria);
+        const reviewDisplay = candidateReviewDisplayForRow(review, index);
+        const useGranular =
+          reviewDisplay &&
+          Array.isArray(reviewDisplay.lines) &&
+          reviewDisplay.lines.length > 0 &&
+          preview;
         const nameDiff = nameDiffClass(incomingPreview, preview);
         const clubDiff = clubDiffClass(incomingPreview, preview);
-        return `<tr class="candidate-row${selectedClass}" data-candidate-row="${candidateUid}">
+        const nameCellInner = useGranular
+          ? mergeCellLines(renderMergeNameYobHtmlFromDisplay(reviewDisplay))
+          : mergeCellLines(renderMergeNameYobStackedHtml(preview));
+        const clubCellInner = useGranular
+          ? mergeCellLines(renderMergeClubHtmlFromDisplay(reviewDisplay))
+          : mergeCellLines(renderMergeClubStackedHtml(preview));
+        const nameTdClass = useGranular ? "" : nameDiff;
+        const clubTdClass = useGranular ? "" : clubDiff;
+        return `<tr class="candidate-row${selectedClass}" data-candidate-row="${candidateUid}" tabindex="0" role="button" aria-label="${escapedAria}">
           <td>${mergeCellLines(escapeHtml(String(rank)))}</td>
-          <td class="${nameDiff}">${mergeCellLines(escapeHtml(formatMergeNameYearLine(preview)))}</td>
-          <td class="${clubDiff}">${mergeCellLines(escapeHtml(`${preview?.club || "-"}`))}</td>
+          <td class="${nameTdClass}">${nameCellInner}</td>
+          <td class="${clubTdClass}">${clubCellInner}</td>
           <td>${mergeCellLines(escapeHtml(matchCell))}</td>
           <td></td>
           <td></td>
-          <td><span class="merge-cell-lines merge-cell-lines--action"><button type="button" class="secondary select-candidate-btn" data-candidate-uid="${candidateUid}" aria-label="${escapedAria}">${escapedLabel}</button></span></td>
+          <td><span class="merge-cell-lines merge-cell-lines--action"><button type="button" class="secondary select-candidate-btn" tabindex="-1" aria-hidden="true">${escapedLabel}</button></span></td>
         </tr>`;
       })
       .join("");
@@ -1973,14 +2058,22 @@
       if (!state.reviewSelections[reviewKey]) {
         state.reviewSelections[reviewKey] = getDefaultCandidateUid(review);
       }
-      for (const button of importView.querySelectorAll("button[data-candidate-uid]")) {
-        button.addEventListener("click", async () => {
-          const candidateUid = button.getAttribute("data-candidate-uid") || "";
-          if (!candidateUid) {
-            return;
+      const selectReviewCandidate = async (candidateUid) => {
+        if (!candidateUid) {
+          return;
+        }
+        state.reviewSelections[reviewKey] = candidateUid;
+        await renderImportView();
+      };
+      for (const row of importView.querySelectorAll("tr[data-candidate-row]")) {
+        row.addEventListener("click", async () => {
+          await selectReviewCandidate(row.getAttribute("data-candidate-row") || "");
+        });
+        row.addEventListener("keydown", async (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            await selectReviewCandidate(row.getAttribute("data-candidate-row") || "");
           }
-          state.reviewSelections[reviewKey] = candidateUid;
-          await renderImportView();
         });
       }
       document.getElementById("skipReviewBtn").addEventListener("click", async () => {
