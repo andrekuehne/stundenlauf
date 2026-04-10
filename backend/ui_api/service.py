@@ -24,6 +24,7 @@ class UiApiService:
         self._auto_min_setting = 1.0
         self._auto_merge_enabled = False
         self._perfect_match_auto_merge = True
+        self._strict_normalized_auto_only = True
         self.matching_config = self._build_matching_config()
 
     def _load(self):
@@ -60,6 +61,9 @@ class UiApiService:
                 matching_config=self.matching_config,
             ),
             "apply_match_decision": lambda payload: commands.apply_match_decision(self._require_active_project_file(), payload),
+            "update_participant_identity": lambda payload: commands.update_participant_identity(
+                self._require_active_project_file(), payload
+            ),
             "rollback_race": lambda payload: commands.rollback_race(self._require_active_project_file(), payload),
             "rollback_source_batch": lambda payload: commands.rollback_source_batch(
                 self._require_active_project_file(), payload
@@ -93,6 +97,7 @@ class UiApiService:
             "review_min": float(self.matching_config.review_min),
             "auto_merge_enabled": bool(self._auto_merge_enabled),
             "perfect_match_auto_merge": bool(self._perfect_match_auto_merge),
+            "strict_normalized_auto_only": bool(self._strict_normalized_auto_only),
             "effective_auto_min": float(self.matching_config.auto_min),
         }
 
@@ -100,6 +105,7 @@ class UiApiService:
         auto_min_raw = payload.get("auto_min")
         auto_merge_enabled_raw = payload.get("auto_merge_enabled", True)
         perfect_match_auto_merge_raw = payload.get("perfect_match_auto_merge", True)
+        strict_normalized_raw = payload.get("strict_normalized_auto_only", False)
 
         if auto_min_raw is None:
             raise validation_error("auto_min is required")
@@ -110,6 +116,7 @@ class UiApiService:
         self._auto_min_setting = auto_min
         self._auto_merge_enabled = bool(auto_merge_enabled_raw)
         self._perfect_match_auto_merge = bool(perfect_match_auto_merge_raw)
+        self._strict_normalized_auto_only = bool(strict_normalized_raw)
         self.matching_config = self._build_matching_config()
         return self._get_matching_config({})
 
@@ -132,6 +139,7 @@ class UiApiService:
             max_candidates_per_row=base_cfg.max_candidates_per_row,
             member_mismatch_floor=base_cfg.member_mismatch_floor,
             pair_unsafe_cap=base_cfg.pair_unsafe_cap,
+            strict_normalized_auto_only=bool(self._strict_normalized_auto_only),
         )
         return self.matching_config
 

@@ -7,9 +7,14 @@ from backend.domain.models import MatchingDecision
 from backend.matching.normalize import ParsedName
 
 
+def name_key(parsed: ParsedName) -> str:
+    """Normalized name key aligned with identity fingerprints (token order ignored)."""
+    return "|".join(sorted(parsed.tokens)) if parsed.tokens else parsed.display_compact
+
+
 def identity_fingerprint(parsed: ParsedName, yob: int, gender: Gender) -> str:
     """Stable fingerprint for replay (order-insensitive on tokens)."""
-    token_part = "|".join(sorted(parsed.tokens)) if parsed.tokens else parsed.display_compact
+    token_part = name_key(parsed)
     key = f"{token_part}|{yob}|{gender.value}"
     return hashlib.sha256(key.encode("utf-8")).hexdigest()
 

@@ -363,7 +363,7 @@ th {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space);
-  margin-top: 10px;
+  margin-top: 0;
 }
 
 .merge-review-column h4 {
@@ -380,7 +380,7 @@ th {
 }
 
 .merge-actions-row {
-  margin-top: 12px;
+  margin-bottom: 12px;
 }
 
 .import-add-layout {
@@ -493,6 +493,217 @@ th {
 
 .import-settings-panel h4 {
   margin: 0 0 10px;
+}
+
+.import-settings-panel input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.import-settings-panel .matching-mode-tabs,
+.import-settings-panel .matching-subtabs {
+  margin-bottom: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.import-settings-panel .matching-mode-tab,
+.import-settings-panel .matching-subtab {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 10px 12px;
+  min-height: 40px;
+  font-size: var(--font-small);
+}
+
+.import-settings-panel .matching-subtabs {
+  margin-top: 10px;
+}
+
+.matching-settings-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 12px 0;
+}
+
+.matching-settings-hint {
+  margin-top: 12px;
+  margin-bottom: 0;
+}
+
+.matching-threshold-group {
+  margin-top: 4px;
+}
+
+.matching-settings-grid-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px 12px;
+  align-items: center;
+  width: 100%;
+}
+
+.matching-settings-grid-row label {
+  font-size: var(--font-small);
+  color: var(--muted);
+  text-align: left;
+  justify-self: start;
+}
+
+.matching-settings-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  justify-self: end;
+}
+
+.matching-settings-controls input[type="range"] {
+  min-width: min(260px, 100%);
+  max-width: 100%;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space);
+}
+
+.modal.hidden {
+  display: none !important;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 18, 23, 0.45);
+}
+
+.modal-dialog {
+  position: relative;
+  z-index: 1;
+  width: min(520px, 100%);
+  max-height: min(90vh, 720px);
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(16, 18, 23, 0.18);
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space);
+  padding: calc(var(--space) * 1.2);
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-title {
+  margin: 0;
+  font-size: clamp(20px, 1.2vw, 26px);
+}
+
+.modal-icon-btn {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.modal-icon-btn:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.modal-body {
+  padding: calc(var(--space) * 1.2);
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.modal-footer {
+  padding: calc(var(--space) * 1.2);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space);
+}
+
+.identity-field-grid {
+  display: grid;
+  gap: 10px;
+  margin-bottom: calc(var(--space) * 1.2);
+}
+
+.identity-field-grid label {
+  font-size: var(--font-small);
+  color: var(--muted);
+}
+
+.identity-field-grid input {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: var(--font-base);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.identity-member-block {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: calc(var(--space) * 1);
+  margin-bottom: var(--space);
+  background: #fafbfd;
+}
+
+.identity-member-block h4 {
+  margin: 0 0 10px;
+  font-size: var(--font-base);
+}
+
+.identity-member-actions {
+  margin-top: 10px;
+}
+
+.standings-main-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space);
+  margin-bottom: 8px;
+}
+
+.standings-main-head h2 {
+  margin: 0;
+}
+
+.correction-mode-banner {
+  border-left: 3px solid var(--accent);
+  padding-left: 10px;
+  margin-top: 8px !important;
+}
+
+tr.standings-row--correctable {
+  cursor: pointer;
+}
+
+tr.standings-row--correctable:hover {
+  background: #e8f0ff;
 }
 
 @media (max-width: 1200px) {

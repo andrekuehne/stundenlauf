@@ -27,12 +27,15 @@ class MatchingDecision:
 
     decision_uid: str = field(default_factory=lambda: _new_uid("match_decision"))
     decided_at: str = ""
-    kind: Literal["auto", "manual_accept", "manual_reject", "manual_link", "replay"] = "auto"
+    kind: Literal[
+        "auto", "manual_accept", "manual_reject", "manual_link", "replay", "identity_correction"
+    ] = "auto"
     row_fingerprint: str = ""
     race_event_uid: str = ""
     entry_uid: str = ""
     target_participant_uid: Optional[str] = None
     target_team_uid: Optional[str] = None
+    scope_series_year: int | None = None
     rationale: str = ""
     field_resolutions: tuple[FieldResolution, ...] = ()
     feature_scores: dict[str, float] = field(default_factory=dict)

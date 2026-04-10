@@ -145,6 +145,16 @@ class TestF08UiApi(unittest.TestCase):
             self.assertGreaterEqual(len(rows), 1)
             self.assertEqual(rows[0]["display_name"], "Alex Beispiel / Sina Beispiel")
             self.assertEqual(rows[0]["yob"], "1987 / 1992")
+            members = rows[0]["team_members"]
+            self.assertEqual(len(members), 2)
+            self.assertEqual(members[0]["member"], "a")
+            self.assertEqual(members[0]["name"], "Alex Beispiel")
+            self.assertEqual(members[0]["yob"], 1987)
+            self.assertEqual(members[0]["club"], "TSV")
+            self.assertEqual(members[1]["member"], "b")
+            self.assertEqual(members[1]["name"], "Sina Beispiel")
+            self.assertEqual(members[1]["yob"], 1992)
+            self.assertEqual(members[1]["club"], "TSV")
 
     def test_list_series_years_returns_empty_without_workspace_data(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -601,6 +611,7 @@ class TestF08UiApi(unittest.TestCase):
             self.assertEqual(initial["status"], "ok")
             self.assertFalse(initial["payload"]["auto_merge_enabled"])
             self.assertTrue(initial["payload"]["perfect_match_auto_merge"])
+            self.assertTrue(initial["payload"]["strict_normalized_auto_only"])
             self.assertEqual(initial["payload"]["auto_min"], 1.0)
             self.assertEqual(initial["payload"]["effective_auto_min"], 1.0)
 
@@ -613,14 +624,33 @@ class TestF08UiApi(unittest.TestCase):
                         "auto_min": 0.94,
                         "auto_merge_enabled": True,
                         "perfect_match_auto_merge": True,
+                        "strict_normalized_auto_only": False,
                     },
                 }
             )
             self.assertEqual(updated["status"], "ok")
             self.assertTrue(updated["payload"]["auto_merge_enabled"])
             self.assertTrue(updated["payload"]["perfect_match_auto_merge"])
+            self.assertFalse(updated["payload"]["strict_normalized_auto_only"])
             self.assertEqual(updated["payload"]["auto_min"], 0.94)
             self.assertEqual(updated["payload"]["effective_auto_min"], 0.94)
+
+            strict_on = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_matching_cfg_strict",
+                    "method": "set_matching_config",
+                    "payload": {
+                        "auto_min": 0.94,
+                        "auto_merge_enabled": True,
+                        "perfect_match_auto_merge": True,
+                        "strict_normalized_auto_only": True,
+                    },
+                }
+            )
+            self.assertEqual(strict_on["status"], "ok")
+            self.assertTrue(strict_on["payload"]["strict_normalized_auto_only"])
+            self.assertTrue(service.matching_config.strict_normalized_auto_only)
 
     def test_reimport_race_rolls_back_all_events_with_same_source_hash(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1210,6 +1240,239 @@ class TestF08UiApi(unittest.TestCase):
                 }
             )
             self.assertEqual(current_year["status"], "ok")
+
+    def test_update_participant_identity_singles_updates_display_and_keeps_points(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_project(project_path)
+            service = UiApiService(project_path)
+            before = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_standings_before_id",
+                    "method": "get_standings",
+                    "payload": {"category_key": "2026:hour:men"},
+                }
+            )
+            self.assertEqual(before["status"], "ok")
+            pts = before["payload"]["rows"][0]["punkte_gesamt"]
+            self.assertEqual(before["payload"]["rows"][0]["display_name"], "Max Mustermann")
+
+            upd = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_id_update",
+                    "method": "update_participant_identity",
+                    "payload": {
+                        "series_year": 2026,
+                        "participant_uid": "participant_target",
+                        "name": "Max Mustermann Sr.",
+                        "yob": 1990,
+                        "club": "TSV",
+                    },
+                }
+            )
+            self.assertEqual(upd["status"], "ok")
+            self.assertEqual(upd["payload"]["participant_uid"], "participant_target")
+            self.assertIsNone(upd["payload"]["team_uid"])
+
+            after = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_standings_after_id",
+                    "method": "get_standings",
+                    "payload": {"category_key": "2026:hour:men"},
+                }
+            )
+            self.assertEqual(after["status"], "ok")
+            self.assertEqual(after["payload"]["rows"][0]["punkte_gesamt"], pts)
+            self.assertEqual(after["payload"]["rows"][0]["display_name"], "Max Mustermann Sr.")
+
+            loaded = JsonProjectRepository(project_path).load()
+            person = next(p for p in loaded.people if p.uid == "participant_target")
+            self.assertTrue(person.canonical_family)
+
+            state = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_state_counts",
+                    "method": "get_project_state",
+                    "payload": {"series_year": 2026},
+                }
+            )
+            self.assertEqual(state["payload"]["counts"]["matching_decisions"], 1)
+
+    def test_update_participant_identity_team_member(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.COUPLES_MIXED)
+            pa = Person(uid="pa_uid", name="Alex Beispiel", yob=1987, gender=Gender.M, club="TSV")
+            pb = Person(uid="pb_uid", name="Sina Beispiel", yob=1992, gender=Gender.F, club="TSV")
+            team = Couple(uid="team_mixed_1", member_a=pa, member_b=pb)
+            event = RaceEvent(
+                race_event_uid="race_event_couples_1",
+                category=category,
+                race_date="2026-01-05",
+                race_no=1,
+                source_file="fixture_couples.xlsx",
+                source_sha256="sha-couples",
+                imported_at="2026-01-05T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp-couples",
+                entries=(
+                    RaceEntry(
+                        entry_uid="entry_couples_1",
+                        team_uid=team.uid,
+                        startnr="1",
+                        result=EntryResult(distance_km=10.5, points=20.0),
+                    ),
+                ),
+            )
+            doc = ProjectDocument(
+                schema_version=SCHEMA_VERSION_V2,
+                people=(pa, pb),
+                couples=(team,),
+                events=(event,),
+            )
+            JsonProjectRepository(project_path).save(recompute_project_standings(doc))
+            service = UiApiService(project_path)
+
+            response = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_team_id",
+                    "method": "update_participant_identity",
+                    "payload": {
+                        "series_year": 2026,
+                        "team_uid": "team_mixed_1",
+                        "member": "a",
+                        "name": "Alexander Beispiel",
+                        "yob": 1987,
+                        "club": "TSV",
+                    },
+                }
+            )
+            self.assertEqual(response["status"], "ok")
+            self.assertEqual(response["payload"]["team_uid"], "team_mixed_1")
+
+            standings = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_team_standings",
+                    "method": "get_standings",
+                    "payload": {"category_key": "2026:hour:couples_mixed"},
+                }
+            )
+            self.assertEqual(standings["payload"]["rows"][0]["display_name"], "Alexander Beispiel / Sina Beispiel")
+
+    def test_update_participant_identity_timeline_includes_correction(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_project(project_path)
+            bridge = PywebviewApiBridge(str(project_path))
+            bridge.invoke(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_id_timeline",
+                    "method": "update_participant_identity",
+                    "payload": {
+                        "series_year": 2026,
+                        "participant_uid": "participant_target",
+                        "name": "Max Fixed",
+                        "yob": 1990,
+                        "club": "TSV",
+                    },
+                }
+            )
+            timeline = bridge.invoke(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_timeline_after_id",
+                    "method": "get_year_timeline",
+                    "payload": {"series_year": 2026},
+                }
+            )
+            self.assertEqual(timeline["status"], "ok")
+            kinds = [
+                item["kind"]
+                for item in timeline["payload"]["items"]
+                if item.get("event_type") == "matching_decision"
+            ]
+            self.assertIn("identity_correction", kinds)
+
+    def test_update_participant_identity_not_in_wrong_year_timeline(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_project(project_path)
+            service = UiApiService(project_path)
+            service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_id_wrong_year",
+                    "method": "update_participant_identity",
+                    "payload": {
+                        "series_year": 2026,
+                        "participant_uid": "participant_target",
+                        "name": "Max Other Year",
+                        "yob": 1990,
+                        "club": "TSV",
+                    },
+                }
+            )
+            timeline = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_timeline_2025",
+                    "method": "get_year_timeline",
+                    "payload": {"series_year": 2025},
+                }
+            )
+            self.assertEqual(timeline["status"], "ok")
+            for item in timeline["payload"]["items"]:
+                if item.get("event_type") == "matching_decision":
+                    self.assertNotEqual(item.get("kind"), "identity_correction")
+
+    def test_update_participant_identity_rejects_invalid_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_project(project_path)
+            service = UiApiService(project_path)
+            response = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_id_bad",
+                    "method": "update_participant_identity",
+                    "payload": {
+                        "series_year": 2026,
+                        "participant_uid": "participant_target",
+                        "name": "",
+                        "yob": 1990,
+                    },
+                }
+            )
+            self.assertEqual(response["status"], "error")
+            self.assertEqual(response["error"]["code"], "VALIDATION_ERROR")
+
+    def test_update_participant_identity_unknown_uid(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_project(project_path)
+            service = UiApiService(project_path)
+            response = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_id_missing",
+                    "method": "update_participant_identity",
+                    "payload": {
+                        "series_year": 2026,
+                        "participant_uid": "no_such_person",
+                        "name": "X",
+                        "yob": 1990,
+                    },
+                }
+            )
+            self.assertEqual(response["status"], "error")
+            self.assertEqual(response["error"]["code"], "NOT_FOUND")
 
 
 if __name__ == "__main__":

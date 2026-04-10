@@ -17,12 +17,17 @@
       prefix: "Status: ",
       defaultReady: "Bereit",
       matchingSaveFailed: "Matching-Einstellungen konnten nicht gespeichert werden.",
-      autoMergeOn: "Auto_Zusammenführung ist aktiv.",
-      autoMergeOff:
-        "Auto-Zusammenführung ist deaktiviert. Neue Importe landen bei Unsicherheit in der Prüfung.",
-      perfectAutoMergeOn: "Perfekte Treffer werden automatisch zusammengeführt.",
-      perfectAutoMergeOff: "Perfekte Treffer werden nicht mehr automatisch zusammengeführt.",
-      autoMergeThresholdUpdated: "Auto-Zusammenführung-Schwelle wurde aktualisiert.",
+      autoMergeOn: "Ab-Schwelle-Automatik aktiv: Zuordnung ab dem eingestellten Ähnlichkeitswert.",
+      autoMergeOff: "Ab-Schwelle-Automatik aus.",
+      perfectAutoMergeOn:
+        "Nur bei 100 %-Ähnlichkeit (Fuzzy-Score): automatische Zuordnung nur beim höchsten Trefferwert.",
+      perfectAutoMergeOff: "100 %-Fuzzy-Automatik aus.",
+      strictNormalizedOn:
+        "Strikt: Automatisch nur bei exakt passender normalisierter Identität (Name, Jahrgang, Verein, Geschlecht).",
+      strictNormalizedOff: "Fuzzy-Automatik gewählt – Detailstufe unten einstellbar.",
+      matchingModeManualOn:
+        "Manuell: Keine automatische Zuordnung per Ähnlichkeit; Sie entscheiden in der Prüfung.",
+      autoMergeThresholdUpdated: "Ähnlichkeitsschwelle wurde aktualisiert.",
       importIncomplete: "Bitte Datei, Lauftyp und Laufnummer vollständig wählen.",
       importRunning: "Import läuft...",
       importFailed: "Import konnte nicht abgeschlossen werden.",
@@ -128,6 +133,25 @@
       thDistanceShort: "Gesamtdistanz",
       emptyRaceRows: "Noch keine Laufdaten vorhanden",
       categoryUnavailable: "Nicht verfügbar",
+      identity: {
+        correctionOn: "Identität korrigieren",
+        correctionOff: "Korrekturmodus beenden",
+        correctionBanner:
+          "Korrekturmodus: Klicken Sie eine Zeile in der Wertungstabelle, um Name, Verein und Jahrgang zu bearbeiten.",
+        modalTitle: "Teilnehmerdaten korrigieren",
+        memberA: "Läufer A",
+        memberB: "Läufer B",
+        save: "Speichern",
+        cancel: "Schließen",
+        closeAria: "Dialog schließen",
+        successSaved: "Änderung gespeichert.",
+        excelHint:
+          "Hinweis: Die Excel-Quelle bleibt unverändert; künftige Imports können erneut prüfen, falls die Datei abweicht.",
+        errName: "Bitte einen Namen eingeben.",
+        errYob: "Bitte einen gültigen Jahrgang (Zahl) eingeben.",
+        errYobRange: (min, max) => `Jahrgang muss zwischen ${min} und ${max} liegen.`,
+        errTeamMembers: "Teammitglieder konnten nicht geladen werden.",
+      },
     },
     units: {
       kmSuffix: " km",
@@ -145,11 +169,20 @@
       raceSelectPlaceholder: "Bitte wählen…",
       importRace: "Lauf importieren",
       matchingSettings: "Matching-Einstellungen",
-      autoMerge: "Automatisches Zusammenführen",
-      perfectAutoMerge: "Perfekte Treffer automatisch",
-      autoMergeThreshold: "Auto-Zusammenführung-Schwelle",
-      matchingDefaultHint:
-        "Standard: Nur perfekte Treffer werden automatisch zusammengeführt.",
+      matchingModeStrict: "Strikt",
+      matchingModeFuzzy: "Fuzzy-Automatik",
+      matchingModeManual: "Manuell",
+      matchingFuzzySubPerfect: "Nur 100 %-Ähnlichkeit",
+      matchingFuzzySubThreshold: "Ab Schwelle",
+      matchingThresholdLabel: "Ähnlichkeit ab der automatisch zugeordnet wird",
+      matchingHintStrict:
+        "Automatische Zuordnung nur, wenn Name (normalisiert), Jahrgang, Verein und Geschlecht exakt einem bestehenden Datensatz entsprechen und genau ein Treffer möglich ist. Kein stiller Fuzzy-Auto-Merge.",
+      matchingHintFuzzyPerfect:
+        "Automatische Zuordnung nur, wenn der Fuzzy-Ähnlichkeitswert den höchsten Wert (100 %) erreicht – unabhängig von Tippfehlern in der Anzeige, aber nach Gewichtung und Normierung des Systems.",
+      matchingHintFuzzyThreshold:
+        "Automatische Zuordnung ab dem eingestellten Mindest-Ähnlichkeitswert. Darunter bleiben Einträge in der Prüfung oder werden als neue Person geführt.",
+      matchingHintManual:
+        "Keine automatische Zuordnung über Ähnlichkeit: alle unsicheren Fälle landen in der Prüfung.",
       reviewTitle: "Zusammenführungen prüfen",
       noOpenReviews: "Keine offenen Prüfungen.",
       reviewProgress: (current, total) => `Prüfung ${current} von ${total}`,

@@ -40,8 +40,8 @@ Checkboxes mark **product-level** satisfaction. Capabilities delivered only via 
 ## Current Phase
 
 - Phase: Backend stack F01–F04, validation tooling F06/F07, API layer F08, and desktop GUI F05 are shipped; current focus is hardening for first production use.
-- Planning status: Feature plans `F01`–`F08` are implemented; continue KPI-grounded hardening, usability validation with organizers, and fixture coverage expansion.
-- Delivery status: **F01** domain/storage; **F02** Excel ingestion, merge, CLI import; **F03** matching pipeline, audit, and decision replay; **F04** standings (`v1_legacy_top4`) on import and rollback; **F06** sequential fixture import + standings export; **F07** organizer-vs-project comparison workbooks; **F08** versioned Python frontend API layer (`backend/ui_api`, `docs/api/ui-api-v1.md`, pywebview bridge + tests) with additive year-level workspace methods; **F05** German reactive pywebview frontend (`frontend/`) including season entry/open/create workflow, standings tables, import/review flow, and history rollback UX.
+- Planning status: Feature plans `F01`–`F11` are implemented; continue KPI-grounded hardening, usability validation with organizers, and fixture coverage expansion.
+- Delivery status: **F01** domain/storage; **F02** Excel ingestion, merge, CLI import; **F03** matching pipeline, audit, and decision replay; **F04** standings (`v1_legacy_top4`) on import and rollback; **F06** sequential fixture import + standings export; **F07** organizer-vs-project comparison workbooks; **F08** versioned Python frontend API layer (`backend/ui_api`, `docs/api/ui-api-v1.md`, pywebview bridge + tests) with additive year-level workspace methods; **F09** canonical identity correction (`update_participant_identity`, audit `identity_correction` + `scope_series_year`, timeline/count fixes); **F05** German reactive pywebview frontend (`frontend/`) including season entry/open/create workflow, standings tables, import/review flow, and history rollback UX; **F10** standings-driven identity correction modal (`get_standings.team_members`, correction mode + `update_participant_identity` from **Aktuelle Wertung**); **F11** strict normalized auto-match (`strict_normalized_auto_only`, full scan + fuzzy-auto downgrade, Import GUI checkbox).
 - Immediate next step: Run focused UAT with non-technical end users, tune copy/contrast/interaction friction, and broaden automated GUI contract coverage around real fixture datasets.
 
 ## Success Metrics (KPIs)
@@ -80,6 +80,9 @@ Checkboxes mark **product-level** satisfaction. Capabilities delivered only via 
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-04-09 | Shipped F11 strict normalized auto-match | Session flag + matcher path for auto only on exact normalized identity; Import GUI option disables fuzzy auto controls while active |
+| 2026-04-09 | Shipped F10 standings identity correction GUI | German correction mode and modal on **Aktuelle Wertung**; `get_standings` team rows include `team_members` for stacked Läufer A/B forms |
+| 2026-04-09 | Shipped F09 canonical identity correction | UI API + domain mutation to fix canonical name/club/YOB from standings context with year-scoped audit |
 | 2026-04-08 | Added F07 Gesamtwertung ground-truth comparison | Excel report comparing organizer totals to merged project standings; documented CLI |
 | 2026-04-07 | Replaced placeholders with v1 project plan | Captured domain, milestones, and measurable goals |
 | 2026-04-08 | Marked feature planning as implementation-ready | Reflected completed detailed plans for F01-F05 and transition to build stage |

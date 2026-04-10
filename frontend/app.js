@@ -36,6 +36,16 @@
 
   applyShellChrome();
 
+  function applyIdentityModalChrome() {
+    const id = STR.standings.identity;
+    if (identityModalCancel) {
+      identityModalCancel.textContent = id.cancel;
+    }
+    if (identityModalClose) {
+      identityModalClose.setAttribute("aria-label", id.closeAria);
+    }
+  }
+
   const state = {
     seriesYear: null,
     categories: [],
@@ -49,13 +59,17 @@
       auto_min: 1.0,
       auto_merge_enabled: false,
       perfect_match_auto_merge: true,
+      strict_normalized_auto_only: true,
     },
     importFilePath: "",
     importSourceType: "",
     importRaceNo: null,
+    standingsCorrectionMode: false,
   };
 
   let requestCounter = 0;
+  let lastStandingsRows = [];
+  let identityModalRow = null;
 
   const seasonEntryView = document.getElementById("seasonEntryView");
   const shellView = document.getElementById("shellView");
@@ -66,6 +80,13 @@
   const standingsView = document.getElementById("viewStandings");
   const importView = document.getElementById("viewImport");
   const historyView = document.getElementById("viewHistory");
+  const identityCorrectionModal = document.getElementById("identityCorrectionModal");
+  const identityModalTitle = document.getElementById("identityModalTitle");
+  const identityModalBody = document.getElementById("identityModalBody");
+  const identityModalCancel = document.getElementById("identityModalCancel");
+  const identityModalClose = document.getElementById("identityModalClose");
+
+  applyIdentityModalChrome();
 
   const tabs = Array.from(document.querySelectorAll(".tab[data-view]"));
   setStatus("", false);
@@ -142,14 +163,16 @@
       auto_min: Number(response.payload.auto_min || 1.0),
       auto_merge_enabled: Boolean(response.payload.auto_merge_enabled),
       perfect_match_auto_merge: Boolean(response.payload.perfect_match_auto_merge),
+      strict_normalized_auto_only: Boolean(response.payload.strict_normalized_auto_only),
     };
   }
 
-  async function saveMatchingConfig(autoMin, autoMergeEnabled, perfectMatchAutoMerge) {
+  async function saveMatchingConfig(autoMin, autoMergeEnabled, perfectMatchAutoMerge, strictNormalizedAutoOnly) {
     const response = await api("set_matching_config", {
       auto_min: autoMin,
       auto_merge_enabled: autoMergeEnabled,
       perfect_match_auto_merge: perfectMatchAutoMerge,
+      strict_normalized_auto_only: Boolean(strictNormalizedAutoOnly),
     });
     if (response.status !== "ok") {
       setStatus(STR.status.matchingSaveFailed, true);
@@ -159,6 +182,7 @@
       auto_min: Number(response.payload.auto_min || autoMin),
       auto_merge_enabled: Boolean(response.payload.auto_merge_enabled),
       perfect_match_auto_merge: Boolean(response.payload.perfect_match_auto_merge),
+      strict_normalized_auto_only: Boolean(response.payload.strict_normalized_auto_only),
     };
     return true;
   }
@@ -278,6 +302,7 @@
 
   async function showSeasonEntry() {
     const se = STR.seasonEntry;
+    closeIdentityModal();
     shellView.classList.add("hidden");
     seasonEntryView.classList.remove("hidden");
     headerContext.classList.add("hidden");
@@ -319,6 +344,8 @@
     if (seasonChanged) {
       state.selectedCategory = "";
       resetImportDraft();
+      state.standingsCorrectionMode = false;
+      closeIdentityModal();
     }
     seasonLabel.textContent = FMT.seasonLabel(year);
     await loadMatchingConfig();
@@ -505,6 +532,7 @@
 
   async function renderStandingsView() {
     const st = STR.standings;
+    const sid = st.identity;
     const importedRaceInfo = buildImportedRaceInfo();
     const quickSelectModel = buildCategoryQuickSelectModel();
     const renderQuickGrid = (groupKey) =>
@@ -559,11 +587,16 @@
       return;
     }
 
-    const standingsRows = (standingsResponse.payload.rows || [])
-      .map(
-        (row) =>
-          `<tr><td>${row.platz}</td><td>${row.display_name}</td><td>${row.yob || "-"}</td><td>${row.club || "-"}</td><td>${row.distanz_gesamt}</td><td>${row.punkte_gesamt}</td></tr>`
-      )
+    const rawStandingsRows = standingsResponse.payload.rows || [];
+    lastStandingsRows = rawStandingsRows;
+    const standingsRows = rawStandingsRows
+      .map((row, idx) => {
+        const rowCells = `<td>${row.platz}</td><td>${row.display_name}</td><td>${row.yob || "-"}</td><td>${row.club || "-"}</td><td>${row.distanz_gesamt}</td><td>${row.punkte_gesamt}</td>`;
+        if (state.standingsCorrectionMode) {
+          return `<tr class="standings-row--correctable" data-row-index="${idx}">${rowCells}</tr>`;
+        }
+        return `<tr>${rowCells}</tr>`;
+      })
       .join("");
 
     const resultHeaders = (resultsResponse.payload.meta.race_headers || []).map((item) => `<th>${item}</th>`).join("");
@@ -598,9 +631,15 @@
         </aside>
         <div class="standings-content">
           <div class="card">
-            <h2>${st.titleCurrent}</h2>
+            <div class="standings-main-head">
+              <h2>${st.titleCurrent}</h2>
+              <button type="button" class="secondary" data-correction-toggle>${
+                state.standingsCorrectionMode ? sid.correctionOff : sid.correctionOn
+              }</button>
+            </div>
             <p class="hint">${st.selectedCategory(quickSelectModel.selectedCategoryLabel || "-")}</p>
             <p class="hint">${st.rulesHint}</p>
+            ${state.standingsCorrectionMode ? `<p class="hint correction-mode-banner">${sid.correctionBanner}</p>` : ""}
             <div class="table-wrap">
               <table>
                 <thead><tr><th>${st.thPlatz}</th><th>${st.thName}</th><th>${st.thYob}</th><th>${st.thClub}</th><th>${st.thDistanceTotal}</th><th>${st.thPointsTotal}</th></tr></thead>
@@ -631,6 +670,239 @@
       });
     }
   }
+
+  function escapeHtml(text) {
+    const s = text == null ? "" : String(text);
+    return s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function identityYobBounds() {
+    const maxYear = new Date().getUTCFullYear() + 1;
+    return { min: 1900, max: maxYear };
+  }
+
+  function closeIdentityModal() {
+    identityModalRow = null;
+    if (identityModalBody) {
+      identityModalBody.innerHTML = "";
+    }
+    if (identityCorrectionModal) {
+      identityCorrectionModal.classList.add("hidden");
+      identityCorrectionModal.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  function clearIdentityModalInlineError() {
+    const el = document.getElementById("identityModalInlineError");
+    if (el) {
+      el.textContent = "";
+      el.classList.add("hidden");
+    }
+  }
+
+  function showIdentityModalInlineError(message) {
+    const el = document.getElementById("identityModalInlineError");
+    if (el) {
+      el.textContent = message;
+      el.classList.remove("hidden");
+    }
+  }
+
+  function buildIdentityModalBodyHtml(row) {
+    const st = STR.standings;
+    const id = st.identity;
+    const bounds = identityYobBounds();
+    const hint = `<p class="hint">${id.excelHint}</p>`;
+    const err = `<p id="identityModalInlineError" class="danger-text hidden"></p>`;
+
+    if (row.entity_kind === "participant") {
+      const y = row.yob;
+      const yDisplay = typeof y === "number" && y >= bounds.min ? String(y) : "";
+      return `${hint}${err}
+        <div class="identity-field-grid">
+          <div><label for="identityInName">${st.thName}</label><input id="identityInName" type="text" value="${escapeHtml(row.display_name || "")}" autocomplete="off" /></div>
+          <div><label for="identityInClub">${st.thClub}</label><input id="identityInClub" type="text" value="${escapeHtml(row.club == null ? "" : row.club)}" autocomplete="off" /></div>
+          <div><label for="identityInYob">${st.thYob}</label><input id="identityInYob" type="number" min="${bounds.min}" max="${bounds.max}" step="1" value="${escapeHtml(yDisplay)}" /></div>
+        </div>
+        <div class="identity-member-actions"><button type="button" class="primary" id="identityBtnSaveSingle">${id.save}</button></div>`;
+    }
+
+    const members = row.team_members;
+    if (!members || members.length < 2) {
+      return `${hint}${err}<p class="danger-text">${id.errTeamMembers}</p>`;
+    }
+    const mA = members.find((m) => m.member === "a") || members[0];
+    const mB = members.find((m) => m.member === "b") || members[1];
+
+    function memberHtml(memberKey, label, m) {
+      const yDisplay = typeof m.yob === "number" && m.yob >= bounds.min ? String(m.yob) : "";
+      return `<div class="identity-member-block">
+        <h4>${label}</h4>
+        <div class="identity-field-grid">
+          <div><label for="identityInName_${memberKey}">${st.thName}</label><input id="identityInName_${memberKey}" type="text" value="${escapeHtml(m.name || "")}" autocomplete="off" /></div>
+          <div><label for="identityInClub_${memberKey}">${st.thClub}</label><input id="identityInClub_${memberKey}" type="text" value="${escapeHtml(m.club == null ? "" : m.club)}" autocomplete="off" /></div>
+          <div><label for="identityInYob_${memberKey}">${st.thYob}</label><input id="identityInYob_${memberKey}" type="number" min="${bounds.min}" max="${bounds.max}" step="1" value="${escapeHtml(yDisplay)}" /></div>
+        </div>
+        <div class="identity-member-actions"><button type="button" class="primary" id="identityBtnSaveTeam_${memberKey}">${id.save}</button></div>
+      </div>`;
+    }
+
+    return `${hint}${err}${memberHtml("a", id.memberA, mA)}${memberHtml("b", id.memberB, mB)}`;
+  }
+
+  function openIdentityModal(row) {
+    const id = STR.standings.identity;
+    if (!identityModalTitle || !identityModalBody || !identityCorrectionModal) {
+      return;
+    }
+    identityModalRow = row;
+    identityModalTitle.textContent = id.modalTitle;
+    identityModalBody.innerHTML = buildIdentityModalBodyHtml(row);
+    identityCorrectionModal.classList.remove("hidden");
+    identityCorrectionModal.setAttribute("aria-hidden", "false");
+
+    const singleBtn = document.getElementById("identityBtnSaveSingle");
+    if (singleBtn) {
+      singleBtn.addEventListener("click", () => void saveIdentityParticipant());
+    }
+    for (const key of ["a", "b"]) {
+      const btn = document.getElementById(`identityBtnSaveTeam_${key}`);
+      if (btn) {
+        btn.addEventListener("click", () => void saveIdentityTeamMember(key));
+      }
+    }
+  }
+
+  async function saveIdentityParticipant() {
+    const id = STR.standings.identity;
+    clearIdentityModalInlineError();
+    const bounds = identityYobBounds();
+    const nameEl = document.getElementById("identityInName");
+    const clubEl = document.getElementById("identityInClub");
+    const yobEl = document.getElementById("identityInYob");
+    const name = (nameEl && nameEl.value.trim()) || "";
+    const clubVal = (clubEl && clubEl.value.trim()) || "";
+    const yobRaw = (yobEl && yobEl.value.trim()) || "";
+    if (!name) {
+      showIdentityModalInlineError(id.errName);
+      return;
+    }
+    const yob = parseInt(yobRaw, 10);
+    if (!Number.isFinite(yob)) {
+      showIdentityModalInlineError(id.errYob);
+      return;
+    }
+    if (yob < bounds.min || yob > bounds.max) {
+      showIdentityModalInlineError(id.errYobRange(bounds.min, bounds.max));
+      return;
+    }
+    const row = identityModalRow;
+    if (!row || row.entity_kind !== "participant") {
+      return;
+    }
+    const response = await api("update_participant_identity", {
+      series_year: state.seriesYear,
+      participant_uid: row.entity_uid,
+      name,
+      yob,
+      club: clubVal,
+    });
+    if (response.status === "error") {
+      showIdentityModalInlineError(getApiErrorMessage(response.error, STR.errors.desktopApiUnavailable));
+      return;
+    }
+    closeIdentityModal();
+    setStatus(id.successSaved, false);
+    await renderStandingsView();
+  }
+
+  async function saveIdentityTeamMember(member) {
+    const id = STR.standings.identity;
+    clearIdentityModalInlineError();
+    const bounds = identityYobBounds();
+    const nameEl = document.getElementById(`identityInName_${member}`);
+    const clubEl = document.getElementById(`identityInClub_${member}`);
+    const yobEl = document.getElementById(`identityInYob_${member}`);
+    const name = (nameEl && nameEl.value.trim()) || "";
+    const clubVal = (clubEl && clubEl.value.trim()) || "";
+    const yobRaw = (yobEl && yobEl.value.trim()) || "";
+    if (!name) {
+      showIdentityModalInlineError(id.errName);
+      return;
+    }
+    const yob = parseInt(yobRaw, 10);
+    if (!Number.isFinite(yob)) {
+      showIdentityModalInlineError(id.errYob);
+      return;
+    }
+    if (yob < bounds.min || yob > bounds.max) {
+      showIdentityModalInlineError(id.errYobRange(bounds.min, bounds.max));
+      return;
+    }
+    const row = identityModalRow;
+    if (!row || row.entity_kind !== "team") {
+      return;
+    }
+    const response = await api("update_participant_identity", {
+      series_year: state.seriesYear,
+      team_uid: row.entity_uid,
+      member,
+      name,
+      yob,
+      club: clubVal,
+    });
+    if (response.status === "error") {
+      showIdentityModalInlineError(getApiErrorMessage(response.error, STR.errors.desktopApiUnavailable));
+      return;
+    }
+    closeIdentityModal();
+    setStatus(id.successSaved, false);
+    await renderStandingsView();
+  }
+
+  if (identityModalCancel) {
+    identityModalCancel.addEventListener("click", () => closeIdentityModal());
+  }
+  if (identityModalClose) {
+    identityModalClose.addEventListener("click", () => closeIdentityModal());
+  }
+  if (identityCorrectionModal) {
+    identityCorrectionModal.querySelectorAll("[data-modal-dismiss]").forEach((el) => {
+      el.addEventListener("click", () => closeIdentityModal());
+    });
+  }
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key !== "Escape") {
+      return;
+    }
+    if (identityCorrectionModal && !identityCorrectionModal.classList.contains("hidden")) {
+      closeIdentityModal();
+    }
+  });
+
+  standingsView.addEventListener("click", async (ev) => {
+    const toggle = ev.target.closest("[data-correction-toggle]");
+    if (toggle) {
+      ev.preventDefault();
+      state.standingsCorrectionMode = !state.standingsCorrectionMode;
+      await renderStandingsView();
+      return;
+    }
+    const tr = ev.target.closest("tr[data-row-index]");
+    if (!tr || !state.standingsCorrectionMode) {
+      return;
+    }
+    const idx = parseInt(tr.getAttribute("data-row-index"), 10);
+    if (!Number.isFinite(idx) || idx < 0 || idx >= lastStandingsRows.length) {
+      return;
+    }
+    ev.preventDefault();
+    openIdentityModal(lastStandingsRows[idx]);
+  });
 
   function resetImportDraft() {
     state.importFilePath = "";
@@ -815,6 +1087,20 @@
     const autoMinValue = clampAutoMin(state.matchingConfig.auto_min);
     const autoMergeEnabled = Boolean(state.matchingConfig.auto_merge_enabled);
     const perfectMatchAutoMerge = Boolean(state.matchingConfig.perfect_match_auto_merge);
+    const strictNormalizedOnly = Boolean(state.matchingConfig.strict_normalized_auto_only);
+    const primaryManual =
+      !strictNormalizedOnly && !autoMergeEnabled && !perfectMatchAutoMerge;
+    const primaryFuzzy =
+      !strictNormalizedOnly && !primaryManual;
+    const fuzzySubThreshold = primaryFuzzy && autoMergeEnabled;
+    const fuzzySubPerfect = primaryFuzzy && !autoMergeEnabled;
+    const matchingHint = strictNormalizedOnly
+      ? iv.matchingHintStrict
+      : primaryManual
+        ? iv.matchingHintManual
+        : fuzzySubThreshold
+          ? iv.matchingHintFuzzyThreshold
+          : iv.matchingHintFuzzyPerfect;
     const importBasename = basenameFromPath(state.importFilePath);
     const singlesActive = state.importSourceType === "singles" ? " import-type-btn-active" : "";
     const couplesActive = state.importSourceType === "couples" ? " import-type-btn-active" : "";
@@ -856,20 +1142,35 @@
           </div>
           <div class="import-settings-panel">
             <h4>${iv.matchingSettings}</h4>
-            <div class="row">
-              <label for="autoMergeEnabledInput">${iv.autoMerge}</label>
-              <input id="autoMergeEnabledInput" type="checkbox" ${autoMergeEnabled ? "checked" : ""} />
+            <div class="tabs matching-mode-tabs" role="tablist" aria-label="${iv.matchingSettings}">
+              <button type="button" class="tab matching-mode-tab${strictNormalizedOnly ? " active" : ""}" data-matching-primary="strict" role="tab" aria-selected="${strictNormalizedOnly}">${iv.matchingModeStrict}</button>
+              <button type="button" class="tab matching-mode-tab${primaryFuzzy ? " active" : ""}" data-matching-primary="fuzzy" role="tab" aria-selected="${primaryFuzzy}">${iv.matchingModeFuzzy}</button>
+              <button type="button" class="tab matching-mode-tab${primaryManual ? " active" : ""}" data-matching-primary="manual" role="tab" aria-selected="${primaryManual}">${iv.matchingModeManual}</button>
             </div>
-            <div class="row">
-              <label for="perfectAutoMergeInput">${iv.perfectAutoMerge}</label>
-              <input id="perfectAutoMergeInput" type="checkbox" ${perfectMatchAutoMerge ? "checked" : ""} />
+            <hr class="matching-settings-divider" />
+            ${
+              primaryFuzzy
+                ? `<div class="tabs matching-subtabs" role="tablist" aria-label="${iv.matchingModeFuzzy}">
+              <button type="button" class="tab matching-subtab${fuzzySubPerfect ? " active" : ""}" data-matching-fuzzy-sub="perfect" role="tab" aria-selected="${fuzzySubPerfect}">${iv.matchingFuzzySubPerfect}</button>
+              <button type="button" class="tab matching-subtab${fuzzySubThreshold ? " active" : ""}" data-matching-fuzzy-sub="threshold" role="tab" aria-selected="${fuzzySubThreshold}">${iv.matchingFuzzySubThreshold}</button>
             </div>
-            <div class="row">
-              <label for="autoMergeThresholdRange">${iv.autoMergeThreshold}</label>
-              <input id="autoMergeThresholdRange" type="range" min="0.00" max="1.00" step="0.01" value="${autoMinValue.toFixed(2)}" />
-              <input id="autoMergeThresholdInput" type="number" min="0.00" max="1.00" step="0.01" value="${autoMinValue.toFixed(2)}" />
-            </div>
-            <p class="hint">${iv.matchingDefaultHint}</p>
+            ${
+              fuzzySubThreshold
+                ? `<hr class="matching-settings-divider" />
+            <div class="matching-threshold-group">
+              <div class="matching-settings-grid-row">
+                <label for="autoMergeThresholdRange">${iv.matchingThresholdLabel}</label>
+                <div class="matching-settings-controls">
+                  <input id="autoMergeThresholdRange" type="range" min="0.00" max="1.00" step="0.01" value="${autoMinValue.toFixed(2)}" />
+                  <input id="autoMergeThresholdInput" type="number" min="0.00" max="1.00" step="0.01" value="${autoMinValue.toFixed(2)}" />
+                </div>
+              </div>
+            </div>`
+                : ""
+            }`
+                : ""
+            }
+            <p class="hint matching-settings-hint">${matchingHint}</p>
           </div>
         </aside>
         <section class="card import-review-column">
@@ -881,6 +1182,12 @@
                <p class="hint">${iv.reviewHintLeftRight}</p>
                <p class="hint">${iv.reviewHintNoMatch}</p>
                <p class="hint">${FMT.reviewConfidenceHtml(confidenceLabel(review.confidence), confidencePct)}</p>
+               <p class="hint">${iv.mergeHint}</p>
+               <div class="row merge-actions-row">
+                 <button id="acceptReviewBtn" class="primary">${iv.mergeAccept}</button>
+                 <button id="newIdentityReviewBtn" class="secondary">${iv.mergeNewIdentity}</button>
+                 <button id="skipReviewBtn" class="secondary">${iv.skipReview}</button>
+               </div>
                <div class="merge-review-layout">
                  <section class="merge-review-column">
                    <h4>${iv.incomingHeading}</h4>
@@ -903,61 +1210,146 @@
                      </table>
                    </div>
                  </section>
-               </div>
-               <p class="hint">${iv.mergeHint}</p>
-               <div class="row merge-actions-row">
-                 <button id="acceptReviewBtn" class="primary">${iv.mergeAccept}</button>
-                 <button id="newIdentityReviewBtn" class="secondary">${iv.mergeNewIdentity}</button>
-                 <button id="skipReviewBtn" class="secondary">${iv.skipReview}</button>
                </div>`
         }
         </section>
       </div>
     `;
-    const autoMergeEnabledInput = document.getElementById("autoMergeEnabledInput");
-    const perfectAutoMergeInput = document.getElementById("perfectAutoMergeInput");
+    const readThresholdFromDom = () => {
+      const input = document.getElementById("autoMergeThresholdInput");
+      if (input) {
+        return clampAutoMin(input.value);
+      }
+      return clampAutoMin(state.matchingConfig.auto_min);
+    };
+
+    const applyMatchingPrimaryMode = async (mode) => {
+      const threshold = readThresholdFromDom();
+      let strict;
+      let auto;
+      let perfect;
+      if (mode === "strict") {
+        strict = true;
+        auto = state.matchingConfig.auto_merge_enabled;
+        perfect = state.matchingConfig.perfect_match_auto_merge;
+      } else if (mode === "manual") {
+        strict = false;
+        auto = false;
+        perfect = false;
+      } else {
+        strict = false;
+        if (!state.matchingConfig.auto_merge_enabled && !state.matchingConfig.perfect_match_auto_merge) {
+          auto = false;
+          perfect = true;
+        } else {
+          auto = state.matchingConfig.auto_merge_enabled;
+          perfect = state.matchingConfig.perfect_match_auto_merge;
+        }
+      }
+      const unchanged =
+        Boolean(state.matchingConfig.strict_normalized_auto_only) === strict &&
+        Boolean(state.matchingConfig.auto_merge_enabled) === auto &&
+        Boolean(state.matchingConfig.perfect_match_auto_merge) === perfect;
+      if (unchanged) {
+        return;
+      }
+      const ok = await saveMatchingConfig(threshold, auto, perfect, strict);
+      if (!ok) {
+        return;
+      }
+      if (mode === "strict") {
+        setStatus(STR.status.strictNormalizedOn);
+      } else if (mode === "manual") {
+        setStatus(STR.status.matchingModeManualOn);
+      } else if (auto) {
+        setStatus(STR.status.autoMergeOn);
+      } else {
+        setStatus(STR.status.perfectAutoMergeOn);
+      }
+      await renderImportView();
+    };
+
+    for (const btn of document.querySelectorAll("[data-matching-primary]")) {
+      btn.addEventListener("click", () => {
+        applyMatchingPrimaryMode(btn.getAttribute("data-matching-primary"));
+      });
+    }
+
+    for (const btn of document.querySelectorAll("[data-matching-fuzzy-sub]")) {
+      btn.addEventListener("click", async () => {
+        const sub = btn.getAttribute("data-matching-fuzzy-sub");
+        const threshold = readThresholdFromDom();
+        let auto;
+        let perfect;
+        if (sub === "perfect") {
+          auto = false;
+          perfect = true;
+        } else {
+          auto = true;
+          perfect = state.matchingConfig.perfect_match_auto_merge;
+        }
+        const unchanged =
+          !state.matchingConfig.strict_normalized_auto_only &&
+          Boolean(state.matchingConfig.auto_merge_enabled) === auto &&
+          Boolean(state.matchingConfig.perfect_match_auto_merge) === perfect;
+        if (unchanged) {
+          return;
+        }
+        const ok = await saveMatchingConfig(threshold, auto, perfect, false);
+        if (!ok) {
+          return;
+        }
+        if (auto) {
+          setStatus(STR.status.autoMergeOn);
+        } else {
+          setStatus(STR.status.perfectAutoMergeOn);
+        }
+        await renderImportView();
+      });
+    }
+
     const autoMergeThresholdRange = document.getElementById("autoMergeThresholdRange");
     const autoMergeThresholdInput = document.getElementById("autoMergeThresholdInput");
-    const syncThresholdInputs = (nextValue) => {
-      const clamped = clampAutoMin(nextValue);
-      autoMergeThresholdRange.value = clamped.toFixed(2);
-      autoMergeThresholdInput.value = clamped.toFixed(2);
-      return clamped;
-    };
-    autoMergeThresholdRange.addEventListener("input", () => {
-      syncThresholdInputs(autoMergeThresholdRange.value);
-    });
-    autoMergeThresholdInput.addEventListener("change", () => {
-      syncThresholdInputs(autoMergeThresholdInput.value);
-    });
-    autoMergeEnabledInput.addEventListener("change", async () => {
-      const threshold = syncThresholdInputs(autoMergeThresholdInput.value);
-      const ok = await saveMatchingConfig(threshold, autoMergeEnabledInput.checked, perfectAutoMergeInput.checked);
-      if (ok) {
-        setStatus(
-          autoMergeEnabledInput.checked
-            ? STR.status.autoMergeOn
-            : STR.status.autoMergeOff
-        );
-      }
-    });
-    perfectAutoMergeInput.addEventListener("change", async () => {
-      const threshold = syncThresholdInputs(autoMergeThresholdInput.value);
-      const ok = await saveMatchingConfig(threshold, autoMergeEnabledInput.checked, perfectAutoMergeInput.checked);
-      if (ok) {
-        setStatus(
-          perfectAutoMergeInput.checked
-            ? STR.status.perfectAutoMergeOn
-            : STR.status.perfectAutoMergeOff
-        );
-      }
-    });
-    autoMergeThresholdInput.addEventListener("blur", async () => {
-      const threshold = syncThresholdInputs(autoMergeThresholdInput.value);
-      if (await saveMatchingConfig(threshold, autoMergeEnabledInput.checked, perfectAutoMergeInput.checked)) {
-        setStatus(STR.status.autoMergeThresholdUpdated);
-      }
-    });
+    if (autoMergeThresholdRange && autoMergeThresholdInput) {
+      const syncThresholdInputs = (nextValue) => {
+        const clamped = clampAutoMin(nextValue);
+        autoMergeThresholdRange.value = clamped.toFixed(2);
+        autoMergeThresholdInput.value = clamped.toFixed(2);
+        return clamped;
+      };
+      autoMergeThresholdRange.addEventListener("input", () => {
+        syncThresholdInputs(autoMergeThresholdRange.value);
+      });
+      autoMergeThresholdInput.addEventListener("change", () => {
+        syncThresholdInputs(autoMergeThresholdInput.value);
+      });
+      autoMergeThresholdRange.addEventListener("change", async () => {
+        const threshold = syncThresholdInputs(autoMergeThresholdRange.value);
+        if (
+          await saveMatchingConfig(
+            threshold,
+            true,
+            state.matchingConfig.perfect_match_auto_merge,
+            false
+          )
+        ) {
+          setStatus(STR.status.autoMergeThresholdUpdated);
+        }
+      });
+      autoMergeThresholdInput.addEventListener("blur", async () => {
+        const threshold = syncThresholdInputs(autoMergeThresholdInput.value);
+        if (
+          await saveMatchingConfig(
+            threshold,
+            true,
+            state.matchingConfig.perfect_match_auto_merge,
+            false
+          )
+        ) {
+          setStatus(STR.status.autoMergeThresholdUpdated);
+        }
+      });
+    }
     document.getElementById("sourceTypeSinglesBtn").addEventListener("click", async () => {
       state.importSourceType = "singles";
       await renderImportView();

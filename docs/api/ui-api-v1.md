@@ -55,21 +55,24 @@ This document defines the frontend-facing Python API contract for the pywebview 
 
 ### `get_matching_config`
 - Payload: none
-- Returns current matching configuration for the active UI session:
+- Returns current matching configuration for the active UI session (a new `UiApiService` session defaults to `strict_normalized_auto_only=true` for safer imports; the desktop Import view uses the same default before the first API round-trip):
   - `auto_min` (configured auto-link threshold from UI control)
   - `review_min`
   - `auto_merge_enabled`
   - `perfect_match_auto_merge`
-  - `effective_auto_min` (actual threshold used for import matching)
+  - `strict_normalized_auto_only` (boolean; when `true`, see below)
+  - `effective_auto_min` (actual threshold used for import fuzzy thresholding)
 
 ### `set_matching_config`
 - Payload:
   - `auto_min` (required, 0.0..1.0 from UI control)
   - `auto_merge_enabled` (optional, default `true`)
   - `perfect_match_auto_merge` (optional, default `true`)
+  - `strict_normalized_auto_only` (optional, default `false`)
 - Updates matching configuration for subsequent imports in the active UI session.
-- If `auto_merge_enabled=false` and `perfect_match_auto_merge=true`, only perfect matches (1.0) auto-link.
+- If `auto_merge_enabled=false` and `perfect_match_auto_merge=true`, only fuzzy scores `>= 1.0` (after weighting and clamping) can auto-link.
 - If both are false, auto-linking is effectively disabled (internal threshold is set above 1.0).
+- If `strict_normalized_auto_only=true`, **automatic** linking only occurs when the incoming row matches exactly one existing participant/team on **normalized** name (same parsing as fingerprints), YOB, gender, and normalized club; fuzzy similarity never produces auto by itself (it only affects review vs new identity). Multiple identical normalized hits go to review. The `auto_merge_enabled` / `perfect_match_auto_merge` / `auto_min` sliders do not change that strict-auto rule; `effective_auto_min` still applies to fuzzy routing for non-strict matches (review vs new identity).
 
 ### `get_project_state`
 - Payload:
@@ -79,7 +82,11 @@ This document defines the frontend-facing Python API contract for the pywebview 
 ### `get_standings`
 - Payload:
   - `category_key` (required)
-- Returns standings metadata (`ruleset_version`, `calculated_at`) and rows (`platz`, `display_name`, `punkte_gesamt`, `distanz_gesamt`, UID fields).
+- Returns standings metadata (`ruleset_version`, `calculated_at`, `category_key`) and `rows[]` with:
+  - `platz`, `entity_kind` (`participant` | `team`), `entity_uid`
+  - `display_name`, `yob`, `club` (for teams, composite strings with `" / "` between members where applicable)
+  - `punkte_gesamt`, `distanz_gesamt`, `contribution_by_race` (map of `race_event_uid` → counts toward total)
+  - `team_members` (only when `entity_kind` is `team`): `[{ "member": "a"|"b", "name", "yob", "club" }]` — per-member canonical fields for identity correction UIs (`club` is `""` when unset).
 
 ### `get_category_current_results_table`
 - Payload:
@@ -163,6 +170,20 @@ This document defines the frontend-facing Python API contract for the pywebview 
   - `rationale` (optional)
   - `field_resolutions[]` (optional)
 - Returns decision result (`decision_uid`, target UID, status).
+
+### `update_participant_identity`
+- Payload:
+  - `series_year` (required; season the correction belongs to for audit/timeline scoping)
+  - `name` (required, non-empty)
+  - `yob` (required integer; validated to a reasonable year range)
+  - `club` (optional string; empty clears the club)
+  - Exactly one targeting mode:
+    - `participant_uid` (singles), or
+    - `team_uid` + `member` (`a` or `b`) for Paarlauf team members
+  - `rationale` (optional)
+- Updates canonical `Person` fields (and derived name/club normalization used for matching). Gender is not editable.
+- Returns `decision_uid`, `status` (`applied`), `participant_uid` (edited person, including team member UID), `team_uid` (set for team edits), `scope_series_year`.
+- Appends a `matching_decisions` entry with `kind=identity_correction` (visible in `get_year_timeline` / `get_audit_timeline` for the same `series_year`).
 
 ### `rollback_race`
 - Payload:

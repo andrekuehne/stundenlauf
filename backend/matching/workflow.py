@@ -29,7 +29,8 @@ from backend.matching.decisions import (
 from backend.matching.normalize import normalize_club, parse_person_name
 from backend.matching.report import MatchingReport
 from backend.matching.score import route_from_score, score_person_match
-from backend.matching.teams import build_couple_block_index, gather_couple_candidates, score_couple_match
+from backend.matching.strict_identity import couple_matches_strict_row, person_matches_strict_incoming
+from backend.matching.teams import _couple_division_ok, build_couple_block_index, gather_couple_candidates, score_couple_match
 
 
 def _gender_for_division(division: Division) -> Gender:
@@ -134,19 +135,66 @@ def _resolve_person(
 
     top: Person | None = scored[0][1] if scored else None
     top_score = scored[0][0] if scored else 0.0
-    top_feats = scored[0][2] if scored else {}
+    top_feats: dict[str, float] = dict(scored[0][2]) if scored else {}
     candidate_uids = tuple(s[1].uid for s in scored[:5])
+
+    strict_hits: list[Person] = []
+    strict_multi_review = False
+    if config.strict_normalized_auto_only:
+        strict_hits = [
+            p
+            for p in candidate_people
+            if p.gender == gender
+            and person_matches_strict_incoming(
+                incoming_parsed=parsed,
+                incoming_yob=yob,
+                incoming_club_norm=club_norm,
+                gender=gender,
+                person=p,
+            )
+        ]
+        if len(strict_hits) == 1:
+            top = strict_hits[0]
+            top_score = 1.0
+            top_feats = {"strict_identity_auto": 1.0, "total": 1.0}
+            merged_uids = [strict_hits[0].uid] + [u for u in candidate_uids if u != strict_hits[0].uid]
+            candidate_uids = tuple(merged_uids[:5])
+        elif len(strict_hits) > 1:
+            strict_multi_review = True
+            merged_uids = [p.uid for p in strict_hits]
+            for uid in candidate_uids:
+                if uid not in merged_uids:
+                    merged_uids.append(uid)
+                if len(merged_uids) >= 5:
+                    break
+            candidate_uids = tuple(merged_uids[:5])
+            score_by_uid = {c.uid: (sc, ft) for sc, c, ft in scored}
+            best_p = strict_hits[0]
+            best_sc = -1.0
+            best_ft: dict[str, float] = {}
+            for p in strict_hits:
+                sc, ft = score_by_uid.get(p.uid, (0.0, {}))
+                if sc > best_sc:
+                    best_sc, best_p, best_ft = sc, p, dict(ft)
+            top = best_p
+            top_score = best_sc if best_sc >= 0.0 else 0.0
+            top_feats = best_ft if best_ft else {"strict_collision": 1.0}
 
     route = route_from_score(top_score, config) if top is not None else "new_identity"
     meta_route: str
     if top is None:
         meta_route = "new_identity"
+    elif strict_multi_review:
+        meta_route = "review"
     elif route == "auto":
         meta_route = "auto"
     elif route == "review":
         meta_route = "review"
     else:
         meta_route = "new_identity"
+
+    if config.strict_normalized_auto_only and not strict_hits and top is not None and meta_route == "auto":
+        meta_route = "review"
 
     conflict_flags: list[str] = []
     if top is not None and meta_route == "auto":
@@ -271,7 +319,7 @@ def _resolve_team_row(
     couple_index = build_couple_block_index(tuple(couples), division)
     candidates = gather_couple_candidates(parsed_a, row.yob_a, parsed_b, row.yob_b, couple_index, config)
     excluded = rejected_map.get(fp, set())
-    scored: list[tuple[float, Couple, dict[str, float]]] = []
+    scored = []
     for cand in candidates:
         if cand.uid in excluded:
             continue
@@ -291,19 +339,60 @@ def _resolve_team_row(
 
     top: Couple | None = scored[0][1] if scored else None
     top_score = scored[0][0] if scored else 0.0
-    top_feats = scored[0][2] if scored else {}
+    top_feats: dict[str, float] = dict(scored[0][2]) if scored else {}
     candidate_uids = tuple(s[1].uid for s in scored[:5])
+
+    strict_team_hits: list[Couple] = []
+    strict_team_multi_review = False
+    if config.strict_normalized_auto_only:
+        strict_team_hits = [
+            c
+            for c in couples
+            if _couple_division_ok(c, division)
+            and couple_matches_strict_row(row, gender_a=gender_a, gender_b=gender_b, couple=c)
+        ]
+        if len(strict_team_hits) == 1:
+            top = strict_team_hits[0]
+            top_score = 1.0
+            top_feats = {"strict_identity_auto": 1.0, "pair_score": 1.0}
+            merged_uids = [strict_team_hits[0].uid] + [u for u in candidate_uids if u != strict_team_hits[0].uid]
+            candidate_uids = tuple(merged_uids[:5])
+        elif len(strict_team_hits) > 1:
+            strict_team_multi_review = True
+            merged_uids = [c.uid for c in strict_team_hits]
+            for uid in candidate_uids:
+                if uid not in merged_uids:
+                    merged_uids.append(uid)
+                if len(merged_uids) >= 5:
+                    break
+            candidate_uids = tuple(merged_uids[:5])
+            score_by_uid = {c.uid: (sc, ft) for sc, c, ft in scored}
+            best_c = strict_team_hits[0]
+            best_sc = -1.0
+            best_ft: dict[str, float] = {}
+            for c in strict_team_hits:
+                sc, ft = score_by_uid.get(c.uid, (0.0, {}))
+                if sc > best_sc:
+                    best_sc, best_c, best_ft = sc, c, dict(ft)
+            top = best_c
+            top_score = best_sc if best_sc >= 0.0 else 0.0
+            top_feats = best_ft if best_ft else {"strict_collision": 1.0}
 
     route = route_from_score(top_score, config) if top is not None else "new_identity"
     meta_route: str
     if top is None:
         meta_route = "new_identity"
+    elif strict_team_multi_review:
+        meta_route = "review"
     elif route == "auto":
         meta_route = "auto"
     elif route == "review":
         meta_route = "review"
     else:
         meta_route = "new_identity"
+
+    if config.strict_normalized_auto_only and not strict_team_hits and top is not None and meta_route == "auto":
+        meta_route = "review"
 
     conflict_flags: list[str] = []
     if top is not None and meta_route == "auto":

@@ -1,29 +1,36 @@
+"""Domain identity helpers: couple keys and canonical participant fields."""
+
 from __future__ import annotations
 
+from dataclasses import replace
+from datetime import UTC, datetime
+
 from backend.domain.models import Couple, Person
-
-
-def normalize_name(value: str) -> str:
-    return " ".join(value.strip().lower().split())
-
-
-def normalize_club(value: str | None) -> str:
-    if value is None:
-        return ""
-    return " ".join(value.strip().lower().split())
-
-
-def person_key(person: Person) -> str:
-    return "|".join(
-        [
-            normalize_name(person.name),
-            str(person.yob),
-            person.gender.value,
-            normalize_club(person.club),
-        ]
-    )
+from backend.matching.normalize import normalize_club, parse_person_name
 
 
 def couple_key(couple: Couple) -> str:
-    keys = sorted([person_key(couple.member_a), person_key(couple.member_b)])
-    return "||".join(keys)
+    """Stable key for a pair of members, independent of member_a/member_b order."""
+    return "|".join(sorted((couple.member_a.uid, couple.member_b.uid)))
+
+
+def yob_bounds() -> tuple[int, int]:
+    y = datetime.now(UTC).year
+    return 1900, y + 1
+
+
+def person_with_updated_identity(*, person: Person, name: str, yob: int, club: str | None) -> Person:
+    """Rebuild derived name/club fields; preserves uid and gender."""
+    trimmed = name.strip()
+    parsed = parse_person_name(trimmed)
+    club_norm = normalize_club(club)
+    club_value: str | None = club.strip() if club is not None and club.strip() else None
+    return replace(
+        person,
+        name=trimmed,
+        yob=yob,
+        club=club_value,
+        canonical_given=parsed.given,
+        canonical_family=parsed.family,
+        club_normalized=club_norm,
+    )
