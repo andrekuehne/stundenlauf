@@ -847,6 +847,59 @@ th {
   margin-top: 8px !important;
 }
 
+.standings-per-race-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space);
+  margin-bottom: 8px;
+}
+
+.standings-per-race-head h3 {
+  margin: 0;
+}
+
+.merge-mode-banner {
+  border-left: 3px solid var(--accent);
+  padding-left: 10px;
+  margin-top: 8px !important;
+}
+
+.standings-merge-panel {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: var(--surface-2, #f4f6fa);
+  border-radius: 6px;
+}
+
+.standings-merge-picks p {
+  margin: 6px 0;
+}
+
+.standings-merge-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+tr.standings-per-race-row--mergeable {
+  cursor: pointer;
+}
+
+.table--banded > tbody > tr.standings-per-race-row--mergeable:hover {
+  background: #e8f0ff;
+}
+
+tr.standings-per-race-row.standings-merge-survivor td {
+  box-shadow: inset 3px 0 0 0 #2e7d32;
+}
+
+tr.standings-per-race-row.standings-merge-absorbed td {
+  box-shadow: inset 3px 0 0 0 #c62828;
+}
+
 tr.standings-row--correctable {
   cursor: pointer;
 }
@@ -879,6 +932,11 @@ tr.standings-row--correctable {
 .standings-per-race-table td.standings-aw-cell input {
   margin: 0;
   cursor: pointer;
+}
+
+.standings-aw-cell--merge-disabled input {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 tr.standings-per-race-row.standings-row--excluded td:not(.standings-aw-cell) {

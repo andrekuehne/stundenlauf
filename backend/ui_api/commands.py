@@ -6,6 +6,11 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 from backend.domain.identity import person_with_updated_identity, yob_bounds
+from backend.domain.identity_merge import (
+    merge_identities,
+    participation_race_uids_for_category,
+    validate_entity_kind_matches_uid,
+)
 from backend.domain.models import Couple, FieldResolution, MatchingDecision, Person, RaceEntry, RaceEntryMatchMeta
 from backend.ingestion.service import import_excel_into_project
 from backend.matching.config import MatchingConfig
@@ -14,7 +19,10 @@ from backend.ranking.engine import recompute_project_standings
 from backend.storage.repository import JsonProjectRepository
 from backend.ui_api.errors import not_found, validation_error
 from backend.ui_api.queries import _find_category, _table_by_category_key
-from backend.ui_api.ranking_display import update_ranking_exclusions
+from backend.ui_api.ranking_display import (
+    merge_ranking_exclusions_after_identity_merge,
+    update_ranking_exclusions,
+)
 
 
 def _iso_now() -> str:
@@ -167,6 +175,96 @@ def import_race(
             "replay_overrides": result.matching_report.replay_overrides,
             "candidate_counts": list(result.matching_report.candidate_counts),
         },
+    }
+
+
+def merge_standings_entities(project_file: Path, payload: dict[str, Any]) -> dict[str, Any]:
+    series_year_raw = payload.get("series_year")
+    if series_year_raw is None:
+        raise validation_error("series_year ist erforderlich.")
+    series_year = int(series_year_raw)
+
+    category_key = str(payload.get("category_key", "")).strip()
+    if not category_key:
+        raise validation_error("category_key ist erforderlich.")
+
+    survivor_uid = str(payload.get("survivor_uid", "")).strip()
+    absorbed_uid = str(payload.get("absorbed_uid", "")).strip()
+    if not survivor_uid or not absorbed_uid:
+        raise validation_error("survivor_uid und absorbed_uid sind erforderlich.")
+    if survivor_uid == absorbed_uid:
+        raise validation_error("survivor_uid und absorbed_uid müssen sich unterscheiden.")
+
+    entity_kind_raw = str(payload.get("entity_kind", "")).strip().lower()
+    if entity_kind_raw not in {"participant", "team"}:
+        raise validation_error("entity_kind muss 'participant' oder 'team' sein.")
+    entity_kind = cast(Literal["participant", "team"], entity_kind_raw)
+
+    repo = JsonProjectRepository(project_file)
+    document = repo.load()
+    category = _find_category(document, category_key)
+    if category.year != series_year:
+        raise validation_error("Das Jahr der Kategorie stimmt nicht mit series_year überein.")
+
+    _, rows = _table_by_category_key(document, category_key)
+    allowed = {str(r["entity_uid"]) for r in rows}
+    if survivor_uid not in allowed or absorbed_uid not in allowed:
+        raise validation_error("Beide Einträge müssen in der Wertung dieser Kategorie vorkommen.")
+
+    row_by_uid = {str(r["entity_uid"]): r for r in rows}
+    rs = row_by_uid[survivor_uid]
+    ra = row_by_uid[absorbed_uid]
+    if rs["entity_kind"] != entity_kind or ra["entity_kind"] != entity_kind:
+        raise validation_error("Die ausgewählten Zeilen passen nicht zur angegebenen Art (Einzel/Paar).")
+
+    try:
+        validate_entity_kind_matches_uid(document, survivor_uid, entity_kind)
+        validate_entity_kind_matches_uid(document, absorbed_uid, entity_kind)
+    except ValueError as exc:
+        raise validation_error("Unbekannte Entität oder falsche Art (Einzel/Paar).") from exc
+
+    ev_s = participation_race_uids_for_category(document, category_key, survivor_uid, entity_kind)
+    ev_a = participation_race_uids_for_category(document, category_key, absorbed_uid, entity_kind)
+    if ev_s & ev_a:
+        raise validation_error(
+            "Die beiden Identitäten sind in mindestens einem Lauf dieser Kategorie gemeinsam gemeldet "
+            "und können nicht zusammengeführt werden."
+        )
+
+    try:
+        merged_doc, entries_updated = merge_identities(document, survivor_uid, absorbed_uid, entity_kind)
+    except ValueError:
+        raise validation_error("Die aufzulösende Identität wurde nicht gefunden.") from None
+
+    rex = merge_ranking_exclusions_after_identity_merge(
+        document.ranking_exclusions, category_key, survivor_uid, absorbed_uid
+    )
+    decision = MatchingDecision(
+        decided_at=_iso_now(),
+        kind="identity_merge",
+        race_event_uid="",
+        entry_uid="",
+        target_participant_uid=survivor_uid if entity_kind == "participant" else None,
+        target_team_uid=survivor_uid if entity_kind == "team" else None,
+        merged_absorbed_uid=absorbed_uid,
+        scope_series_year=series_year,
+        rationale=str(payload.get("rationale", "")).strip(),
+        feature_scores={"identity_merge": 1.0},
+    )
+    updated = replace(
+        merged_doc,
+        ranking_exclusions=rex,
+        matching_decisions=tuple([*merged_doc.matching_decisions, decision]),
+    )
+    updated = recompute_project_standings(updated)
+    repo.save(updated)
+    return {
+        "status": "applied",
+        "decision_uid": decision.decision_uid,
+        "entries_updated_count": entries_updated,
+        "survivor_uid": survivor_uid,
+        "absorbed_uid": absorbed_uid,
+        "category_key": category_key,
     }
 
 

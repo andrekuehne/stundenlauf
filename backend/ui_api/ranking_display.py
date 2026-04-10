@@ -12,6 +12,25 @@ def ranking_exclusion_set(document: ProjectDocument, category_key: str) -> froze
     return frozenset()
 
 
+def merge_ranking_exclusions_after_identity_merge(
+    current: tuple[tuple[str, frozenset[str]], ...],
+    category_key: str,
+    survivor_uid: str,
+    absorbed_uid: str,
+) -> tuple[tuple[str, frozenset[str]], ...]:
+    """F16 conservative rule: survivor stays excluded if either UID was excluded; absorbed removed."""
+    mapping: dict[str, set[str]] = {ck: set(uids) for ck, uids in current}
+    bucket = mapping.setdefault(category_key, set())
+    survivor_excluded = (survivor_uid in bucket) or (absorbed_uid in bucket)
+    bucket.discard(absorbed_uid)
+    bucket.discard(survivor_uid)
+    if survivor_excluded:
+        bucket.add(survivor_uid)
+    if not bucket:
+        del mapping[category_key]
+    return tuple(sorted((ck, frozenset(uids)) for ck, uids in mapping.items()))
+
+
 def update_ranking_exclusions(
     current: tuple[tuple[str, frozenset[str]], ...],
     category_key: str,

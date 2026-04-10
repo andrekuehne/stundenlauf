@@ -17,6 +17,12 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-10 - F16 Standings manual duplicate merge (Einzel/Paar)
+- Requirement/Milestone: [R3, R6, R8; M5]
+- What shipped: Operators can merge two duplicate `Person` or `Couple` identities from **Laufübersicht** when they have no overlapping races in the category: `merge_standings_entities` rewires entries, remaps audit targets, prunes orphans, applies conservative **Außer Wertung** carry-over, appends `identity_merge` decisions (`merged_absorbed_uid`), and recomputes standings. GUI merge mode (mutually exclusive with identity correction), Historie table for `identity_merge` / `identity_correction`, and timeline payload fields for audit UIDs.
+- Evidence: `backend/domain/identity_merge.py`, `backend/domain/models.py`, `backend/storage/schema_v2.py`, `backend/ui_api/commands.py`, `backend/ui_api/service.py`, `backend/ui_api/ranking_display.py`, `backend/ui_api/queries.py`, `frontend/app.js`, `frontend/strings.js`, `frontend/styles.css`, `docs/api/ui-api-v1.md`, `docs/features/F16-standings-manual-duplicate-merge.md`, `tests/test_f16_identity_merge.py`, `tests/test_f08_ui_api.py`, `tests/test_f15_ranking_display.py`; `uv run pytest`
+- Impact: Fixes split canonical identities after import without Excel surgery; safe guard on same-Lauf overlap; season zip and exclusions stay consistent.
+
 ### 2026-04-10 - Configurable review vs new-identity threshold (GUI + UI API)
 - Requirement/Milestone: [R6; M5]
 - What shipped: Session `review_min` is settable via `set_matching_config` with validation against effective auto threshold; **Lauf hinzufügen** matching panel adds a second slider/number for the review-queue floor; client caps review when auto threshold drops to avoid invalid saves. New UI sessions default to fuzzy **100 %-only** auto-link, `strict_normalized_auto_only=false`, and `auto_min`/`review_min` both `0.5`.

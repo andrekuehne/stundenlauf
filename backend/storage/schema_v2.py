@@ -245,7 +245,7 @@ def _match_meta_from_dict(payload: dict[str, Any]) -> RaceEntryMatchMeta:
 
 
 def _matching_decision_to_dict(decision: MatchingDecision) -> dict[str, Any]:
-    return {
+    out: dict[str, Any] = {
         "decision_uid": decision.decision_uid,
         "decided_at": decision.decided_at,
         "kind": decision.kind,
@@ -261,6 +261,9 @@ def _matching_decision_to_dict(decision: MatchingDecision) -> dict[str, Any]:
         ],
         "feature_scores": dict(decision.feature_scores),
     }
+    if decision.merged_absorbed_uid is not None:
+        out["merged_absorbed_uid"] = decision.merged_absorbed_uid
+    return out
 
 
 def _matching_decision_from_dict(payload: dict[str, Any]) -> MatchingDecision:
@@ -281,6 +284,7 @@ def _matching_decision_from_dict(payload: dict[str, Any]) -> MatchingDecision:
         entry_uid=str(payload.get("entry_uid", "")),
         target_participant_uid=payload.get("target_participant_uid"),
         target_team_uid=payload.get("target_team_uid"),
+        merged_absorbed_uid=payload.get("merged_absorbed_uid"),
         scope_series_year=int(payload["scope_series_year"]) if payload.get("scope_series_year") is not None else None,
         rationale=str(payload.get("rationale", "")),
         field_resolutions=frs,

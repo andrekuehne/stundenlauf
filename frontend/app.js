@@ -66,6 +66,9 @@
     importSourceType: "",
     importRaceNo: null,
     standingsCorrectionMode: false,
+    standingsMergeMode: false,
+    mergeSurvivor: null,
+    mergeAbsorbed: null,
   };
 
   let requestCounter = 0;
@@ -812,6 +815,37 @@
     const raceHeadersList = resultsResponse.payload.meta.race_headers || [];
     const resultHeaders = raceHeadersList.map((item) => `<th>${item}</th>`).join("");
     const overviewColspan = 5 + raceHeadersList.length;
+    const sm = st.merge;
+    const canMergeExecute = Boolean(
+      state.mergeSurvivor &&
+        state.mergeAbsorbed &&
+        state.mergeSurvivor.entity_kind === state.mergeAbsorbed.entity_kind &&
+        state.mergeSurvivor.uid !== state.mergeAbsorbed.uid
+    );
+    const survivorLine = state.mergeSurvivor
+      ? `${escapeHtml(state.mergeSurvivor.display_name)} <span class="hint">(${
+          state.mergeSurvivor.entity_kind === "team" ? "Paar" : "Einzel"
+        }; Läufe: ${escapeHtml(state.mergeSurvivor.racesLabel)})</span>`
+      : "—";
+    const absorbedLine = state.mergeAbsorbed
+      ? `${escapeHtml(state.mergeAbsorbed.display_name)} <span class="hint">(${
+          state.mergeAbsorbed.entity_kind === "team" ? "Paar" : "Einzel"
+        }; Läufe: ${escapeHtml(state.mergeAbsorbed.racesLabel)})</span>`
+      : "—";
+    const mergePanel =
+      state.standingsMergeMode && sm
+        ? `<p class="hint merge-mode-banner">${sm.banner}</p>
+          <div class="standings-merge-panel">
+            <div class="standings-merge-picks">
+              <p><strong>${sm.survivorLabel}:</strong> ${survivorLine}</p>
+              <p><strong>${sm.absorbedLabel}:</strong> ${absorbedLine}</p>
+            </div>
+            <div class="standings-merge-actions">
+              <button type="button" class="secondary" data-merge-reset>${sm.resetPicks}</button>
+              <button type="button" class="primary" data-merge-confirm${canMergeExecute ? "" : " disabled"}>${sm.confirm}</button>
+            </div>
+          </div>`
+        : "";
     const resultRows = (resultsResponse.payload.rows || [])
       .map((row) => {
         const cells = row.race_cells
@@ -825,10 +859,33 @@
         const platzDisp = row.platz == null ? st.platzExcludedSentinel : row.platz;
         const excludedClass = row.ausser_wertung ? " standings-row--excluded" : "";
         const uid = escapeHtml(row.entity_uid || "");
+        const ekind = row.entity_kind === "team" ? "team" : "participant";
+        const raceNosRaw = (row.race_cells || [])
+          .filter((c) => c.distance_km != null)
+          .map((c) => c.race_no)
+          .join(",");
+        const racesLabel = raceNosRaw ? raceNosRaw.replace(/,/g, ", ") : "—";
+        let mergeRowClass = "";
+        if (state.standingsMergeMode) {
+          mergeRowClass += " standings-per-race-row--mergeable";
+        }
+        if (state.mergeSurvivor && state.mergeSurvivor.uid === row.entity_uid) {
+          mergeRowClass += " standings-merge-survivor";
+        }
+        if (state.mergeAbsorbed && state.mergeAbsorbed.uid === row.entity_uid) {
+          mergeRowClass += " standings-merge-absorbed";
+        }
         const aria = escapeHtml(st.ausserWertungAria(row.display_name || ""));
         const checked = row.ausser_wertung ? " checked" : "";
-        const awCell = `<td class="standings-aw-cell"><input type="checkbox"${checked} data-set-ranking-eligibility data-entity-uid="${uid}" aria-label="${aria}" /></td>`;
-        return `<tr class="standings-per-race-row${excludedClass}"><td>${platzDisp}</td>${awCell}<td>${escapeHtml(
+        const awDisabled = state.standingsMergeMode;
+        const awTitle =
+          awDisabled && sm && sm.awDisabledInMergeMode ? escapeHtml(sm.awDisabledInMergeMode) : "";
+        const awCell = `<td class="standings-aw-cell${awDisabled ? " standings-aw-cell--merge-disabled" : ""}"><input type="checkbox"${checked}${
+          awDisabled ? " disabled" : ""
+        } data-set-ranking-eligibility data-entity-uid="${uid}" aria-label="${aria}"${awTitle ? ` title="${awTitle}"` : ""} /></td>`;
+        return `<tr class="standings-per-race-row${excludedClass}${mergeRowClass}" data-merge-pick-row="1" data-entity-uid="${uid}" data-entity-kind="${ekind}" data-display-name="${escapeHtml(
+          row.display_name || ""
+        )}" data-race-nos="${escapeHtml(raceNosRaw)}" data-races-label="${escapeHtml(racesLabel)}"><td>${platzDisp}</td>${awCell}<td>${escapeHtml(
           row.display_name || ""
         )}</td>${cells}<td>${FMT.formatKm(row.distanz_gesamt)}</td><td>${row.punkte_gesamt}</td></tr>`;
       })
@@ -868,7 +925,13 @@
             </div>
           </div>
           <div class="card">
-            <h3>${st.perRaceTitle}</h3>
+            <div class="standings-per-race-head">
+              <h3>${st.perRaceTitle}</h3>
+              <button type="button" class="secondary" data-merge-toggle>${
+                state.standingsMergeMode ? sm.toggleOff : sm.toggleOn
+              }</button>
+            </div>
+            ${mergePanel}
             <div class="table-wrap">
               <table class="standings-per-race-table table--banded">
                 <thead><tr><th>${st.thPlatz}</th><th class="standings-aw-col" title="${escapeHtml(
@@ -882,6 +945,9 @@
       </div>
     `;
     for (const input of standingsView.querySelectorAll("input[data-set-ranking-eligibility]")) {
+      if (input.disabled) {
+        continue;
+      }
       input.addEventListener("change", async () => {
         const uid = input.getAttribute("data-entity-uid");
         if (!uid || !state.selectedCategory) {
@@ -1147,7 +1213,105 @@
     if (toggle) {
       ev.preventDefault();
       state.standingsCorrectionMode = !state.standingsCorrectionMode;
-      await renderStandingsView();
+      if (state.standingsCorrectionMode) {
+        state.standingsMergeMode = false;
+        state.mergeSurvivor = null;
+        state.mergeAbsorbed = null;
+      }
+      await renderStandingsView({ preserveStandingsScroll: true });
+      return;
+    }
+    const mergeToggle = ev.target.closest("[data-merge-toggle]");
+    if (mergeToggle) {
+      ev.preventDefault();
+      state.standingsMergeMode = !state.standingsMergeMode;
+      if (state.standingsMergeMode) {
+        state.standingsCorrectionMode = false;
+      }
+      state.mergeSurvivor = null;
+      state.mergeAbsorbed = null;
+      await renderStandingsView({ preserveStandingsScroll: true });
+      return;
+    }
+    if (ev.target.closest("[data-merge-reset]")) {
+      ev.preventDefault();
+      state.mergeSurvivor = null;
+      state.mergeAbsorbed = null;
+      await renderStandingsView({ preserveStandingsScroll: true });
+      return;
+    }
+    const mergeGo = ev.target.closest("[data-merge-confirm]");
+    if (mergeGo) {
+      ev.preventDefault();
+      if (mergeGo.disabled) {
+        return;
+      }
+      const m = STR.standings.merge;
+      if (!state.seriesYear || !state.selectedCategory) {
+        setStatus(`${STR.status.prefix}${m.needSeriesYear}`, true);
+        return;
+      }
+      if (!state.mergeSurvivor || !state.mergeAbsorbed) {
+        setStatus(`${STR.status.prefix}${m.needTwoPicks}`, true);
+        return;
+      }
+      if (state.mergeSurvivor.entity_kind !== state.mergeAbsorbed.entity_kind) {
+        setStatus(`${STR.status.prefix}${m.kindMismatch}`, true);
+        return;
+      }
+      if (!window.confirm(m.confirmDialog(state.mergeSurvivor.display_name, state.mergeAbsorbed.display_name))) {
+        return;
+      }
+      const res = await api("merge_standings_entities", {
+        series_year: state.seriesYear,
+        category_key: state.selectedCategory,
+        entity_kind: state.mergeSurvivor.entity_kind,
+        survivor_uid: state.mergeSurvivor.uid,
+        absorbed_uid: state.mergeAbsorbed.uid,
+      });
+      if (res.status === "error") {
+        setStatus(`${STR.status.prefix}${res.error?.details?.message || res.error?.message || STR.status.mergeSaveFailed}`, true);
+        return;
+      }
+      state.mergeSurvivor = null;
+      state.mergeAbsorbed = null;
+      state.standingsMergeMode = false;
+      setStatus(m.success, false);
+      await renderStandingsView({ preserveStandingsScroll: true });
+      return;
+    }
+    const mergeRow = ev.target.closest("tr[data-merge-pick-row]");
+    if (mergeRow && state.standingsMergeMode) {
+      if (ev.target.closest("input[data-set-ranking-eligibility]") || ev.target.closest("button")) {
+        return;
+      }
+      ev.preventDefault();
+      const uid = mergeRow.getAttribute("data-entity-uid") || "";
+      const entity_kind = mergeRow.getAttribute("data-entity-kind") || "participant";
+      const display_name = mergeRow.getAttribute("data-display-name") || uid;
+      const racesLabel = mergeRow.getAttribute("data-races-label") || "—";
+      const pick = { uid, entity_kind, display_name, racesLabel };
+      if (state.mergeSurvivor && state.mergeSurvivor.uid === uid) {
+        state.mergeSurvivor = null;
+        await renderStandingsView({ preserveStandingsScroll: true });
+        return;
+      }
+      if (state.mergeAbsorbed && state.mergeAbsorbed.uid === uid) {
+        state.mergeAbsorbed = null;
+        await renderStandingsView({ preserveStandingsScroll: true });
+        return;
+      }
+      if (!state.mergeSurvivor) {
+        state.mergeSurvivor = pick;
+        await renderStandingsView({ preserveStandingsScroll: true });
+        return;
+      }
+      if (entity_kind !== state.mergeSurvivor.entity_kind) {
+        setStatus(`${STR.status.prefix}${STR.standings.merge.kindMismatch}`, true);
+        return;
+      }
+      state.mergeAbsorbed = pick;
+      await renderStandingsView({ preserveStandingsScroll: true });
       return;
     }
     const tr = ev.target.closest("tr[data-row-index]");
@@ -1921,6 +2085,37 @@
         </tr>`;
       })
       .join("");
+
+    const auditItems = timelineItems.filter((item) => item.event_type === "matching_decision");
+    const kindLabel = (kind) => {
+      if (kind === "identity_merge") {
+        return hi.kindIdentityMerge;
+      }
+      if (kind === "identity_correction") {
+        return hi.kindIdentityCorrection;
+      }
+      return hi.kindMatchingOther;
+    };
+    const auditRows = auditItems
+      .filter((item) => item.kind === "identity_merge" || item.kind === "identity_correction")
+      .map((item) => {
+        let detail = "";
+        if (item.kind === "identity_merge") {
+          const keep = item.target_team_uid || item.target_participant_uid || "—";
+          const drop = item.merged_absorbed_uid || "—";
+          detail = `${escapeHtml(String(keep))} ← ${escapeHtml(String(drop))}`;
+        } else if (item.kind === "identity_correction") {
+          const t = item.target_team_uid || item.target_participant_uid || "—";
+          detail = escapeHtml(String(t));
+        }
+        return `<tr>
+          <td>${escapeHtml(String(item.timestamp || "-"))}</td>
+          <td>${escapeHtml(kindLabel(item.kind))}</td>
+          <td>${detail}</td>
+        </tr>`;
+      })
+      .join("");
+
     historyView.innerHTML = `
       <div class="card">
         <h2>${hi.title}</h2>
@@ -1929,6 +2124,16 @@
           <table>
             <thead><tr><th>${hi.thEvent}</th><th>${hi.thTime}</th><th>${hi.thSource}</th><th>${hi.thCategories}</th><th>${hi.thRaces}</th><th>${hi.thAction}</th></tr></thead>
             <tbody>${groupedRows || `<tr><td colspan="6">${hi.emptyImports}</td></tr>`}</tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card history-audit-card">
+        <h3>${hi.auditTitle}</h3>
+        <p class="hint">${hi.auditHint}</p>
+        <div class="table-wrap">
+          <table class="table--banded">
+            <thead><tr><th>${hi.thAuditTime}</th><th>${hi.thAuditKind}</th><th>${hi.thAuditDetail}</th></tr></thead>
+            <tbody>${auditRows || `<tr><td colspan="3">${hi.auditEmpty}</td></tr>`}</tbody>
           </table>
         </div>
       </div>

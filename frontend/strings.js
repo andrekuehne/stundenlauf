@@ -198,6 +198,24 @@
         errYobRange: (min, max) => `Jahrgang muss zwischen ${min} und ${max} liegen.`,
         errTeamMembers: "Teammitglieder konnten nicht geladen werden.",
       },
+      merge: {
+        toggleOn: "Duplikate zusammenführen",
+        toggleOff: "Zusammenführen beenden",
+        banner:
+          "Wählen Sie zuerst die Zeile, die erhalten bleibt (Ziel), dann die doppelte Identität. Nur Einzel mit Einzel bzw. Paar mit Paar. Zusammenführung ist blockiert, wenn beide in demselben Lauf dieser Kategorie gemeldet sind.",
+        survivorLabel: "Behalten (Ziel)",
+        absorbedLabel: "Zusammenführen (wird aufgelöst)",
+        resetPicks: "Auswahl leeren",
+        confirm: "Zusammenführen ausführen",
+        confirmDialog: (keepName, dropName) =>
+          `Die Identität „${dropName}“ wird in „${keepName}“ zusammengeführt. Die Wertung wird neu berechnet. Fortfahren?`,
+        success: "Zusammenführung wurde gespeichert; die Wertung wurde neu berechnet.",
+        kindMismatch: "Beide Zeilen müssen dieselbe Art haben (Einzel oder Paar).",
+        needSeriesYear: "Keine aktive Saison.",
+        needTwoPicks: "Bitte zuerst Ziel- und zweite Zeile wählen.",
+        awDisabledInMergeMode:
+          "Außer Wertung ist im Zusammenführungsmodus deaktiviert — bitte Modus zuerst beenden.",
+      },
     },
     units: {
       kmSuffix: " km",
@@ -291,6 +309,15 @@
       rollbackConfirm: (count) =>
         `Die Ergebnisse aller ${count} Läufe aus dieser Datei werden aus der Wertung entfernt und anschließend neu berechnet.`,
       rollbackDone: (count) => `Datei-Import wurde zurückgenommen (${count} Läufe).`,
+      auditTitle: "Korrekturen & Zusammenführungen",
+      auditHint: "Einträge aus dem Prüf- und Korrekturprotokoll dieser Saison.",
+      auditEmpty: "Keine protokollierten Korrekturen oder Zusammenführungen.",
+      thAuditTime: "Zeitpunkt",
+      thAuditKind: "Art",
+      thAuditDetail: "Details",
+      kindIdentityMerge: "Duplikate zusammengeführt",
+      kindIdentityCorrection: "Identität korrigiert",
+      kindMatchingOther: "Zuordnung",
     },
   };
 

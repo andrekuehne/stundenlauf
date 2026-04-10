@@ -5,6 +5,7 @@ import json
 import tempfile
 import unittest
 import zipfile
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -14,6 +15,7 @@ from backend.ranking.engine import recompute_project_standings
 from backend.storage.repository import JsonProjectRepository
 from backend.storage.schema_v2 import SCHEMA_VERSION_V2
 from backend.ui_api import API_VERSION_V1, PywebviewApiBridge, UiApiService
+from backend.ui_api.ranking_display import ranking_exclusion_set
 
 
 def _seed_two_men_2026(path: Path) -> None:
@@ -48,6 +50,55 @@ def _seed_two_men_2026(path: Path) -> None:
     doc = ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(p1, p2), events=(event,))
     doc = recompute_project_standings(doc)
     JsonProjectRepository(path).save(doc)
+
+
+def _seed_duplicate_singles_two_races(path: Path) -> tuple[str, str, str]:
+    """Same category, two disjoint races — merge-friendly."""
+    category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.MEN)
+    p_keep = Person(uid="p_keep", name="Keep", yob=1990, gender=Gender.M, club="A")
+    p_drop = Person(uid="p_drop", name="Drop", yob=1990, gender=Gender.M, club="B")
+    ev1 = RaceEvent(
+        race_event_uid="race_m_1",
+        category=category,
+        race_date="2026-01-05",
+        race_no=1,
+        source_file="f1.xlsx",
+        source_sha256="h1",
+        imported_at="2026-01-05T10:00:00+00:00",
+        parser_version="v1",
+        schema_fingerprint="fp",
+        entries=(
+            RaceEntry(
+                entry_uid="e1",
+                participant_uid=p_keep.uid,
+                startnr="1",
+                result=EntryResult(distance_km=10.0, points=20.0),
+            ),
+        ),
+    )
+    ev2 = RaceEvent(
+        race_event_uid="race_m_2",
+        category=category,
+        race_date="2026-02-05",
+        race_no=2,
+        source_file="f2.xlsx",
+        source_sha256="h2",
+        imported_at="2026-02-05T10:00:00+00:00",
+        parser_version="v1",
+        schema_fingerprint="fp",
+        entries=(
+            RaceEntry(
+                entry_uid="e2",
+                participant_uid=p_drop.uid,
+                startnr="2",
+                result=EntryResult(distance_km=8.0, points=16.0),
+            ),
+        ),
+    )
+    doc = ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(p_keep, p_drop), events=(ev1, ev2))
+    doc = recompute_project_standings(doc)
+    JsonProjectRepository(path).save(doc)
+    return category.key, p_keep.uid, p_drop.uid
 
 
 def _seed_project(path: Path) -> None:
@@ -736,6 +787,91 @@ class TestF08UiApi(unittest.TestCase):
                 }
             )
             self.assertEqual(resp["status"], "error")
+
+    def test_merge_standings_entities_merges_disjoint_singles(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            cat, keep_uid, drop_uid = _seed_duplicate_singles_two_races(project_path)
+            service = UiApiService(project_path)
+            resp = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_merge_ok",
+                    "method": "merge_standings_entities",
+                    "payload": {
+                        "series_year": 2026,
+                        "category_key": cat,
+                        "entity_kind": "participant",
+                        "survivor_uid": keep_uid,
+                        "absorbed_uid": drop_uid,
+                    },
+                }
+            )
+            self.assertEqual(resp["status"], "ok", resp)
+            self.assertEqual(resp["payload"]["entries_updated_count"], 1)
+            self.assertIn("decision_uid", resp["payload"])
+            doc = JsonProjectRepository(project_path).load()
+            self.assertFalse(any(p.uid == drop_uid for p in doc.people))
+            st = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_st_after_merge",
+                    "method": "get_standings",
+                    "payload": {"category_key": cat},
+                }
+            )
+            self.assertEqual(st["status"], "ok")
+            self.assertEqual(len(st["payload"]["rows"]), 1)
+            self.assertEqual(st["payload"]["rows"][0]["entity_uid"], keep_uid)
+
+    def test_merge_standings_entities_rejects_overlapping_races(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            _seed_two_men_2026(project_path)
+            service = UiApiService(project_path)
+            resp = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_merge_overlap",
+                    "method": "merge_standings_entities",
+                    "payload": {
+                        "series_year": 2026,
+                        "category_key": "2026:hour:men",
+                        "entity_kind": "participant",
+                        "survivor_uid": "p_alpha",
+                        "absorbed_uid": "p_beta",
+                    },
+                }
+            )
+            self.assertEqual(resp["status"], "error")
+
+    def test_merge_standings_entities_ranking_exclusions_conservative(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            cat, keep_uid, drop_uid = _seed_duplicate_singles_two_races(project_path)
+            repo = JsonProjectRepository(project_path)
+            doc = repo.load()
+            repo.save(replace(doc, ranking_exclusions=((cat, frozenset({drop_uid})),)))
+            service = UiApiService(project_path)
+            resp = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_merge_excl",
+                    "method": "merge_standings_entities",
+                    "payload": {
+                        "series_year": 2026,
+                        "category_key": cat,
+                        "entity_kind": "participant",
+                        "survivor_uid": keep_uid,
+                        "absorbed_uid": drop_uid,
+                    },
+                }
+            )
+            self.assertEqual(resp["status"], "ok", resp)
+            doc2 = repo.load()
+            ex = ranking_exclusion_set(doc2, cat)
+            self.assertIn(keep_uid, ex)
+            self.assertNotIn(drop_uid, ex)
 
     def test_list_categories_filters_by_year(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

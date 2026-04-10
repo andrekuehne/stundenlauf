@@ -24,7 +24,7 @@ def _matching_decision_in_filtered_year(
     """Whether a decision belongs to the season filter (including identity-only corrections)."""
     if series_year is None:
         return True
-    if decision.kind == "identity_correction" and decision.scope_series_year == series_year:
+    if decision.kind in {"identity_correction", "identity_merge"} and decision.scope_series_year == series_year:
         return True
     related_event = next((event for event in document.events if event.race_event_uid == decision.race_event_uid), None)
     return related_event is not None and related_event.category.year == series_year
@@ -487,6 +487,10 @@ def get_audit_timeline(document: ProjectDocument, payload: dict[str, Any]) -> di
                 "entry_uid": decision.entry_uid,
                 "kind": decision.kind,
                 "row_fingerprint": decision.row_fingerprint,
+                "target_participant_uid": decision.target_participant_uid,
+                "target_team_uid": decision.target_team_uid,
+                "merged_absorbed_uid": decision.merged_absorbed_uid,
+                "scope_series_year": decision.scope_series_year,
             }
         )
     entries.sort(key=lambda item: (item.get("timestamp", ""), item.get("event_type", "")), reverse=True)

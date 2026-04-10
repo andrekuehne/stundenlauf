@@ -191,6 +191,7 @@ This document defines the frontend-facing Python API contract for the pywebview 
 - Import/rollback timeline rows include both:
   - `source_sha256` (stable import-batch key)
   - `source_file` (human-readable source path/name where available)
+- `matching_decision` rows additionally include (when present): `target_participant_uid`, `target_team_uid`, `merged_absorbed_uid` (for `identity_merge`), `scope_series_year`.
 
 ### `get_review_queue`
 - Payload:
@@ -262,6 +263,24 @@ This document defines the frontend-facing Python API contract for the pywebview 
 - Validates that `entity_uid` appears in the category standings snapshot; otherwise `VALIDATION_ERROR`.
 - Persists under `ProjectDocument.ranking_exclusions` (per category). Does **not** recompute standings.
 - Returns `category_key`, `entity_uid`, `ausser_wertung`.
+
+### `merge_standings_entities`
+- Payload:
+  - `series_year` (required; must match the year encoded in `category_key`)
+  - `category_key` (required)
+  - `entity_kind` (required): `participant` or `team`
+  - `survivor_uid` (required) — canonical identity to keep (`Person.uid` or `Couple.uid`)
+  - `absorbed_uid` (required) — identity to dissolve; all `RaceEntry` pointers and relevant audit targets are rewired to `survivor_uid`
+  - `rationale` (optional)
+- Validation:
+  - both UIDs must appear in the **current category standings** snapshot (same rule surface as `set_ranking_eligibility`);
+  - **no overlapping active races in that category**: if both identities have a result row in the same `race_event_uid` for this `category_key`, returns `VALIDATION_ERROR` (German operator message).
+- Effects:
+  - rewrites matching `RaceEntry` rows project-wide, remaps `matching_decisions` targets (and match-meta candidate UIDs where applicable), removes the absorbed `Person` / `Couple`, prunes orphaned `Person` rows after team merges;
+  - **ranking exclusions (F15)**: conservative merge — for this `category_key`, the survivor is excluded if **either** UID was excluded before; the absorbed UID is removed from the exclusion set;
+  - appends `matching_decisions` with `kind=identity_merge`, `scope_series_year`, `target_*` = survivor, `merged_absorbed_uid` = absorbed;
+  - recomputes standings and saves the project (same transactional pattern as `update_participant_identity`).
+- Returns: `status` (`applied`), `decision_uid`, `entries_updated_count`, `survivor_uid`, `absorbed_uid`, `category_key`.
 
 ### `rollback_race`
 - Payload:

@@ -6,6 +6,7 @@ from backend.domain.models import ProjectDocument
 from backend.storage.schema_v2 import SCHEMA_VERSION_V2
 from backend.ui_api.ranking_display import (
     apply_ranking_exclusions_to_rows,
+    merge_ranking_exclusions_after_identity_merge,
     ranking_exclusion_set,
     update_ranking_exclusions,
 )
@@ -61,6 +62,18 @@ class TestRankingDisplay(unittest.TestCase):
         self.assertEqual(cur, (("cat", frozenset({"u1"})),))
         cur = update_ranking_exclusions(cur, "cat", "u1", False)
         self.assertEqual(cur, ())
+
+    def test_merge_ranking_exclusions_conservative(self) -> None:
+        cur = (("cat", frozenset({"surv"})),)
+        out = merge_ranking_exclusions_after_identity_merge(cur, "cat", "surv", "abs")
+        self.assertEqual(out, (("cat", frozenset({"surv"})),))
+        cur2 = (("cat", frozenset({"abs"})),)
+        out2 = merge_ranking_exclusions_after_identity_merge(cur2, "cat", "surv", "abs")
+        self.assertEqual(out2, (("cat", frozenset({"surv"})),))
+        cur3 = (("cat", frozenset()),)
+        cur3 = update_ranking_exclusions(cur3, "cat", "surv", False)
+        out3 = merge_ranking_exclusions_after_identity_merge(cur3, "cat", "surv", "abs")
+        self.assertEqual(out3, ())
 
 
 if __name__ == "__main__":
