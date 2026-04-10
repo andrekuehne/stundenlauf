@@ -55,7 +55,7 @@ This document defines the frontend-facing Python API contract for the pywebview 
 
 ### `get_matching_config`
 - Payload: none
-- Returns current matching configuration for the active UI session:
+- Returns current matching configuration for the active UI session (a new `UiApiService` session defaults to `strict_normalized_auto_only=true` for safer imports; the desktop Import view uses the same default before the first API round-trip):
   - `auto_min` (configured auto-link threshold from UI control)
   - `review_min`
   - `auto_merge_enabled`

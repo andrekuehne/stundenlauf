@@ -59,7 +59,7 @@
       auto_min: 1.0,
       auto_merge_enabled: false,
       perfect_match_auto_merge: true,
-      strict_normalized_auto_only: false,
+      strict_normalized_auto_only: true,
     },
     importFilePath: "",
     importSourceType: "",
@@ -1088,7 +1088,19 @@
     const autoMergeEnabled = Boolean(state.matchingConfig.auto_merge_enabled);
     const perfectMatchAutoMerge = Boolean(state.matchingConfig.perfect_match_auto_merge);
     const strictNormalizedOnly = Boolean(state.matchingConfig.strict_normalized_auto_only);
-    const fuzzyControlsDisabled = strictNormalizedOnly ? " disabled" : "";
+    const primaryManual =
+      !strictNormalizedOnly && !autoMergeEnabled && !perfectMatchAutoMerge;
+    const primaryFuzzy =
+      !strictNormalizedOnly && !primaryManual;
+    const fuzzySubThreshold = primaryFuzzy && autoMergeEnabled;
+    const fuzzySubPerfect = primaryFuzzy && !autoMergeEnabled;
+    const matchingHint = strictNormalizedOnly
+      ? iv.matchingHintStrict
+      : primaryManual
+        ? iv.matchingHintManual
+        : fuzzySubThreshold
+          ? iv.matchingHintFuzzyThreshold
+          : iv.matchingHintFuzzyPerfect;
     const importBasename = basenameFromPath(state.importFilePath);
     const singlesActive = state.importSourceType === "singles" ? " import-type-btn-active" : "";
     const couplesActive = state.importSourceType === "couples" ? " import-type-btn-active" : "";
@@ -1130,24 +1142,35 @@
           </div>
           <div class="import-settings-panel">
             <h4>${iv.matchingSettings}</h4>
-            <div class="row">
-              <label for="strictNormalizedAutoInput">${iv.strictNormalizedAuto}</label>
-              <input id="strictNormalizedAutoInput" type="checkbox" ${strictNormalizedOnly ? "checked" : ""} />
+            <div class="tabs matching-mode-tabs" role="tablist" aria-label="${iv.matchingSettings}">
+              <button type="button" class="tab matching-mode-tab${strictNormalizedOnly ? " active" : ""}" data-matching-primary="strict" role="tab" aria-selected="${strictNormalizedOnly}">${iv.matchingModeStrict}</button>
+              <button type="button" class="tab matching-mode-tab${primaryFuzzy ? " active" : ""}" data-matching-primary="fuzzy" role="tab" aria-selected="${primaryFuzzy}">${iv.matchingModeFuzzy}</button>
+              <button type="button" class="tab matching-mode-tab${primaryManual ? " active" : ""}" data-matching-primary="manual" role="tab" aria-selected="${primaryManual}">${iv.matchingModeManual}</button>
             </div>
-            <div class="row">
-              <label for="autoMergeEnabledInput">${iv.autoMerge}</label>
-              <input id="autoMergeEnabledInput" type="checkbox" ${autoMergeEnabled ? "checked" : ""}${fuzzyControlsDisabled} />
+            <hr class="matching-settings-divider" />
+            ${
+              primaryFuzzy
+                ? `<div class="tabs matching-subtabs" role="tablist" aria-label="${iv.matchingModeFuzzy}">
+              <button type="button" class="tab matching-subtab${fuzzySubPerfect ? " active" : ""}" data-matching-fuzzy-sub="perfect" role="tab" aria-selected="${fuzzySubPerfect}">${iv.matchingFuzzySubPerfect}</button>
+              <button type="button" class="tab matching-subtab${fuzzySubThreshold ? " active" : ""}" data-matching-fuzzy-sub="threshold" role="tab" aria-selected="${fuzzySubThreshold}">${iv.matchingFuzzySubThreshold}</button>
             </div>
-            <div class="row">
-              <label for="perfectAutoMergeInput">${iv.perfectAutoMerge}</label>
-              <input id="perfectAutoMergeInput" type="checkbox" ${perfectMatchAutoMerge ? "checked" : ""}${fuzzyControlsDisabled} />
-            </div>
-            <div class="row">
-              <label for="autoMergeThresholdRange">${iv.autoMergeThreshold}</label>
-              <input id="autoMergeThresholdRange" type="range" min="0.00" max="1.00" step="0.01" value="${autoMinValue.toFixed(2)}"${fuzzyControlsDisabled} />
-              <input id="autoMergeThresholdInput" type="number" min="0.00" max="1.00" step="0.01" value="${autoMinValue.toFixed(2)}"${fuzzyControlsDisabled} />
-            </div>
-            <p class="hint">${strictNormalizedOnly ? iv.strictNormalizedHint : iv.matchingDefaultHint}</p>
+            ${
+              fuzzySubThreshold
+                ? `<hr class="matching-settings-divider" />
+            <div class="matching-threshold-group">
+              <div class="matching-settings-grid-row">
+                <label for="autoMergeThresholdRange">${iv.matchingThresholdLabel}</label>
+                <div class="matching-settings-controls">
+                  <input id="autoMergeThresholdRange" type="range" min="0.00" max="1.00" step="0.01" value="${autoMinValue.toFixed(2)}" />
+                  <input id="autoMergeThresholdInput" type="number" min="0.00" max="1.00" step="0.01" value="${autoMinValue.toFixed(2)}" />
+                </div>
+              </div>
+            </div>`
+                : ""
+            }`
+                : ""
+            }
+            <p class="hint matching-settings-hint">${matchingHint}</p>
           </div>
         </aside>
         <section class="card import-review-column">
@@ -1159,6 +1182,12 @@
                <p class="hint">${iv.reviewHintLeftRight}</p>
                <p class="hint">${iv.reviewHintNoMatch}</p>
                <p class="hint">${FMT.reviewConfidenceHtml(confidenceLabel(review.confidence), confidencePct)}</p>
+               <p class="hint">${iv.mergeHint}</p>
+               <div class="row merge-actions-row">
+                 <button id="acceptReviewBtn" class="primary">${iv.mergeAccept}</button>
+                 <button id="newIdentityReviewBtn" class="secondary">${iv.mergeNewIdentity}</button>
+                 <button id="skipReviewBtn" class="secondary">${iv.skipReview}</button>
+               </div>
                <div class="merge-review-layout">
                  <section class="merge-review-column">
                    <h4>${iv.incomingHeading}</h4>
@@ -1181,96 +1210,146 @@
                      </table>
                    </div>
                  </section>
-               </div>
-               <p class="hint">${iv.mergeHint}</p>
-               <div class="row merge-actions-row">
-                 <button id="acceptReviewBtn" class="primary">${iv.mergeAccept}</button>
-                 <button id="newIdentityReviewBtn" class="secondary">${iv.mergeNewIdentity}</button>
-                 <button id="skipReviewBtn" class="secondary">${iv.skipReview}</button>
                </div>`
         }
         </section>
       </div>
     `;
-    const autoMergeEnabledInput = document.getElementById("autoMergeEnabledInput");
-    const perfectAutoMergeInput = document.getElementById("perfectAutoMergeInput");
-    const strictNormalizedAutoInput = document.getElementById("strictNormalizedAutoInput");
+    const readThresholdFromDom = () => {
+      const input = document.getElementById("autoMergeThresholdInput");
+      if (input) {
+        return clampAutoMin(input.value);
+      }
+      return clampAutoMin(state.matchingConfig.auto_min);
+    };
+
+    const applyMatchingPrimaryMode = async (mode) => {
+      const threshold = readThresholdFromDom();
+      let strict;
+      let auto;
+      let perfect;
+      if (mode === "strict") {
+        strict = true;
+        auto = state.matchingConfig.auto_merge_enabled;
+        perfect = state.matchingConfig.perfect_match_auto_merge;
+      } else if (mode === "manual") {
+        strict = false;
+        auto = false;
+        perfect = false;
+      } else {
+        strict = false;
+        if (!state.matchingConfig.auto_merge_enabled && !state.matchingConfig.perfect_match_auto_merge) {
+          auto = false;
+          perfect = true;
+        } else {
+          auto = state.matchingConfig.auto_merge_enabled;
+          perfect = state.matchingConfig.perfect_match_auto_merge;
+        }
+      }
+      const unchanged =
+        Boolean(state.matchingConfig.strict_normalized_auto_only) === strict &&
+        Boolean(state.matchingConfig.auto_merge_enabled) === auto &&
+        Boolean(state.matchingConfig.perfect_match_auto_merge) === perfect;
+      if (unchanged) {
+        return;
+      }
+      const ok = await saveMatchingConfig(threshold, auto, perfect, strict);
+      if (!ok) {
+        return;
+      }
+      if (mode === "strict") {
+        setStatus(STR.status.strictNormalizedOn);
+      } else if (mode === "manual") {
+        setStatus(STR.status.matchingModeManualOn);
+      } else if (auto) {
+        setStatus(STR.status.autoMergeOn);
+      } else {
+        setStatus(STR.status.perfectAutoMergeOn);
+      }
+      await renderImportView();
+    };
+
+    for (const btn of document.querySelectorAll("[data-matching-primary]")) {
+      btn.addEventListener("click", () => {
+        applyMatchingPrimaryMode(btn.getAttribute("data-matching-primary"));
+      });
+    }
+
+    for (const btn of document.querySelectorAll("[data-matching-fuzzy-sub]")) {
+      btn.addEventListener("click", async () => {
+        const sub = btn.getAttribute("data-matching-fuzzy-sub");
+        const threshold = readThresholdFromDom();
+        let auto;
+        let perfect;
+        if (sub === "perfect") {
+          auto = false;
+          perfect = true;
+        } else {
+          auto = true;
+          perfect = state.matchingConfig.perfect_match_auto_merge;
+        }
+        const unchanged =
+          !state.matchingConfig.strict_normalized_auto_only &&
+          Boolean(state.matchingConfig.auto_merge_enabled) === auto &&
+          Boolean(state.matchingConfig.perfect_match_auto_merge) === perfect;
+        if (unchanged) {
+          return;
+        }
+        const ok = await saveMatchingConfig(threshold, auto, perfect, false);
+        if (!ok) {
+          return;
+        }
+        if (auto) {
+          setStatus(STR.status.autoMergeOn);
+        } else {
+          setStatus(STR.status.perfectAutoMergeOn);
+        }
+        await renderImportView();
+      });
+    }
+
     const autoMergeThresholdRange = document.getElementById("autoMergeThresholdRange");
     const autoMergeThresholdInput = document.getElementById("autoMergeThresholdInput");
-    const syncThresholdInputs = (nextValue) => {
-      const clamped = clampAutoMin(nextValue);
-      autoMergeThresholdRange.value = clamped.toFixed(2);
-      autoMergeThresholdInput.value = clamped.toFixed(2);
-      return clamped;
-    };
-    autoMergeThresholdRange.addEventListener("input", () => {
-      syncThresholdInputs(autoMergeThresholdRange.value);
-    });
-    autoMergeThresholdInput.addEventListener("change", () => {
-      syncThresholdInputs(autoMergeThresholdInput.value);
-    });
-    autoMergeEnabledInput.addEventListener("change", async () => {
-      const threshold = syncThresholdInputs(autoMergeThresholdInput.value);
-      const ok = await saveMatchingConfig(
-        threshold,
-        autoMergeEnabledInput.checked,
-        perfectAutoMergeInput.checked,
-        strictNormalizedAutoInput.checked
-      );
-      if (ok) {
-        setStatus(
-          autoMergeEnabledInput.checked
-            ? STR.status.autoMergeOn
-            : STR.status.autoMergeOff
-        );
-      }
-    });
-    perfectAutoMergeInput.addEventListener("change", async () => {
-      const threshold = syncThresholdInputs(autoMergeThresholdInput.value);
-      const ok = await saveMatchingConfig(
-        threshold,
-        autoMergeEnabledInput.checked,
-        perfectAutoMergeInput.checked,
-        strictNormalizedAutoInput.checked
-      );
-      if (ok) {
-        setStatus(
-          perfectAutoMergeInput.checked
-            ? STR.status.perfectAutoMergeOn
-            : STR.status.perfectAutoMergeOff
-        );
-      }
-    });
-    strictNormalizedAutoInput.addEventListener("change", async () => {
-      const threshold = syncThresholdInputs(autoMergeThresholdInput.value);
-      const ok = await saveMatchingConfig(
-        threshold,
-        autoMergeEnabledInput.checked,
-        perfectAutoMergeInput.checked,
-        strictNormalizedAutoInput.checked
-      );
-      if (ok) {
-        setStatus(
-          strictNormalizedAutoInput.checked
-            ? STR.status.strictNormalizedOn
-            : STR.status.strictNormalizedOff
-        );
-        await renderImportView();
-      }
-    });
-    autoMergeThresholdInput.addEventListener("blur", async () => {
-      const threshold = syncThresholdInputs(autoMergeThresholdInput.value);
-      if (
-        await saveMatchingConfig(
-          threshold,
-          autoMergeEnabledInput.checked,
-          perfectAutoMergeInput.checked,
-          strictNormalizedAutoInput.checked
-        )
-      ) {
-        setStatus(STR.status.autoMergeThresholdUpdated);
-      }
-    });
+    if (autoMergeThresholdRange && autoMergeThresholdInput) {
+      const syncThresholdInputs = (nextValue) => {
+        const clamped = clampAutoMin(nextValue);
+        autoMergeThresholdRange.value = clamped.toFixed(2);
+        autoMergeThresholdInput.value = clamped.toFixed(2);
+        return clamped;
+      };
+      autoMergeThresholdRange.addEventListener("input", () => {
+        syncThresholdInputs(autoMergeThresholdRange.value);
+      });
+      autoMergeThresholdInput.addEventListener("change", () => {
+        syncThresholdInputs(autoMergeThresholdInput.value);
+      });
+      autoMergeThresholdRange.addEventListener("change", async () => {
+        const threshold = syncThresholdInputs(autoMergeThresholdRange.value);
+        if (
+          await saveMatchingConfig(
+            threshold,
+            true,
+            state.matchingConfig.perfect_match_auto_merge,
+            false
+          )
+        ) {
+          setStatus(STR.status.autoMergeThresholdUpdated);
+        }
+      });
+      autoMergeThresholdInput.addEventListener("blur", async () => {
+        const threshold = syncThresholdInputs(autoMergeThresholdInput.value);
+        if (
+          await saveMatchingConfig(
+            threshold,
+            true,
+            state.matchingConfig.perfect_match_auto_merge,
+            false
+          )
+        ) {
+          setStatus(STR.status.autoMergeThresholdUpdated);
+        }
+      });
+    }
     document.getElementById("sourceTypeSinglesBtn").addEventListener("click", async () => {
       state.importSourceType = "singles";
       await renderImportView();

@@ -20,7 +20,7 @@ Fuzzy matching with `auto_min` and “perfect” score 1.0 can still auto-link n
 - Singles: full scan of same-gender `people` for strict hits; exactly one hit → auto with `strict_identity_auto` feature; multiple → review; none → fuzzy path with **fuzzy auto downgraded to review**.
 - Paarlauf: full scan of division-compatible couples; same semantics.
 - Helpers in [`backend/matching/strict_identity.py`](../../backend/matching/strict_identity.py); `name_key()` shared via [`backend/matching/decisions.py`](../../backend/matching/decisions.py) for fingerprint alignment.
-- German Import UI: checkbox, disabled fuzzy controls when on, copy in `frontend/strings.js`.
+- German Import UI: **Strikt** is the default mode in the Import matching panel (tabbed mode selector: Strikt / Fuzzy-Automatik / Manuell; under Fuzzy, sub-modes *Nur 100 %-Ähnlichkeit* vs *Ab Schwelle* with grouped slider). Copy in `frontend/strings.js`.
 - Tests: helpers, workflow integration, UI API round-trip.
 
 ### Out of Scope

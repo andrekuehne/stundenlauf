@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-10 - Import matching panel: mode tabs and copy
+- Requirement/Milestone: [R4, R6, R8; M5]
+- What shipped: Import **Matching-Einstellungen** use a three-mode tab row (Strikt / Fuzzy-Automatik / Manuell) with fuzzy sub-tabs (*Nur 100 %-Ähnlichkeit* / *Ab Schwelle*) and a grid-aligned threshold control; German copy distinguishes strict normalized identity from 100 % fuzzy score; new UI sessions default to strict mode (`UiApiService` + frontend initial state).
+- Evidence: `frontend/app.js`, `frontend/strings.js`, `frontend/styles.css`, `backend/ui_api/service.py`, `tests/test_f08_ui_api.py`, `docs/features/F11-strict-normalized-auto-match.md`, `docs/api/ui-api-v1.md`; `uv run pytest`
+- Impact: Less confusion at import time and a safer default for organizers.
+- Follow-up: optional persistence of matching mode per season.
+
 ### 2026-04-09 - F11 Strict normalized auto-match mode
 - Requirement/Milestone: [R4, R6; M5]
 - What shipped: Optional `strict_normalized_auto_only` matching mode auto-links only when incoming rows match exactly one existing entity on normalized name (`parse_person_name` of display name), YOB, gender, and normalized club; full scan avoids blocking misses after identity edits; fuzzy scores can no longer auto in this mode; `get_matching_config` / `set_matching_config` + Import panel checkbox with fuzzy controls disabled while active.

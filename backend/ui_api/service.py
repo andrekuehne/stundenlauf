@@ -24,7 +24,7 @@ class UiApiService:
         self._auto_min_setting = 1.0
         self._auto_merge_enabled = False
         self._perfect_match_auto_merge = True
-        self._strict_normalized_auto_only = False
+        self._strict_normalized_auto_only = True
         self.matching_config = self._build_matching_config()
 
     def _load(self):

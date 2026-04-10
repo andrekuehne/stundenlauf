@@ -17,15 +17,17 @@
       prefix: "Status: ",
       defaultReady: "Bereit",
       matchingSaveFailed: "Matching-Einstellungen konnten nicht gespeichert werden.",
-      autoMergeOn: "Auto_Zusammenführung ist aktiv.",
-      autoMergeOff:
-        "Auto-Zusammenführung ist deaktiviert. Neue Importe landen bei Unsicherheit in der Prüfung.",
-      perfectAutoMergeOn: "Perfekte Treffer werden automatisch zusammengeführt.",
-      perfectAutoMergeOff: "Perfekte Treffer werden nicht mehr automatisch zusammengeführt.",
+      autoMergeOn: "Ab-Schwelle-Automatik aktiv: Zuordnung ab dem eingestellten Ähnlichkeitswert.",
+      autoMergeOff: "Ab-Schwelle-Automatik aus.",
+      perfectAutoMergeOn:
+        "Nur bei 100 %-Ähnlichkeit (Fuzzy-Score): automatische Zuordnung nur beim höchsten Trefferwert.",
+      perfectAutoMergeOff: "100 %-Fuzzy-Automatik aus.",
       strictNormalizedOn:
-        "Strenger Abgleich: Automatisch nur bei exakt gleicher normalisierter Identität (Name, Jahrgang, Verein).",
-      strictNormalizedOff: "Fuzzy-Matching mit Schwelle und Auto-Optionen ist wieder aktiv.",
-      autoMergeThresholdUpdated: "Auto-Zusammenführung-Schwelle wurde aktualisiert.",
+        "Strikt: Automatisch nur bei exakt passender normalisierter Identität (Name, Jahrgang, Verein, Geschlecht).",
+      strictNormalizedOff: "Fuzzy-Automatik gewählt – Detailstufe unten einstellbar.",
+      matchingModeManualOn:
+        "Manuell: Keine automatische Zuordnung per Ähnlichkeit; Sie entscheiden in der Prüfung.",
+      autoMergeThresholdUpdated: "Ähnlichkeitsschwelle wurde aktualisiert.",
       importIncomplete: "Bitte Datei, Lauftyp und Laufnummer vollständig wählen.",
       importRunning: "Import läuft...",
       importFailed: "Import konnte nicht abgeschlossen werden.",
@@ -167,14 +169,20 @@
       raceSelectPlaceholder: "Bitte wählen…",
       importRace: "Lauf importieren",
       matchingSettings: "Matching-Einstellungen",
-      autoMerge: "Automatisches Zusammenführen",
-      perfectAutoMerge: "Perfekte Treffer automatisch",
-      autoMergeThreshold: "Auto-Zusammenführung-Schwelle",
-      strictNormalizedAuto: "Nur exakt normalisierte Identität automatisch",
-      strictNormalizedHint:
-        "Bei aktivierter Option gelten Auto-Merge, perfekte Treffer und die Schwelle nicht für automatische Zuordnung: automatisch nur, wenn Name (normalisiert), Jahrgang und Verein exakt zur Datenbank passen. Die Schwelle steuert weiterhin Prüfung vs. neue Person bei abweichenden Daten.",
-      matchingDefaultHint:
-        "Standard: Nur perfekte Treffer werden automatisch zusammengeführt.",
+      matchingModeStrict: "Strikt",
+      matchingModeFuzzy: "Fuzzy-Automatik",
+      matchingModeManual: "Manuell",
+      matchingFuzzySubPerfect: "Nur 100 %-Ähnlichkeit",
+      matchingFuzzySubThreshold: "Ab Schwelle",
+      matchingThresholdLabel: "Ähnlichkeit ab der automatisch zugeordnet wird",
+      matchingHintStrict:
+        "Automatische Zuordnung nur, wenn Name (normalisiert), Jahrgang, Verein und Geschlecht exakt einem bestehenden Datensatz entsprechen und genau ein Treffer möglich ist. Kein stiller Fuzzy-Auto-Merge.",
+      matchingHintFuzzyPerfect:
+        "Automatische Zuordnung nur, wenn der Fuzzy-Ähnlichkeitswert den höchsten Wert (100 %) erreicht – unabhängig von Tippfehlern in der Anzeige, aber nach Gewichtung und Normierung des Systems.",
+      matchingHintFuzzyThreshold:
+        "Automatische Zuordnung ab dem eingestellten Mindest-Ähnlichkeitswert. Darunter bleiben Einträge in der Prüfung oder werden als neue Person geführt.",
+      matchingHintManual:
+        "Keine automatische Zuordnung über Ähnlichkeit: alle unsicheren Fälle landen in der Prüfung.",
       reviewTitle: "Zusammenführungen prüfen",
       noOpenReviews: "Keine offenen Prüfungen.",
       reviewProgress: (current, total) => `Prüfung ${current} von ${total}`,

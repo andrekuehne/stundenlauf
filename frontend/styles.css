@@ -363,7 +363,7 @@ th {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space);
-  margin-top: 10px;
+  margin-top: 0;
 }
 
 .merge-review-column h4 {
@@ -380,7 +380,7 @@ th {
 }
 
 .merge-actions-row {
-  margin-top: 12px;
+  margin-bottom: 12px;
 }
 
 .import-add-layout {
@@ -498,6 +498,70 @@ th {
 .import-settings-panel input:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.import-settings-panel .matching-mode-tabs,
+.import-settings-panel .matching-subtabs {
+  margin-bottom: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.import-settings-panel .matching-mode-tab,
+.import-settings-panel .matching-subtab {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 10px 12px;
+  min-height: 40px;
+  font-size: var(--font-small);
+}
+
+.import-settings-panel .matching-subtabs {
+  margin-top: 10px;
+}
+
+.matching-settings-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 12px 0;
+}
+
+.matching-settings-hint {
+  margin-top: 12px;
+  margin-bottom: 0;
+}
+
+.matching-threshold-group {
+  margin-top: 4px;
+}
+
+.matching-settings-grid-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px 12px;
+  align-items: center;
+  width: 100%;
+}
+
+.matching-settings-grid-row label {
+  font-size: var(--font-small);
+  color: var(--muted);
+  text-align: left;
+  justify-self: start;
+}
+
+.matching-settings-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  justify-self: end;
+}
+
+.matching-settings-controls input[type="range"] {
+  min-width: min(260px, 100%);
+  max-width: 100%;
 }
 
 .modal {

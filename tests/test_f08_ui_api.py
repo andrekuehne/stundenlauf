@@ -611,7 +611,7 @@ class TestF08UiApi(unittest.TestCase):
             self.assertEqual(initial["status"], "ok")
             self.assertFalse(initial["payload"]["auto_merge_enabled"])
             self.assertTrue(initial["payload"]["perfect_match_auto_merge"])
-            self.assertFalse(initial["payload"]["strict_normalized_auto_only"])
+            self.assertTrue(initial["payload"]["strict_normalized_auto_only"])
             self.assertEqual(initial["payload"]["auto_min"], 1.0)
             self.assertEqual(initial["payload"]["effective_auto_min"], 1.0)
 
