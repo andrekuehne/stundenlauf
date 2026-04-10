@@ -17,6 +17,12 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-10 - Per-candidate match scores in review queue (GUI)
+- Requirement/Milestone: [R4, R6, R8; M3]
+- What shipped: Persist fuzzy similarity per ranked candidate (`candidate_confidences` aligned with `candidate_uids`), expose via `get_review_queue`, and render each candidate row with its own percentage; imports and stored match meta always populate the field for review rows.
+- Evidence: `backend/domain/models.py`, `backend/matching/workflow.py`, `backend/storage/schema_v2.py`, `backend/ui_api/queries.py`, `backend/ui_api/commands.py`, `frontend/app.js`, `docs/api/ui-api-v1.md`, `tests/test_f08_ui_api.py`; `uv run pytest tests/test_f08_ui_api.py tests/test_f03_matching.py tests/test_f01_storage.py`
+- Impact: operators can distinguish ranked candidates instead of seeing the top confidence repeated for every row.
+
 ### 2026-04-10 - F14 Season hard reset (keep year)
 - Requirement/Milestone: [R1, R6, R8; M5]
 - What shipped: Added guarded season hard reset in UI API (`reset_series_year`) and startup GUI so operators can clear all season content in place (events, identities, matching decisions, standings) while keeping the same year slot; reset uses typed-year confirmation and preserves repository atomic backup behavior.

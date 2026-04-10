@@ -26,7 +26,7 @@ from backend.matching.decisions import (
     rejected_team_uids,
     team_fingerprint,
 )
-from backend.matching.normalize import normalize_club, parse_person_name
+from backend.matching.normalize import ParsedName, normalize_club, parse_person_name
 from backend.matching.report import MatchingReport
 from backend.matching.score import route_from_score, score_person_match
 from backend.matching.strict_identity import couple_matches_strict_row, person_matches_strict_incoming
@@ -53,6 +53,67 @@ def _member_genders_for_couples(division: Division) -> tuple[Gender, Gender]:
     if division == Division.COUPLES_MIXED:
         return Gender.M, Gender.F
     raise ValueError(f"Unexpected couples division: {division.value}.")
+
+
+def _person_row_candidate_confidences(
+    *,
+    parsed: ParsedName,
+    yob: int,
+    club_norm: str,
+    config: MatchingConfig,
+    candidate_people: tuple[Person, ...],
+    scored: list[tuple[float, Person, dict[str, float]]],
+    candidate_uids: tuple[str, ...],
+) -> tuple[float, ...]:
+    by_uid = {c.uid: sc for sc, c, _ in scored}
+    out: list[float] = []
+    for uid in candidate_uids:
+        if uid in by_uid:
+            out.append(by_uid[uid])
+            continue
+        cand = next((c for c in candidate_people if c.uid == uid), None)
+        if cand is None:
+            out.append(0.0)
+            continue
+        sc, _ = score_person_match(parsed, yob, club_norm, cand, config)
+        out.append(sc)
+    return tuple(out)
+
+
+def _couple_row_candidate_confidences(
+    *,
+    row: ImportRowCouples,
+    parsed_a: ParsedName,
+    parsed_b: ParsedName,
+    club_norm_a: str,
+    club_norm_b: str,
+    config: MatchingConfig,
+    couples: tuple[Couple, ...],
+    scored: list[tuple[float, Couple, dict[str, float]]],
+    candidate_uids: tuple[str, ...],
+) -> tuple[float, ...]:
+    by_uid = {c.uid: sc for sc, c, _ in scored}
+    out: list[float] = []
+    for uid in candidate_uids:
+        if uid in by_uid:
+            out.append(by_uid[uid])
+            continue
+        cand = next((c for c in couples if c.uid == uid), None)
+        if cand is None:
+            out.append(0.0)
+            continue
+        sc, _ = score_couple_match(
+            parsed_a,
+            row.yob_a,
+            club_norm_a,
+            parsed_b,
+            row.yob_b,
+            club_norm_b,
+            cand,
+            config,
+        )
+        out.append(sc)
+    return tuple(out)
 
 
 @dataclass
@@ -106,6 +167,7 @@ def _resolve_person(
                 confidence=1.0,
                 top_candidate_uid=target.uid,
                 candidate_uids=(target.uid,),
+                candidate_confidences=(1.0,),
                 features={"replay": 1.0},
             )
             new_decisions.append(
@@ -206,6 +268,16 @@ def _resolve_person(
         else:
             used_candidate_uids[top.uid] = entry_uid
 
+    candidate_confidences = _person_row_candidate_confidences(
+        parsed=parsed,
+        yob=yob,
+        club_norm=club_norm,
+        config=config,
+        candidate_people=candidate_people,
+        scored=scored,
+        candidate_uids=candidate_uids,
+    )
+
     if meta_route == "new_identity" or top is None:
         person = Person(
             name=raw_name.strip(),
@@ -222,6 +294,7 @@ def _resolve_person(
             confidence=top_score,
             top_candidate_uid=top.uid if top else None,
             candidate_uids=candidate_uids,
+            candidate_confidences=candidate_confidences,
             features=top_feats,
             conflict_flags=tuple(conflict_flags),
         )
@@ -250,6 +323,7 @@ def _resolve_person(
         confidence=top_score,
         top_candidate_uid=top.uid,
         candidate_uids=candidate_uids,
+        candidate_confidences=candidate_confidences,
         features=top_feats,
         conflict_flags=tuple(conflict_flags),
     )
@@ -301,6 +375,7 @@ def _resolve_team_row(
                 confidence=1.0,
                 top_candidate_uid=target.uid,
                 candidate_uids=(target.uid,),
+                candidate_confidences=(1.0,),
                 features={"replay": 1.0},
             )
             new_decisions.append(
@@ -404,6 +479,18 @@ def _resolve_team_row(
         else:
             used_team_uids[top.uid] = entry_uid
 
+    candidate_confidences = _couple_row_candidate_confidences(
+        row=row,
+        parsed_a=parsed_a,
+        parsed_b=parsed_b,
+        club_norm_a=club_norm_a,
+        club_norm_b=club_norm_b,
+        config=config,
+        couples=tuple(couples),
+        scored=scored,
+        candidate_uids=candidate_uids,
+    )
+
     if meta_route == "new_identity" or top is None:
         person_a = Person(
             name=row.name_a.strip(),
@@ -432,6 +519,7 @@ def _resolve_team_row(
             confidence=top_score,
             top_candidate_uid=top.uid if top else None,
             candidate_uids=candidate_uids,
+            candidate_confidences=candidate_confidences,
             features=top_feats,
             conflict_flags=tuple(conflict_flags),
         )
@@ -460,6 +548,7 @@ def _resolve_team_row(
         confidence=top_score,
         top_candidate_uid=top.uid,
         candidate_uids=candidate_uids,
+        candidate_confidences=candidate_confidences,
         features=top_feats,
         conflict_flags=tuple(conflict_flags),
     )

@@ -49,6 +49,7 @@ class RaceEntryMatchMeta:
     confidence: float = 0.0
     top_candidate_uid: Optional[str] = None
     candidate_uids: tuple[str, ...] = ()
+    candidate_confidences: tuple[float, ...] = ()
     features: dict[str, float] = field(default_factory=dict)
     conflict_flags: tuple[str, ...] = ()
     incoming_display_name: str = ""

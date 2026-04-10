@@ -26,6 +26,7 @@ def _seed_project(path: Path) -> None:
         confidence=0.82,
         top_candidate_uid="participant_target",
         candidate_uids=("participant_target",),
+        candidate_confidences=(0.82,),
         features={"name_similarity": 0.82},
     )
     review_entry = RaceEntry(
@@ -1245,6 +1246,7 @@ class TestF08UiApi(unittest.TestCase):
                     confidence=0.9,
                     top_candidate_uid=high.uid,
                     candidate_uids=(high.uid,),
+                    candidate_confidences=(0.9,),
                     features={"name_similarity": 0.9},
                 ),
             )
@@ -1258,6 +1260,7 @@ class TestF08UiApi(unittest.TestCase):
                     confidence=0.7,
                     top_candidate_uid=low.uid,
                     candidate_uids=(low.uid,),
+                    candidate_confidences=(0.7,),
                     features={"name_similarity": 0.7},
                 ),
             )
@@ -1290,6 +1293,54 @@ class TestF08UiApi(unittest.TestCase):
             self.assertEqual(items[0]["confidence_label"], "hoch")
             self.assertEqual(items[1]["confidence_label"], "mittel")
 
+    def test_get_review_queue_includes_candidate_confidences_per_candidate(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.WOMEN)
+            a = Person(uid="participant_a", name="Miriam Winkler", yob=2009, gender=Gender.F, club="TSV")
+            b = Person(uid="participant_b", name="Mirjam Hertenstein", yob=2001, gender=Gender.F, club="TSV")
+            review_entry = RaceEntry(
+                entry_uid="entry_two_cand",
+                participant_uid=a.uid,
+                startnr="9",
+                result=EntryResult(distance_km=9.0, points=18.0),
+                match_meta=RaceEntryMatchMeta(
+                    route="review",
+                    confidence=1.0,
+                    top_candidate_uid=a.uid,
+                    candidate_uids=(a.uid, b.uid),
+                    candidate_confidences=(0.88, 0.61),
+                    features={"total": 1.0},
+                ),
+            )
+            event = RaceEvent(
+                race_event_uid="race_event_cc",
+                category=category,
+                race_date="2026-03-01",
+                race_no=1,
+                source_file="fixture_cc.xlsx",
+                source_sha256="sha-cc",
+                imported_at="2026-03-01T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp-cc",
+                entries=(review_entry,),
+            )
+            doc = ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(a, b), events=(event,))
+            JsonProjectRepository(project_path).save(recompute_project_standings(doc))
+            service = UiApiService(project_path)
+            response = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_cc",
+                    "method": "get_review_queue",
+                    "payload": {},
+                }
+            )
+            self.assertEqual(response["status"], "ok")
+            item = response["payload"]["items"][0]
+            self.assertEqual(item["candidate_confidences"], [0.88, 0.61])
+            self.assertEqual(len(item["candidate_confidences"]), len(item["candidate_uids"]))
+
     def test_get_review_queue_prefers_incoming_preview_over_provisional_link(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project_path = Path(temp_dir) / "project.json"
@@ -1305,6 +1356,7 @@ class TestF08UiApi(unittest.TestCase):
                     confidence=0.8,
                     top_candidate_uid=existing.uid,
                     candidate_uids=(existing.uid,),
+                    candidate_confidences=(0.8,),
                     features={"name_similarity": 0.8},
                     incoming_display_name="Max Mustermannn",
                     incoming_yob=1990,
@@ -1360,6 +1412,7 @@ class TestF08UiApi(unittest.TestCase):
                     confidence=0.8,
                     top_candidate_uid=team.uid,
                     candidate_uids=(team.uid,),
+                    candidate_confidences=(0.8,),
                     features={"name_similarity": 0.8},
                 ),
             )
@@ -1411,6 +1464,7 @@ class TestF08UiApi(unittest.TestCase):
                     confidence=0.78,
                     top_candidate_uid=existing_team.uid,
                     candidate_uids=(existing_team.uid,),
+                    candidate_confidences=(0.78,),
                     features={"name_similarity": 0.78},
                     incoming_display_name="Alex Beispiel / Sina Beispiel",
                     incoming_yob_text="1987 / 1992",

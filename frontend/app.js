@@ -1220,12 +1220,17 @@
         const isSelected = selectedCandidateUid === candidateUid;
         const selectedClass = isSelected ? " selected-candidate-row" : "";
         const buttonLabel = isSelected ? iv.selectedCandidate : iv.selectCandidate;
+        const confidences = review.candidate_confidences;
+        const aligned = Array.isArray(confidences) && confidences.length === candidateUids.length;
+        const rowConfidence = aligned ? confidences[index] : null;
+        const matchCell =
+          aligned && rowConfidence != null ? `${confidencePercent(rowConfidence)}%` : "-";
         return `<tr class="candidate-row${selectedClass}" data-candidate-row="${candidateUid}">
           <td>${rank}</td>
           <td>${preview?.display_name || STR.preview.unknown}</td>
           <td>${preview?.yob || "-"}</td>
           <td>${preview?.club || "-"}</td>
-          <td>${confidencePercent(review.confidence)}%</td>
+          <td>${matchCell}</td>
           <td><button class="secondary select-candidate-btn" data-candidate-uid="${candidateUid}">${buttonLabel}</button></td>
         </tr>`;
       })

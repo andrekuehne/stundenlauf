@@ -156,6 +156,7 @@ def apply_match_decision(project_file: Path, payload: dict[str, Any]) -> dict[st
             confidence=1.0,
             top_candidate_uid=None,
             candidate_uids=(),
+            candidate_confidences=(),
             features={"manual_new_identity": 1.0},
             conflict_flags=(),
         )
@@ -169,6 +170,7 @@ def apply_match_decision(project_file: Path, payload: dict[str, Any]) -> dict[st
             confidence=1.0,
             top_candidate_uid=target_uid,
             candidate_uids=(target_uid,) if target_uid else (),
+            candidate_confidences=(1.0,) if target_uid else (),
             features={"manual_link": 1.0},
             conflict_flags=(),
         )

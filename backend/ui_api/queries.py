@@ -298,6 +298,7 @@ def get_review_queue(document: ProjectDocument, payload: dict[str, Any]) -> dict
                     "entry_uid": entry.entry_uid,
                     "startnr": entry.startnr,
                     "candidate_uids": list(entry.match_meta.candidate_uids),
+                    "candidate_confidences": list(entry.match_meta.candidate_confidences),
                     "candidate_previews": [
                         _entity_preview(document, candidate_uid)
                         for candidate_uid in entry.match_meta.candidate_uids
