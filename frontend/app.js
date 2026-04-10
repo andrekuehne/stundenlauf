@@ -581,27 +581,29 @@
     const cs = STR.categorySlots;
     const categoriesByKey = new Map(state.categories.map((category) => [category.category_key, category]));
     const slots = {
+      // Grid: columns = 1/2 h (left), 1 h (right); rows = F, M.
       einzel: [
-        { key: "half_men", label: cs.half_men, match: (category) => durationSortKey(category.duration) === 0 && normalizeDivision(category.division) === "men" },
         { key: "half_women", label: cs.half_women, match: (category) => durationSortKey(category.duration) === 0 && normalizeDivision(category.division) === "women" },
-        { key: "hour_men", label: cs.hour_men, match: (category) => durationSortKey(category.duration) === 1 && normalizeDivision(category.division) === "men" },
         { key: "hour_women", label: cs.hour_women, match: (category) => durationSortKey(category.duration) === 1 && normalizeDivision(category.division) === "women" },
+        { key: "half_men", label: cs.half_men, match: (category) => durationSortKey(category.duration) === 0 && normalizeDivision(category.division) === "men" },
+        { key: "hour_men", label: cs.hour_men, match: (category) => durationSortKey(category.duration) === 1 && normalizeDivision(category.division) === "men" },
       ],
+      // Grid: columns = 1/2 h (left), 1 h (right); rows = F, M, Mix.
       paare: [
-        {
-          key: "half_couples_men",
-          label: cs.half_couples_men,
-          match: (category) => durationSortKey(category.duration) === 0 && normalizeDivision(category.division) === "couples_men",
-        },
         {
           key: "half_couples_women",
           label: cs.half_couples_women,
           match: (category) => durationSortKey(category.duration) === 0 && normalizeDivision(category.division) === "couples_women",
         },
         {
-          key: "half_couples_mixed",
-          label: cs.half_couples_mixed,
-          match: (category) => durationSortKey(category.duration) === 0 && normalizeDivision(category.division) === "couples_mixed",
+          key: "hour_couples_women",
+          label: cs.hour_couples_women,
+          match: (category) => durationSortKey(category.duration) === 1 && normalizeDivision(category.division) === "couples_women",
+        },
+        {
+          key: "half_couples_men",
+          label: cs.half_couples_men,
+          match: (category) => durationSortKey(category.duration) === 0 && normalizeDivision(category.division) === "couples_men",
         },
         {
           key: "hour_couples_men",
@@ -609,9 +611,9 @@
           match: (category) => durationSortKey(category.duration) === 1 && normalizeDivision(category.division) === "couples_men",
         },
         {
-          key: "hour_couples_women",
-          label: cs.hour_couples_women,
-          match: (category) => durationSortKey(category.duration) === 1 && normalizeDivision(category.division) === "couples_women",
+          key: "half_couples_mixed",
+          label: cs.half_couples_mixed,
+          match: (category) => durationSortKey(category.duration) === 0 && normalizeDivision(category.division) === "couples_mixed",
         },
         {
           key: "hour_couples_mixed",
@@ -750,11 +752,11 @@
             </div>
             <div class="sidebar-section">
               <h3>${st.sidebarSingles}</h3>
-              <div class="category-grid">${renderQuickGrid("einzel")}</div>
+              <div class="category-grid category-grid--einzel">${renderQuickGrid("einzel")}</div>
             </div>
             <div class="sidebar-section">
               <h3>${st.sidebarCouples}</h3>
-              <div class="category-grid">${renderQuickGrid("paare")}</div>
+              <div class="category-grid category-grid--paare">${renderQuickGrid("paare")}</div>
             </div>
           </aside>
           <div class="standings-content">
@@ -840,11 +842,11 @@
           </div>
           <div class="sidebar-section">
             <h3>${st.sidebarSingles}</h3>
-            <div class="category-grid">${renderQuickGrid("einzel")}</div>
-          </div>
-          <div class="sidebar-section">
-            <h3>${st.sidebarCouples}</h3>
-            <div class="category-grid">${renderQuickGrid("paare")}</div>
+            <div class="category-grid category-grid--einzel">${renderQuickGrid("einzel")}</div>
+            </div>
+            <div class="sidebar-section">
+              <h3>${st.sidebarCouples}</h3>
+              <div class="category-grid category-grid--paare">${renderQuickGrid("paare")}</div>
           </div>
         </aside>
         <div class="standings-content">
