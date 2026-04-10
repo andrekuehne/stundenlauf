@@ -2,12 +2,26 @@ from __future__ import annotations
 
 import unittest
 
-from backend.domain.enums import Gender
+from backend.domain.enums import Division, Gender, RaceDuration
 from backend.domain.models import Couple, MatchingDecision, Person, ProjectDocument
+from backend.ingestion.types import (
+    ImportRaceContext,
+    ImportRowCouples,
+    ImportRowSingles,
+    ParsedSectionCouples,
+    ParsedSectionSingles,
+)
 from backend.matching.config import MatchingConfig
 from backend.matching.decisions import identity_fingerprint, latest_decisions_by_fingerprint, team_fingerprint
 from backend.matching.normalize import parse_person_name
-from backend.matching.score import person_parsed, route_from_score, score_person_match
+from backend.matching.workflow import process_couples_section, process_singles_section
+from backend.matching.score import (
+    person_parsed,
+    route_from_score,
+    score_person_match,
+    should_review_strong_couple_yob_mismatch,
+    should_review_strong_name_yob_mismatch,
+)
 from backend.matching.teams import score_couple_match
 from backend.storage.schema_v2 import SCHEMA_VERSION_V2
 
@@ -63,6 +77,108 @@ class TestF03Scoring(unittest.TestCase):
         self.assertEqual(route_from_score(0.80, cfg), "review")
         self.assertEqual(route_from_score(0.50, cfg), "new_identity")
 
+    def test_identical_name_yob_mismatch_below_review_min_forces_review_flag(self) -> None:
+        """Same as production logs: auto_min=1.0, score ~0.54, must still surface human review."""
+        cfg = MatchingConfig(auto_min=1.0, review_min=0.72)
+        inc = parse_person_name("Tristan Wolter")
+        cand = Person(name="Tristan Wolter", yob=2007, gender=Gender.M)
+        score, feats = score_person_match(inc, 2008, "", cand, cfg)
+        self.assertLess(score, cfg.review_min)
+        self.assertEqual(route_from_score(score, cfg), "new_identity")
+        self.assertTrue(should_review_strong_name_yob_mismatch(score, feats, cfg))
+
+    def test_workflow_same_name_yob_mismatch_is_review_not_new_identity(self) -> None:
+        parsed = parse_person_name("Tristan Wolter")
+        existing = Person(
+            name="Tristan Wolter",
+            yob=2007,
+            gender=Gender.M,
+            canonical_given=parsed.given,
+            canonical_family=parsed.family,
+        )
+        doc = ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(existing,))
+        row = ImportRowSingles(
+            startnr="10",
+            name="Tristan Wolter",
+            yob=2008,
+            club="",
+            distance_km=5.0,
+            points=1.0,
+        )
+        section = ParsedSectionSingles(
+            context=ImportRaceContext(
+                series_year=2026,
+                race_no=2,
+                duration=RaceDuration.HOUR,
+                division=Division.MEN,
+            ),
+            rows=(row,),
+        )
+        meta = {
+            "source_file": "t.xlsx",
+            "source_sha256": "sha_yob_mismatch",
+            "imported_at": "2026-01-01T12:00:00+00:00",
+            "parser_version": "v1",
+            "schema_fingerprint": "fp",
+        }
+        cfg = MatchingConfig(auto_min=1.0, review_min=0.72)
+        new_doc, _ = process_singles_section(doc, section, meta, cfg)
+        entry = new_doc.events[-1].entries[0]
+        self.assertEqual(entry.match_meta.route, "review")
+        self.assertEqual(entry.participant_uid, existing.uid)
+
+    def test_workflow_couple_one_member_yob_off_is_review(self) -> None:
+        pa = parse_person_name("Max Mustermann")
+        pb = parse_person_name("Eva Beispiel")
+        ma = Person(
+            name="Max Mustermann",
+            yob=1988,
+            gender=Gender.M,
+            canonical_given=pa.given,
+            canonical_family=pa.family,
+        )
+        mb = Person(
+            name="Eva Beispiel",
+            yob=1990,
+            gender=Gender.F,
+            canonical_given=pb.given,
+            canonical_family=pb.family,
+        )
+        existing = Couple(member_a=ma, member_b=mb)
+        doc = ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(ma, mb), couples=(existing,))
+        row = ImportRowCouples(
+            startnr="10",
+            name_a="Max Mustermann",
+            yob_a=1988,
+            club_a=None,
+            name_b="Eva Beispiel",
+            yob_b=1991,
+            club_b=None,
+            distance_km=10.0,
+            points=1.0,
+        )
+        section = ParsedSectionCouples(
+            context=ImportRaceContext(
+                series_year=2026,
+                race_no=1,
+                duration=RaceDuration.HOUR,
+                division=Division.COUPLES_MIXED,
+            ),
+            rows=(row,),
+        )
+        meta = {
+            "source_file": "t.xlsx",
+            "source_sha256": "sha_couple_yob",
+            "imported_at": "2026-01-01T12:00:00+00:00",
+            "parser_version": "v1",
+            "schema_fingerprint": "fp",
+        }
+        cfg = MatchingConfig(auto_min=1.0, review_min=0.72)
+        new_doc, _ = process_couples_section(doc, section, meta, cfg)
+        entry = new_doc.events[-1].entries[0]
+        self.assertEqual(entry.match_meta.route, "review")
+        self.assertEqual(entry.team_uid, existing.uid)
+
 
 class TestF03PairMatching(unittest.TestCase):
     def test_reversed_member_order_same_score(self) -> None:
@@ -79,9 +195,35 @@ class TestF03PairMatching(unittest.TestCase):
             member_a=Person(name="Eva E", yob=1990, gender=Gender.F),
             member_b=Person(name="Max M", yob=1988, gender=Gender.M),
         )
-        s1, _ = score_couple_match(inc_a, 1988, "", inc_b, 1990, "", t1, cfg)
-        s2, _ = score_couple_match(inc_a, 1988, "", inc_b, 1990, "", t2, cfg)
+        s1, f1 = score_couple_match(inc_a, 1988, "", inc_b, 1990, "", t1, cfg)
+        s2, f2 = score_couple_match(inc_a, 1988, "", inc_b, 1990, "", t2, cfg)
         self.assertAlmostEqual(s1, s2, places=3)
+        self.assertIn("m0_yob_agreement", f1)
+        self.assertIn("m1_yob_agreement", f1)
+
+    def test_couple_one_yob_mismatch_triggers_review_heuristic(self) -> None:
+        cfg = MatchingConfig(auto_min=1.0, review_min=0.72)
+        inc_a = parse_person_name("Max Mustermann")
+        inc_b = parse_person_name("Eva Beispiel")
+        team = Couple(
+            member_a=Person(
+                name="Max Mustermann",
+                yob=1988,
+                gender=Gender.M,
+                canonical_given=inc_a.given,
+                canonical_family=inc_a.family,
+            ),
+            member_b=Person(
+                name="Eva Beispiel",
+                yob=1990,
+                gender=Gender.F,
+                canonical_given=inc_b.given,
+                canonical_family=inc_b.family,
+            ),
+        )
+        score, feats = score_couple_match(inc_a, 1988, "", inc_b, 1991, "", team, cfg)
+        self.assertLess(score, cfg.review_min)
+        self.assertTrue(should_review_strong_couple_yob_mismatch(score, feats, cfg))
 
 
 class TestF03DecisionReplay(unittest.TestCase):

@@ -82,15 +82,15 @@ def score_couple_match(
 ) -> tuple[float, dict[str, float]]:
     """Order-insensitive bipartite pairing of two incoming members vs team members."""
     members = (team.member_a, team.member_b)
-    alignments: list[tuple[float, float, float]] = []
+    alignments: list[tuple[float, float, float, dict[str, float], dict[str, float]]] = []
     for perm in ((0, 1), (1, 0)):
-        s0, _f0 = score_person_match(inc_a, yob_a, club_a, members[perm[0]], config)
-        s1, _f1 = score_person_match(inc_b, yob_b, club_b, members[perm[1]], config)
+        s0, f0 = score_person_match(inc_a, yob_a, club_a, members[perm[0]], config)
+        s1, f1 = score_person_match(inc_b, yob_b, club_b, members[perm[1]], config)
         pair_score = min(s0, s1) * 0.65 + (s0 + s1) / 2.0 * 0.35
-        alignments.append((pair_score, s0, s1))
+        alignments.append((pair_score, s0, s1, f0, f1))
 
     best = max(alignments, key=lambda item: item[0])
-    pair_score, s0, s1 = best
+    pair_score, s0, s1, f0, f1 = best
 
     if min(s0, s1) < config.member_mismatch_floor:
         pair_score = min(pair_score, config.pair_unsafe_cap)
@@ -99,5 +99,11 @@ def score_couple_match(
         "pair_score": round(pair_score, 4),
         "member_low": round(min(s0, s1), 4),
         "member_high": round(max(s0, s1), 4),
+        "m0_name_base": round(float(f0.get("name_base", 0.0)), 4),
+        "m0_token_overlap": round(float(f0.get("token_overlap", 0.0)), 4),
+        "m0_yob_agreement": float(f0.get("yob_agreement", 0.5)),
+        "m1_name_base": round(float(f1.get("name_base", 0.0)), 4),
+        "m1_token_overlap": round(float(f1.get("token_overlap", 0.0)), 4),
+        "m1_yob_agreement": float(f1.get("yob_agreement", 0.5)),
     }
     return float(pair_score), feats

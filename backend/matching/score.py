@@ -96,3 +96,45 @@ def route_from_score(score: float, config: MatchingConfig) -> str:
     if score >= config.review_min:
         return "review"
     return "new_identity"
+
+
+def should_review_strong_name_yob_mismatch(
+    top_score: float,
+    feats: dict[str, float],
+    config: MatchingConfig,
+) -> bool:
+    """If names are essentially identical but both YOBs disagree, force review (not silent new identity)."""
+    if top_score >= config.review_min:
+        return False
+    if feats.get("yob_agreement") != 0.0:
+        return False
+    name_base = feats.get("name_base", 0.0)
+    token_overlap = feats.get("token_overlap", 0.0)
+    if name_base < 0.98 and token_overlap < 1.0:
+        return False
+    return True
+
+
+def _strong_person_name_match(name_base: float, token_overlap: float) -> bool:
+    return name_base >= 0.98 or token_overlap >= 1.0
+
+
+def should_review_strong_couple_yob_mismatch(
+    top_score: float,
+    feats: dict[str, float],
+    config: MatchingConfig,
+) -> bool:
+    """Same as singles: very strong names on both members but at least one explicit YOB clash → review."""
+    if top_score >= config.review_min:
+        return False
+    ya0 = float(feats.get("m0_yob_agreement", 0.5))
+    ya1 = float(feats.get("m1_yob_agreement", 0.5))
+    if ya0 != 0.0 and ya1 != 0.0:
+        return False
+    nb0 = float(feats.get("m0_name_base", 0.0))
+    nb1 = float(feats.get("m1_name_base", 0.0))
+    to0 = float(feats.get("m0_token_overlap", 0.0))
+    to1 = float(feats.get("m1_token_overlap", 0.0))
+    if not (_strong_person_name_match(nb0, to0) and _strong_person_name_match(nb1, to1)):
+        return False
+    return True

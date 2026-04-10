@@ -28,7 +28,12 @@ from backend.matching.decisions import (
 )
 from backend.matching.normalize import ParsedName, normalize_club, parse_person_name
 from backend.matching.report import MatchingReport
-from backend.matching.score import route_from_score, score_person_match
+from backend.matching.score import (
+    route_from_score,
+    score_person_match,
+    should_review_strong_couple_yob_mismatch,
+    should_review_strong_name_yob_mismatch,
+)
 from backend.matching.strict_identity import couple_matches_strict_row, person_matches_strict_incoming
 from backend.matching.teams import _couple_division_ok, build_couple_block_index, gather_couple_candidates, score_couple_match
 
@@ -258,6 +263,13 @@ def _resolve_person(
     if config.strict_normalized_auto_only and not strict_hits and top is not None and meta_route == "auto":
         meta_route = "review"
 
+    if (
+        top is not None
+        and meta_route == "new_identity"
+        and should_review_strong_name_yob_mismatch(top_score, top_feats, config)
+    ):
+        meta_route = "review"
+
     conflict_flags: list[str] = []
     if top is not None and meta_route == "auto":
         prev_entry = used_candidate_uids.get(top.uid)
@@ -467,6 +479,13 @@ def _resolve_team_row(
         meta_route = "new_identity"
 
     if config.strict_normalized_auto_only and not strict_team_hits and top is not None and meta_route == "auto":
+        meta_route = "review"
+
+    if (
+        top is not None
+        and meta_route == "new_identity"
+        and should_review_strong_couple_yob_mismatch(top_score, top_feats, config)
+    ):
         meta_route = "review"
 
     conflict_flags: list[str] = []
