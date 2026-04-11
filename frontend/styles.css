@@ -106,6 +106,17 @@ body {
   min-height: 48px;
   border-radius: 8px;
   cursor: pointer;
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease,
+    transform 0.08s ease,
+    filter 0.08s ease;
+}
+
+.tab:active:not(:disabled) {
+  transform: translateY(1px);
+  filter: brightness(0.94);
 }
 
 .tab.active {
@@ -165,6 +176,12 @@ button.danger {
   border-radius: 6px;
   border: 1px solid transparent;
   cursor: pointer;
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease,
+    transform 0.08s ease,
+    filter 0.08s ease;
 }
 
 button.primary {
@@ -172,14 +189,29 @@ button.primary {
   color: #fff;
 }
 
+button.primary:active:not(:disabled) {
+  transform: translateY(1px);
+  filter: brightness(0.9);
+}
+
 button.secondary {
   border-color: var(--border);
   background: #fff;
 }
 
+button.secondary:active:not(:disabled) {
+  transform: translateY(1px);
+  filter: brightness(0.94);
+}
+
 button.danger {
   background: var(--danger);
   color: #fff;
+}
+
+button.danger:active:not(:disabled) {
+  transform: translateY(1px);
+  filter: brightness(0.88);
 }
 
 input,
@@ -367,6 +399,17 @@ th {
   background: #fff;
   color: var(--text);
   cursor: pointer;
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease,
+    transform 0.08s ease,
+    filter 0.08s ease;
+}
+
+.category-quick-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  filter: brightness(0.94);
 }
 
 .category-quick-btn.active {
@@ -681,10 +724,16 @@ th {
   text-align: left;
   cursor: pointer;
   border-radius: 4px;
+  transition: color 0.12s ease, background-color 0.12s ease, transform 0.08s ease;
 }
 
 .matching-settings-toggle:hover {
   color: var(--accent);
+}
+
+.matching-settings-toggle:active:not(:disabled) {
+  transform: translateY(1px);
+  background: rgba(23, 78, 166, 0.08);
 }
 
 .matching-settings-toggle:focus-visible {
@@ -843,10 +892,16 @@ th {
   color: var(--muted);
   padding: 4px 8px;
   border-radius: 6px;
+  transition: background-color 0.12s ease, color 0.12s ease, transform 0.08s ease;
 }
 
 .modal-icon-btn:hover {
   background: var(--bg);
+  color: var(--text);
+}
+
+.modal-icon-btn:active:not(:disabled) {
+  transform: scale(0.9);
   color: var(--text);
 }
 
@@ -1068,6 +1123,31 @@ tr.standings-per-race-row.standings-row--excluded td:not(.standings-aw-cell) {
 .history-audit-meta {
   font-size: var(--font-small);
   color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab,
+  button.primary,
+  button.secondary,
+  button.danger,
+  .category-quick-btn,
+  .modal-icon-btn,
+  .matching-settings-toggle {
+    transition: none;
+  }
+
+  .tab:active:not(:disabled),
+  button.primary:active:not(:disabled),
+  button.secondary:active:not(:disabled),
+  button.danger:active:not(:disabled),
+  .category-quick-btn:active:not(:disabled),
+  .matching-settings-toggle:active:not(:disabled) {
+    transform: none;
+  }
+
+  .modal-icon-btn:active:not(:disabled) {
+    transform: none;
+  }
 }
 
 @media (max-width: 1200px) {
