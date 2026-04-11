@@ -130,6 +130,20 @@ class TestBuildCandidateReviewDisplay(unittest.TestCase):
             self.assertFalse(line["yob"]["diff"])
             self.assertFalse(line["club"]["diff"])
 
+    def test_junk_candidate_club_shows_em_dash_matches_empty_incoming(self) -> None:
+        entry = {"kind": "participant", "display_name": "Max Mustermann", "yob": 1990, "club": None}
+        cand = {
+            "kind": "participant",
+            "uid": "p1",
+            "display_name": "Max Mustermann",
+            "yob": 1990,
+            "club": "'-",
+        }
+        out = build_candidate_review_display(entry, cand)
+        line = out["lines"][0]
+        self.assertEqual(line["club"]["text"], "—")
+        self.assertFalse(line["club"]["diff"])
+
     def test_participant_granular(self) -> None:
         entry = {"kind": "participant", "display_name": "Max Mustermann", "yob": 1990, "club": "TSV"}
         cand = {

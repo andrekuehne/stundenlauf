@@ -16,6 +16,7 @@ Excel “Verein” cells use inconsistent spellings for “no club” (empty, `-
 - Shared helper: `backend/domain/club.py` — `optional_club_from_cell(value)`.
 - After `str(value).strip()`, if the string is empty or contains **no** Unicode alphanumeric character (`str.isalnum()`), return `None`; otherwise return the stripped string.
 - Used for Excel Verein parsing (`singles` / `couples` adapters), `person_with_updated_identity`, and review identity rebuild paths in `backend/ui_api/commands.py`.
+- **Import merge review (GUI):** `get_review_queue` normalizes `entry_preview.club` and candidate `club` / team `member_*` clubs via the same rules; `field_highlights_for_person_line` shows `—` for no-club and compares using normalized clubs so junk does not flash as a false mismatch.
 - `normalize_club(None)` remains `""`; matching treats two empty normalized clubs as a full agreement (unchanged).
 
 ## Acceptance Criteria

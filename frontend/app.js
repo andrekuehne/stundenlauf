@@ -1497,17 +1497,18 @@
 
   /** Club column: singles one line; Paare stacked when composite uses ` / ` (matches name lines). */
   function renderMergeClubStackedHtml(preview) {
+    const emptyClub = STR.matrix.cellNo;
     if (!preview) {
-      return escapeHtml("-");
+      return escapeHtml(emptyClub);
     }
     const sep = " / ";
     const raw = preview.club;
     if (raw == null || raw === "") {
-      return escapeHtml("-");
+      return escapeHtml(emptyClub);
     }
     const s = String(raw).trim();
     if (!s) {
-      return escapeHtml("-");
+      return escapeHtml(emptyClub);
     }
     if (preview.kind === "team") {
       const parts = s.split(sep).map((t) => t.trim()).filter(Boolean);
@@ -1815,17 +1816,18 @@
   }
 
   function renderMergeClubHtmlFromDisplay(display) {
+    const emptyClub = STR.matrix.cellNo;
     if (!display || !Array.isArray(display.lines) || display.lines.length === 0) {
-      return escapeHtml("-");
+      return escapeHtml(emptyClub);
     }
     if (display.lines.length === 1) {
       const c = display.lines[0].club || {};
-      const inner = escapeHtml(c.text ?? "-");
+      const inner = escapeHtml(c.text ?? emptyClub);
       return c.diff ? `<span class="merge-diff-part">${inner}</span>` : inner;
     }
     const part = (line) => {
       const c = line.club || {};
-      const inner = escapeHtml(c.text ?? "-");
+      const inner = escapeHtml(c.text ?? emptyClub);
       return c.diff ? `<span class="merge-diff-part">${inner}</span>` : inner;
     };
     return `${part(display.lines[0])}<br />${part(display.lines[1])}`;

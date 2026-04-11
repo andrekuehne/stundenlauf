@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any
 
+from backend.domain.club import optional_club_composite_from_field, optional_club_from_cell
 from backend.domain.enums import RaceEventState
 from backend.domain.models import Couple, MatchingDecision, Person, ProjectDocument, RaceEntry, RaceEvent, RaceSeriesCategory
 from backend.matching.review_display import build_candidate_review_display
@@ -154,19 +155,27 @@ def get_category_current_results_table(document: ProjectDocument, payload: dict[
     }
 
 
+def _person_preview_dict(person: Person) -> dict[str, Any]:
+    d = asdict(person)
+    d["club"] = optional_club_from_cell(person.club)
+    return d
+
+
 def _person_preview(person: Person) -> dict[str, Any]:
     return {
         "uid": person.uid,
         "kind": "participant",
         "display_name": person.name,
         "yob": person.yob or None,
-        "club": person.club,
+        "club": optional_club_from_cell(person.club),
     }
 
 
 def _team_preview(team: Couple) -> dict[str, Any]:
+    ma = _person_preview_dict(team.member_a)
+    mb = _person_preview_dict(team.member_b)
     member_names = [item for item in (team.member_a.name, team.member_b.name) if item]
-    clubs = [item for item in (team.member_a.club, team.member_b.club) if item]
+    clubs = [item for item in (ma.get("club"), mb.get("club")) if item]
     yobs = [str(item) for item in (team.member_a.yob, team.member_b.yob) if item]
     return {
         "uid": team.uid,
@@ -174,8 +183,8 @@ def _team_preview(team: Couple) -> dict[str, Any]:
         "display_name": " / ".join(member_names),
         "yob": " / ".join(yobs) if yobs else None,
         "club": " / ".join(clubs) if clubs else None,
-        "member_a": asdict(team.member_a),
-        "member_b": asdict(team.member_b),
+        "member_a": ma,
+        "member_b": mb,
     }
 
 
@@ -218,7 +227,7 @@ def _incoming_entry_preview(document: ProjectDocument, entry: RaceEntry) -> dict
             "kind": meta.incoming_kind if meta.incoming_kind in {"participant", "team"} else "unknown",
             "display_name": meta.incoming_display_name,
             "yob": preview_yob,
-            "club": meta.incoming_club,
+            "club": optional_club_composite_from_field(meta.incoming_club),
         }
     return (
         _entity_preview(document, entry.participant_uid)

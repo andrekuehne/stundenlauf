@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
+from backend.domain.club import optional_club_from_cell
 from backend.domain.enums import Gender
 from backend.domain.models import Person
 from backend.matching.config import MatchingConfig
@@ -176,10 +177,12 @@ def field_highlights_for_person_line(
     yob_diff = iy > 0 and cy > 0 and iy != cy
     yob_text = str(cy) if cy > 0 else "-"
 
-    inc_c = normalize_club(incoming_club)
-    cand_c = normalize_club(candidate_club)
+    inc_eff = optional_club_from_cell(incoming_club)
+    cand_eff = optional_club_from_cell(candidate_club)
+    inc_c = normalize_club(inc_eff)
+    cand_c = normalize_club(cand_eff)
     club_diff = inc_c != cand_c
-    club_text = (candidate_club or "").strip() or "—"
+    club_text = "—" if cand_eff is None else cand_eff
 
     return {
         "name_segments": name_segments,

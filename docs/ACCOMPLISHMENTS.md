@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-11 - Merge review GUI: club display uses no-affiliation normalization
+- Requirement/Milestone: [R6, R8; M4]
+- What shipped: `get_review_queue` previews and granular `candidate_review_displays` normalize club strings (including Paarlauf `a / b`) so punctuation-only values show like empty; `optional_club_composite_from_field` in `backend/domain/club.py`.
+- Evidence: `backend/domain/club.py`, `backend/ui_api/queries.py`, `backend/matching/review_display.py`, `tests/test_domain_club.py`, `tests/test_match_review_display.py`; `uv run pytest`
+- Impact: Import **Zusammenführungen prüfen** table matches incoming vs candidates without noisy `'-` / `-` club diffs.
+- Follow-up: none
+
 ### 2026-04-11 - Club no-affiliation normalization (import + identity)
 - Requirement/Milestone: [R1, R4; M2, M5]
 - What shipped: `optional_club_from_cell` in `backend/domain/club.py` maps empty and punctuation-only Verein strings (including `-`, `'-`, en-dash, underscores) to `None`; wired into Excel singles/couples adapters, `person_with_updated_identity`, and UI API review identity rebuild helpers. Matching unchanged (empty `club_normalized` vs empty).

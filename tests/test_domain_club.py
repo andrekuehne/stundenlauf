@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from backend.domain.club import optional_club_from_cell
+from backend.domain.club import optional_club_composite_from_field, optional_club_from_cell
 from backend.domain.enums import Gender
 from backend.domain.identity import person_with_updated_identity
 from backend.domain.models import Person
@@ -29,6 +29,11 @@ class TestOptionalClubFromCell(unittest.TestCase):
 
     def test_mixed_punctuation_with_letters_kept(self) -> None:
         self.assertEqual(optional_club_from_cell("TSV (Nord)"), "TSV (Nord)")
+
+    def test_composite_normalizes_each_segment(self) -> None:
+        self.assertIsNone(optional_club_composite_from_field("- / -"))
+        self.assertEqual(optional_club_composite_from_field("TSV / '-"), "TSV / ")
+        self.assertEqual(optional_club_composite_from_field("A / B"), "A / B")
 
 
 class TestPersonWithUpdatedIdentityClub(unittest.TestCase):
