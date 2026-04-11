@@ -243,7 +243,7 @@ class TestExportProjection(unittest.TestCase):
         )
         sections = build_export_sections(doc, spec)
         sec = sections[0]
-        self.assertEqual(sec.title, "Saison 2026 \u2014 Stundenlauf M\u00e4nner")
+        self.assertEqual(sec.title, "1. Stundenlauf - M\u00e4nner")
         self.assertEqual(sec.season_year, 2026)
         assert sec.header_rows is not None
         self.assertEqual(len(sec.header_rows), 3)
@@ -587,6 +587,7 @@ class TestPdfSmoke(unittest.TestCase):
         self.assertIn("Wertung", text)
         self.assertIn("(km)", text)
         self.assertIn("(Punkte)", text)
+        self.assertIn("Lauf\u00fcbersicht Test", text)
 
     def test_laufuebersicht_pdf_default_title_uses_season_and_readable_category(self) -> None:
         c = _cat()
@@ -611,6 +612,9 @@ class TestPdfSmoke(unittest.TestCase):
         )
         pdf_bytes = export_standings_pdf_bytes(doc, spec)
         text = "".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf_bytes)).pages)
+        self.assertIn("2026", text)
+        self.assertIn("Pokalwertung", text)
+        self.assertIn("1. Stundenlauf - M\u00e4nner", text)
         self.assertIn("Saison 2026", text)
         self.assertIn("Stundenlauf", text)
         self.assertIn("M\u00e4nner", text)

@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-11 - F20 Laufübersicht PDF: cover page, numbered sections, board styling
+- Requirement/Milestone: [R5, R7; M5]
+- What shipped: Laufübersicht PDF opens with a **cover** (large blue calendar year, centered **Hinweis** with Pokal-/Gesamtwertung copy, then page break). Per-category titles default to **export order numbering** plus `Halbstundenlauf/Stundenlauf - {division}` (`pdf.title` still overrides all sections). Tables use a **green-tint** header block, **red** top-row run/Gesamt labels, **double** rule below the header, **thick** vertical after Verein, **dashed** verticals between Str./Wertung pairs, **double** vertical before Gesamt, and **blue** podium row tint. Optional `pdf.laufuebersicht_show_cover` / `pdf.laufuebersicht_notice` in `PdfStyleSpec`.
+- Evidence: `backend/export/pdf_renderer.py`, `backend/export/projection.py`, `backend/export/spec.py`, `backend/standings_display.py`, `tests/test_f20_export.py`, `docs/features/F20-standings-multi-format-export.md`; `uv run pytest`
+- Impact: Printed Laufübersicht matches organizer-facing bulletin styling expectations.
+- Follow-up: none
+
 ### 2026-04-11 - F20 Laufübersicht PDF: three-row run headers (Laufstr. / Wertung / units)
 - Requirement/Milestone: [R5, R7; M5]
 - What shipped: Laufübersicht PDF/CSV header is three rows: merged Platz/Name/Verein; per run and Gesamt a spanned `n. Lauf` / `Gesamt` label over **Laufstr.** | **Wertung** and **(km)** | **(Punkte)**; PDF vertical spans use middle alignment for merged header cells.

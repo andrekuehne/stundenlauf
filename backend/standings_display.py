@@ -38,6 +38,11 @@ def category_footer_label(duration: RaceDuration, division: Division) -> str:
     return f"{duration_label} - {_DIVISION_WORD_DE[division]}"
 
 
+def laufuebersicht_section_title(section_index: int, duration: RaceDuration, division: Division) -> str:
+    """Numbered Laufübersicht PDF section heading (export order): ``1. Halbstundenlauf - Frauen``."""
+    return f"{section_index}. {category_footer_label(duration, division)}"
+
+
 def people_by_uid(document: ProjectDocument) -> dict[str, Person]:
     return {item.uid: item for item in document.people}
 

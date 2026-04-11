@@ -9,7 +9,12 @@ from backend.domain.enums import RaceEventState
 from backend.domain.models import ProjectDocument, RaceEvent, RaceSeriesCategory
 from backend.export.spec import GERMAN_HEADER_BY_COLUMN, ExportSpec
 from backend.standings_view import build_standings_rows_for_category
-from backend.standings_display import category_footer_label, category_label, export_pdf_category_title
+from backend.standings_display import (
+    category_footer_label,
+    category_label,
+    export_pdf_category_title,
+    laufuebersicht_section_title,
+)
 
 
 @dataclass(frozen=True)
@@ -189,7 +194,8 @@ def _build_laufuebersicht_sections(document: ProjectDocument, spec: ExportSpec) 
     from backend.ui_api.ranking_display import apply_ranking_exclusions_to_rows, ranking_exclusion_set
 
     sections: list[ExportSection] = []
-    for cat_key in spec.categories:
+    title_override = spec.pdf.title.strip()
+    for section_no, cat_key in enumerate(spec.categories, start=1):
         category = _find_category(document, cat_key)
         races = _ordered_active_races_for_category(document, cat_key)
         column_defs = _laufuebersicht_column_defs(races)
@@ -210,9 +216,10 @@ def _build_laufuebersicht_sections(document: ProjectDocument, spec: ExportSpec) 
                 f"laufuebersicht: category {cat_key!r} needs {ncols_chk} columns; max {spec.pdf.max_columns}"
             )
 
-        title = spec.pdf.title or export_pdf_category_title(
-            category.year, category.duration, category.division
-        )
+        if title_override:
+            title = spec.pdf.title
+        else:
+            title = laufuebersicht_section_title(section_no, category.duration, category.division)
         subtitle = spec.pdf.subtitle
 
         n_r = len(races)

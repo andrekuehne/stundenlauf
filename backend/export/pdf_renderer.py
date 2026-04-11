@@ -9,7 +9,7 @@ from typing import Any, BinaryIO
 from xml.sax.saxutils import escape as xml_escape
 
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A3, A4, landscape, portrait
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
@@ -110,6 +110,9 @@ def _table_col_widths(columns: tuple[ColumnDef, ...], w_avail: float) -> list[fl
 _PDF_LINE_THIN = 0.12
 _PDF_LINE_NORMAL = 0.25
 _PDF_LINE_THICK = 0.75
+# Double rules (header/body separator, Gesamt divider): bolder strokes + wider gap between the two lines.
+_PDF_DOUBLE_RULE_WEIGHT = 0.85
+_PDF_DOUBLE_RULE_GAP = 1.25
 
 
 def _laufuebersicht_line_below_row(
@@ -126,7 +129,7 @@ def _laufuebersicht_line_below_row(
     if r < n_header - 1:
         return _PDF_LINE_NORMAL
     if r == n_header - 1:
-        return _PDF_LINE_NORMAL
+        return None
     br = r - n_header
     n_body = len(body_row_band_group)
     if br + 1 < n_body and body_row_band_group[br] == body_row_band_group[br + 1]:
@@ -143,16 +146,96 @@ def _laufuebersicht_line_below_row(
 
 
 def _laufuebersicht_podium_fill(band_gid: int) -> colors.Color:
-    """Yellow tint via per-channel multiply on zebra base so odd/even rows stay distinct."""
+    """Light blue tint via per-channel multiply on zebra base so odd/even rows stay distinct."""
     if band_gid % 2 == 0:
         br, bg, bb = 255, 255, 255
     else:
         br, bg, bb = 245, 245, 245
-    yr, yg, yb = 255, 236, 150
-    r = min(255, br * yr // 255)
-    g = min(255, bg * yg // 255)
-    b = min(255, bb * yb // 255)
+    pr, pg, pb = 200, 220, 255
+    r = min(255, br * pr // 255)
+    g = min(255, bg * pg // 255)
+    b = min(255, bb * pb // 255)
     return colors.HexColor(f"#{r:02x}{g:02x}{b:02x}")
+
+
+# Laufübersicht table accents (ReportLab ``TableStyle``).
+_Lauf_HEADER_GREEN = colors.HexColor("#E8F5E9")
+_Lauf_HEADER_RUN_RED = colors.HexColor("#C62828")
+_Lauf_COVER_YEAR_BLUE = colors.HexColor("#1565C0")
+# Extended line tuple: op, (sc,sr), (ec,er), weight, color, cap, dash, join, linecount, linespacing
+_RL_CAP_BUTT = 0
+_RL_JOIN_MITER = 0
+
+
+def _laufuebersicht_line_cmd(
+    op: str,
+    sc: int,
+    sr: int,
+    ec: int,
+    er: int,
+    weight: float,
+    color: colors.Color,
+    *,
+    dash: tuple[float, ...] | list[float] | None = None,
+    linecount: int = 1,
+    linespace: float | None = None,
+) -> tuple:
+    sp = weight if linespace is None else linespace
+    return (op, (sc, sr), (ec, er), weight, color, _RL_CAP_BUTT, dash, _RL_JOIN_MITER, linecount, sp)
+
+
+def _laufuebersicht_append_column_lines(
+    cmds: list,
+    *,
+    ncols: int,
+    n_rows_tbl: int,
+    n_races: int,
+    line_grey: colors.Color,
+) -> None:
+    """Vertical rules: thick after Verein; dashed after each Str. column; double after last race Pkt."""
+    dashed_after_km = {3 + 2 * i for i in range(n_races + 1)}
+    double_after_last_race_pkt = 3 + 2 * n_races - 1 if n_races >= 1 else None
+    last_j = ncols - 2
+    for j in range(last_j + 1):
+        if j == 2:
+            cmds.append(
+                _laufuebersicht_line_cmd(
+                    "LINEAFTER", j, 0, j, n_rows_tbl - 1, _PDF_LINE_THICK, line_grey
+                )
+            )
+        elif double_after_last_race_pkt is not None and j == double_after_last_race_pkt:
+            cmds.append(
+                _laufuebersicht_line_cmd(
+                    "LINEAFTER",
+                    j,
+                    0,
+                    j,
+                    n_rows_tbl - 1,
+                    _PDF_DOUBLE_RULE_WEIGHT,
+                    line_grey,
+                    linecount=2,
+                    linespace=_PDF_DOUBLE_RULE_GAP,
+                )
+            )
+        elif j in dashed_after_km:
+            cmds.append(
+                _laufuebersicht_line_cmd(
+                    "LINEAFTER",
+                    j,
+                    0,
+                    j,
+                    n_rows_tbl - 1,
+                    _PDF_LINE_NORMAL,
+                    line_grey,
+                    dash=(2, 2),
+                )
+            )
+        else:
+            cmds.append(
+                _laufuebersicht_line_cmd(
+                    "LINEAFTER", j, 0, j, n_rows_tbl - 1, _PDF_LINE_NORMAL, line_grey
+                )
+            )
 
 
 def _table_font_sizes(pdf: PdfStyleSpec, header_rows: tuple[tuple[str, ...], ...] | None) -> tuple[int, int]:
@@ -170,6 +253,43 @@ def _page_size_tuple(pdf: PdfStyleSpec) -> tuple[float, float]:
     if pdf.orientation == "landscape":
         return landscape(base)
     return portrait(base)
+
+
+class _LaufUbersichtTable(Table):
+    """ReportLab omits ``LINEABOVE`` on the first body row for *continuation* split fragments (``_cr_1_1`` skips
+    when ``er < n``); re-apply the header/body double rule on every piece after a row split when headers repeat.
+    """
+
+    def split(self, availWidth, availHeight):
+        parts = super().split(availWidth, availHeight)
+        if not parts or len(parts) < 2:
+            return parts
+        n_h = int(getattr(self, "_lauf_header_row_count", 0) or 0)
+        if n_h <= 0:
+            return parts
+        color = getattr(self, "_lauf_hdr_double_color", colors.grey)
+        # Split children are new Table instances; ReportLab does not copy custom attrs—propagate so nested splits
+        # (page 3+) still inject the header/body double rule.
+        for frag in parts:
+            frag._lauf_header_row_count = n_h
+            frag._lauf_hdr_double_color = color
+        for frag in parts[1:]:
+            frag._addCommand(
+                list(
+                    _laufuebersicht_line_cmd(
+                        "LINEABOVE",
+                        0,
+                        n_h,
+                        -1,
+                        n_h,
+                        _PDF_DOUBLE_RULE_WEIGHT,
+                        color,
+                        linecount=2,
+                        linespace=_PDF_DOUBLE_RULE_GAP,
+                    )
+                )
+            )
+        return parts
 
 
 class _SectionFooterHint(Flowable):
@@ -317,6 +437,38 @@ def render_pdf(
 
     first_section = True
     lauf_table_seq = 0
+    if (
+        pdf.table_layout == "laufuebersicht"
+        and sections
+        and pdf.laufuebersicht_show_cover
+    ):
+        story.append(_SectionFooterHint(sections[0].season_year, ""))
+        cover_year_style = ParagraphStyle(
+            name="LaufCoverYear",
+            parent=styles["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=26,
+            leading=30,
+            alignment=TA_CENTER,
+            textColor=_Lauf_COVER_YEAR_BLUE,
+            spaceAfter=14,
+        )
+        cover_notice_style = ParagraphStyle(
+            name="LaufCoverNotice",
+            parent=styles["Normal"],
+            fontName="Helvetica",
+            fontSize=10,
+            leading=13,
+            alignment=TA_CENTER,
+            spaceAfter=0,
+        )
+        year_s = str(sections[0].season_year)
+        story.append(Paragraph(_para_text(year_s), cover_year_style))
+        notice_body = pdf.resolved_laufuebersicht_notice()
+        notice_xml = f"<u>{_para_text('Hinweis:')}</u><br/>{_para_text(notice_body)}"
+        story.append(Paragraph(notice_xml, cover_notice_style))
+        story.append(PageBreak())
+
     for sec in sections:
         if not first_section and pdf.page_break_before_each_category:
             story.append(PageBreak())
@@ -356,15 +508,26 @@ def render_pdf(
                 style_tag=lauf_table_seq,
             )
 
-        tbl = Table(data, colWidths=col_widths, repeatRows=repeat_n)
+        use_lauf_split_table = (
+            sec.body_row_band_group is not None
+            and n_header == 3
+            and ncols > 3
+            and repeat_n == n_header
+            and len(data) > n_header
+        )
+        tbl_cls = _LaufUbersichtTable if use_lauf_split_table else Table
+        tbl = tbl_cls(data, colWidths=col_widths, repeatRows=repeat_n)
         hdr_last = n_header - 1
         band_grey = colors.HexColor("#f5f5f5")
+        header_bg = colors.lightgrey
+        if sec.body_row_band_group is not None and n_header == 3 and ncols > 3:
+            header_bg = _Lauf_HEADER_GREEN
         tbl_style_cmds: list = [
             ("FONTNAME", (0, 0), (-1, hdr_last), "Helvetica-Bold"),
             ("FONTNAME", (0, n_header), (-1, -1), "Helvetica"),
             ("FONTSIZE", (0, 0), (-1, hdr_last), hdr_fs),
             ("FONTSIZE", (0, n_header), (-1, -1), body_fs),
-            ("BACKGROUND", (0, 0), (-1, hdr_last), colors.lightgrey),
+            ("BACKGROUND", (0, 0), (-1, hdr_last), header_bg),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]
         n_rows_tbl = len(data)
@@ -375,13 +538,43 @@ def render_pdf(
             tbl_style_cmds.append(("FONTSIZE", (3, 1), (-1, hdr_last), hdr_sub))
             tbl_style_cmds.append(("ALIGN", (3, 1), (-1, hdr_last), "CENTER"))
             tbl_style_cmds.append(("ALIGN", (3, 0), (-1, 0), "CENTER"))
+            n_races_hdr = max(0, (ncols - 5) // 2)
+            for i in range(n_races_hdr + 1):
+                c0 = 3 + 2 * i
+                tbl_style_cmds.append(("TEXTCOLOR", (c0, 0), (c0, 0), _Lauf_HEADER_RUN_RED))
         if sec.body_row_band_group is not None and ncols > 3:
             tbl_style_cmds.append(("VALIGN", (3, n_header), (ncols - 1, -1), "MIDDLE"))
         if sec.body_row_band_group is not None:
             line_grey = colors.grey
+            if use_lauf_split_table:
+                tbl._lauf_header_row_count = n_header
+                tbl._lauf_hdr_double_color = line_grey
             tbl_style_cmds.append(("BOX", (0, 0), (-1, -1), _PDF_LINE_NORMAL, line_grey))
-            for j in range(max(0, ncols - 1)):
-                tbl_style_cmds.append(("LINEAFTER", (j, 0), (j, n_rows_tbl - 1), _PDF_LINE_NORMAL, line_grey))
+            n_races_lines = max(0, (ncols - 5) // 2)
+            _laufuebersicht_append_column_lines(
+                tbl_style_cmds,
+                ncols=ncols,
+                n_rows_tbl=n_rows_tbl,
+                n_races=n_races_lines,
+                line_grey=line_grey,
+            )
+            # Draw the header/body separator on the *first body row* (LINEABOVE), not LINEBELOW on the last
+            # header row, so ReportLab repeats it correctly when the table splits with ``repeatRows``;
+            # LINEBELOW on the header row only appeared on the first canvas fragment.
+            if n_header == 3 and n_rows_tbl > n_header:
+                tbl_style_cmds.append(
+                    _laufuebersicht_line_cmd(
+                        "LINEABOVE",
+                        0,
+                        n_header,
+                        -1,
+                        n_header,
+                        _PDF_DOUBLE_RULE_WEIGHT,
+                        line_grey,
+                        linecount=2,
+                        linespace=_PDF_DOUBLE_RULE_GAP,
+                    )
+                )
             for r in range(n_rows_tbl - 1):
                 w = _laufuebersicht_line_below_row(
                     r,

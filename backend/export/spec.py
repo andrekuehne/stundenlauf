@@ -144,6 +144,13 @@ def sort_category_keys_for_export(category_keys: Iterable[str]) -> tuple[str, ..
 # Default main organizer line in PDF footers (overridable via export spec ``pdf.organizer_footer``).
 DEFAULT_PDF_ORGANIZER_FOOTER = "HSG Uni Greifswald Triathlon Laufgruppe"
 
+# Default Hinweis body on the Laufübersicht cover page (``pdf.laufuebersicht_notice`` empty = use this).
+DEFAULT_LAUFUEBERSICHT_NOTICE = (
+    "In die Pokalwertung kommen alle Ergebnisse von Teilnehmern, die mindestens an drei "
+    "Veranstaltungen teilgenommen haben. Für die Gesamtwertung werden maximal die vier besten "
+    "Ergebnisse von insgesamt fünf Läufen berücksichtigt."
+)
+
 
 @dataclass(frozen=True)
 class PdfStyleSpec:
@@ -170,6 +177,10 @@ class PdfStyleSpec:
     laufuebersicht_result_font_extra_pt: int = 0
     # Insert a page break before each category section after the first (multi-category PDFs).
     page_break_before_each_category: bool = False
+    # Laufübersicht: dedicated first page (season year + Hinweis) before category tables.
+    laufuebersicht_show_cover: bool = True
+    # Override cover notice body; empty string uses ``DEFAULT_LAUFUEBERSICHT_NOTICE``.
+    laufuebersicht_notice: str = ""
 
     @staticmethod
     def from_dict(raw: dict[str, Any]) -> PdfStyleSpec:
@@ -187,6 +198,9 @@ class PdfStyleSpec:
         thfs = raw.get("table_header_font_size")
         res_extra = raw.get("laufuebersicht_result_font_extra_pt", 0)
         page_break_cats = bool(raw.get("page_break_before_each_category", False))
+        show_lauf_cover = bool(raw.get("laufuebersicht_show_cover", True))
+        lauf_notice = raw.get("laufuebersicht_notice")
+        lauf_notice_s = str(lauf_notice).strip() if lauf_notice is not None else ""
         if "organizer_footer" in raw:
             ov = raw["organizer_footer"]
             organizer_footer = str(ov).strip() if ov is not None else ""
@@ -212,7 +226,14 @@ class PdfStyleSpec:
             table_header_font_size=int(thfs) if thfs is not None else None,
             laufuebersicht_result_font_extra_pt=int(res_extra),
             page_break_before_each_category=page_break_cats,
+            laufuebersicht_show_cover=show_lauf_cover,
+            laufuebersicht_notice=lauf_notice_s,
         )
+
+    def resolved_laufuebersicht_notice(self) -> str:
+        """Plain text body for the cover Hinweis (after the underlined 'Hinweis:' line)."""
+        s = self.laufuebersicht_notice.strip()
+        return s if s else DEFAULT_LAUFUEBERSICHT_NOTICE
 
 
 @dataclass(frozen=True)
