@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 from backend.app_paths import default_workspace_dir
+from backend.export.gui_pdf_spec import laufuebersicht_export_spec_from_document
+from backend.export.registry import export_standings_to_path
 from backend.matching.config import MatchingConfig
 from backend.storage.repository import JsonProjectRepository
 from backend.ui_api import commands, queries
@@ -47,6 +49,7 @@ class UiApiService:
             "delete_series_year": lambda payload: self._delete_series_year(payload),
             "reset_series_year": lambda payload: workspace.reset_series_year(self.workspace_dir, payload),
             "export_series_year": lambda payload: workspace.export_series_year(self.workspace_dir, payload),
+            "export_standings_pdf": lambda payload: self._export_standings_pdf(payload),
             "import_series_year": lambda payload: self._import_series_year(payload),
             "get_matching_config": lambda payload: self._get_matching_config(payload),
             "set_matching_config": lambda payload: self._set_matching_config(payload),
@@ -84,6 +87,27 @@ class UiApiService:
         if handler is None:
             raise ValueError(f"Unknown method: {req.method}")
         return handler(req.payload)
+
+    def _export_standings_pdf(self, payload: dict[str, Any]) -> dict[str, Any]:
+        path_raw = str(payload.get("destination_path", "")).strip()
+        if not path_raw:
+            raise validation_error("destination_path is required")
+        destination_path = Path(path_raw)
+        if destination_path.suffix.lower() != ".pdf":
+            raise validation_error("destination_path must end with .pdf")
+        project_file = self._require_active_project_file()
+        repo = JsonProjectRepository(project_file)
+        doc = repo.load()
+        try:
+            spec = laufuebersicht_export_spec_from_document(doc)
+        except ValueError as exc:
+            raise validation_error(str(exc)) from exc
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        export_standings_to_path(project_file, spec, destination_path)
+        return {
+            "export_file": str(destination_path),
+            "bytes_written": destination_path.stat().st_size,
+        }
 
     def _open_series_year(self, payload: dict[str, Any]) -> dict[str, Any]:
         result = workspace.open_series_year(self.workspace_dir, payload)

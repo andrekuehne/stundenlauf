@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-11 - F20 GUI: Laufübersicht PDF export from Aktuelle Wertung
+- Requirement/Milestone: [R5, R7, R8; M4, M5]
+- What shipped: UI API `export_standings_pdf` writes the playground-equivalent Laufübersicht PDF for the active season; **Aktuelle Wertung** sidebar **Export** section with “Laufübersicht als PDF speichern” (`pick_save_file` + export). Shared spec builder `backend/export/gui_pdf_spec.py`.
+- Evidence: `backend/export/gui_pdf_spec.py`, `backend/ui_api/service.py`, `docs/api/ui-api-v1.md`, `frontend/app.js`, `frontend/strings.js`, `tests/test_f08_ui_api.py`; `uv run pytest tests/test_f08_ui_api.py -k export_standings_pdf`
+- Impact: Organizers can save the multi-category overview PDF without leaving the desktop app.
+- Follow-up: optional CSV or per-category export from the same section
+
 ### 2026-04-11 - F20 PDF: Laufübersicht table layout (per-race km/Pkt, team split rows)
 - Requirement/Milestone: [R5, R7; M5]
 - What shipped: `pdf.table_layout: laufuebersicht` with `columns: ["laufuebersicht_board"]` builds a two-row grouped header, one combined distance/points cell per race and Gesamt, `Name (Jg.)` for eligible rows, and two PDF body rows per team with ReportLab `SPAN` on Platz and numeric columns; CSV duplicates team numerics on the second line. Optional `pdf.table_font_size` / `table_header_font_size` override layout defaults (7/8 pt).

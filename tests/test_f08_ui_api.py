@@ -599,6 +599,59 @@ class TestF08UiApi(unittest.TestCase):
             self.assertEqual(manifest["schema_version"], SCHEMA_VERSION_V2)
             self.assertEqual(manifest["sha256_session_project"], hashlib.sha256(session_bytes).hexdigest())
 
+    def test_export_standings_pdf_writes_pdf(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "session_project.json"
+            _seed_project_for_year(project_path, 2026)
+            service = UiApiService(project_path)
+            out_pdf = Path(temp_dir) / "wertung.pdf"
+            exported = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_export_pdf",
+                    "method": "export_standings_pdf",
+                    "payload": {"destination_path": str(out_pdf)},
+                }
+            )
+            self.assertEqual(exported["status"], "ok")
+            self.assertTrue(out_pdf.exists())
+            self.assertGreater(exported["payload"]["bytes_written"], 0)
+            self.assertEqual(out_pdf.read_bytes()[:4], b"%PDF")
+
+    def test_export_standings_pdf_rejects_empty_season(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "session_project.json"
+            JsonProjectRepository(project_path).save(ProjectDocument(schema_version=SCHEMA_VERSION_V2))
+            service = UiApiService(project_path)
+            out_pdf = Path(temp_dir) / "wertung.pdf"
+            exported = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_export_pdf_empty",
+                    "method": "export_standings_pdf",
+                    "payload": {"destination_path": str(out_pdf)},
+                }
+            )
+            self.assertEqual(exported["status"], "error")
+            self.assertEqual(exported["error"]["code"], "VALIDATION_ERROR")
+            self.assertIn("PDF-Export", exported["error"]["details"]["message"])
+
+    def test_export_standings_pdf_requires_pdf_suffix(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "session_project.json"
+            _seed_project_for_year(project_path, 2026)
+            service = UiApiService(project_path)
+            exported = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_export_pdf_bad_ext",
+                    "method": "export_standings_pdf",
+                    "payload": {"destination_path": str(Path(temp_dir) / "out.txt")},
+                }
+            )
+            self.assertEqual(exported["status"], "error")
+            self.assertEqual(exported["error"]["code"], "VALIDATION_ERROR")
+
     def test_import_series_year_rejects_checksum_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             archive_path = Path(temp_dir) / "bad.stundenlauf-season.zip"

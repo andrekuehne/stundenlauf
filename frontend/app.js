@@ -731,6 +731,33 @@
     }
   }
 
+  function wireStandingsPdfExport() {
+    const st = STR.standings;
+    const btn = standingsView.querySelector("button[data-export-standings-pdf]");
+    if (!btn) {
+      return;
+    }
+    btn.addEventListener("click", async () => {
+      const year = state.seriesYear;
+      const suggestedName = `stundenlauf-${year}-laufuebersicht.pdf`;
+      const picked = await api("pick_save_file", { suggested_name: suggestedName });
+      if (picked.status !== "ok") {
+        setStatus(st.exportPdfPickFailed, true);
+        return;
+      }
+      const destinationPath = (picked.payload && picked.payload.file_path ? picked.payload.file_path : "").trim();
+      if (!destinationPath) {
+        return;
+      }
+      const exported = await api("export_standings_pdf", { destination_path: destinationPath });
+      if (exported.status === "error") {
+        setStatus(getApiErrorMessage(exported.error, st.exportPdfFailed), true);
+        return;
+      }
+      setStatus(st.exportPdfDone(exported.payload.export_file), false);
+    });
+  }
+
   async function renderStandingsView(options = {}) {
     const preserveStandingsScroll = Boolean(options.preserveStandingsScroll);
     const st = STR.standings;
@@ -763,6 +790,10 @@
               <h3>${st.sidebarCouples}</h3>
               <div class="category-grid category-grid--paare">${renderQuickGrid("paare")}</div>
             </div>
+            <div class="sidebar-section">
+              <h3>${st.exportSectionTitle}</h3>
+              <button type="button" class="secondary sidebar-top-action" data-export-standings-pdf>${st.exportPdfButton}</button>
+            </div>
           </aside>
           <div class="standings-content">
             <div class="card"><h2>${st.titleCurrent}</h2><p class="hint">${st.emptyNoCategory}</p></div>
@@ -779,6 +810,7 @@
           await renderStandingsView();
         });
       }
+      wireStandingsPdfExport();
       return;
     }
 
@@ -907,7 +939,11 @@
             <div class="sidebar-section">
               <h3>${st.sidebarCouples}</h3>
               <div class="category-grid category-grid--paare">${renderQuickGrid("paare")}</div>
-          </div>
+            </div>
+            <div class="sidebar-section">
+              <h3>${st.exportSectionTitle}</h3>
+              <button type="button" class="secondary sidebar-top-action" data-export-standings-pdf>${st.exportPdfButton}</button>
+            </div>
         </aside>
         <div class="standings-content">
           <div class="card">
@@ -980,6 +1016,7 @@
         await renderStandingsView();
       });
     }
+    wireStandingsPdfExport();
 
     if (preserveStandingsScroll) {
       const applyScrollRestore = () => {

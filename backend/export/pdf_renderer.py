@@ -58,6 +58,42 @@ def _table_col_widths(columns: tuple[ColumnDef, ...], w_avail: float) -> list[fl
     return widths
 
 
+# Horizontal rules in Laufübersicht (variable-width LINEBELOW; verticals stay at _PDF_LINE_NORMAL).
+_PDF_LINE_THIN = 0.12
+_PDF_LINE_NORMAL = 0.25
+_PDF_LINE_THICK = 0.75
+
+
+def _laufuebersicht_line_below_row(
+    r: int,
+    *,
+    n_header: int,
+    n_rows: int,
+    body_row_band_group: tuple[int, ...],
+    body_row_podium: tuple[bool, ...] | None,
+) -> float | None:
+    """Width of the horizontal line directly below table row ``r``; ``None`` = skip (outer frame)."""
+    if r >= n_rows - 1:
+        return None
+    if r < n_header - 1:
+        return _PDF_LINE_NORMAL
+    if r == n_header - 1:
+        return _PDF_LINE_NORMAL
+    br = r - n_header
+    n_body = len(body_row_band_group)
+    if br + 1 < n_body and body_row_band_group[br] == body_row_band_group[br + 1]:
+        return _PDF_LINE_THIN
+    podium = body_row_podium
+    last_p: int | None = None
+    if podium is not None:
+        for i, on in enumerate(podium):
+            if on:
+                last_p = i
+    if last_p is not None and br == last_p:
+        return _PDF_LINE_THICK
+    return _PDF_LINE_NORMAL
+
+
 def _laufuebersicht_podium_fill(band_gid: int) -> colors.Color:
     """Yellow tint via per-channel multiply on zebra base so odd/even rows stay distinct."""
     if band_gid % 2 == 0:
@@ -269,9 +305,26 @@ def render_pdf(
             ("FONTSIZE", (0, 0), (-1, hdr_last), hdr_fs),
             ("FONTSIZE", (0, n_header), (-1, -1), body_fs),
             ("BACKGROUND", (0, 0), (-1, hdr_last), colors.lightgrey),
-            ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]
+        n_rows_tbl = len(data)
+        if sec.body_row_band_group is not None:
+            line_grey = colors.grey
+            tbl_style_cmds.append(("BOX", (0, 0), (-1, -1), _PDF_LINE_NORMAL, line_grey))
+            for j in range(max(0, ncols - 1)):
+                tbl_style_cmds.append(("LINEAFTER", (j, 0), (j, n_rows_tbl - 1), _PDF_LINE_NORMAL, line_grey))
+            for r in range(n_rows_tbl - 1):
+                w = _laufuebersicht_line_below_row(
+                    r,
+                    n_header=n_header,
+                    n_rows=n_rows_tbl,
+                    body_row_band_group=sec.body_row_band_group,
+                    body_row_podium=sec.body_row_podium,
+                )
+                if w is not None:
+                    tbl_style_cmds.append(("LINEBELOW", (0, r), (-1, r), w, line_grey))
+        else:
+            tbl_style_cmds.append(("GRID", (0, 0), (-1, -1), _PDF_LINE_NORMAL, colors.grey))
         # Laufübersicht: larger type for Distanz (Pkt.) cells; Gesamt column body also bold.
         if hdr is not None and ncols > 3:
             extra = max(0, int(pdf.laufuebersicht_result_font_extra_pt))

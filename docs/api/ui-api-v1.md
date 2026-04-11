@@ -93,6 +93,18 @@ This document defines the frontend-facing Python API contract for the pywebview 
     - `sha256_session_project`
   - The embedded `session_project.json` is the full v2 project document (including optional `ranking_exclusions` when present).
 
+### `export_standings_pdf`
+- Requires an **active** opened season (`open_series_year`); uses the current `session_project.json` path held by the UI session.
+- Payload:
+  - `destination_path` (required, non-empty; must end with `.pdf`)
+- Renders a **Laufübersicht** PDF for **all categories** present in the project’s events (same declarative spec as the `pdf_export_playground` script: `laufuebersicht_board`, embedded standings, all active races, eligible-only rows, landscape A4, page break before each category after the first).
+- Returns:
+  - `export_file` (written path)
+  - `bytes_written`
+- Errors:
+  - `VALIDATION_ERROR` when `destination_path` is missing, does not end with `.pdf`, or the season has no events/categories
+  - `VALIDATION_ERROR` / `INTERNAL_ERROR` for other export failures (same envelope rules as other methods)
+
 ### `import_series_year`
 - Payload:
   - `file_path` (required; exported `.stundenlauf-season.zip`)
