@@ -804,9 +804,10 @@
 
     const rawStandingsRows = standingsResponse.payload.rows || [];
     lastStandingsRows = rawStandingsRows;
+    const standingsEmptyCell = STR.matrix.cellNo;
     const standingsRows = rawStandingsRows
       .map((row, idx) => {
-        const rowCells = `<td>${row.platz}</td><td>${row.display_name}</td><td>${row.yob || "-"}</td><td>${row.club || "-"}</td><td>${FMT.formatKm(row.distanz_gesamt)}</td><td>${row.punkte_gesamt}</td>`;
+        const rowCells = `<td>${row.platz}</td><td>${row.display_name}</td><td>${row.yob || standingsEmptyCell}</td><td>${row.club || standingsEmptyCell}</td><td>${FMT.formatKm(row.distanz_gesamt)}</td><td>${row.punkte_gesamt}</td>`;
         if (state.standingsCorrectionMode) {
           return `<tr class="standings-row--correctable" data-row-index="${idx}">${rowCells}</tr>`;
         }
