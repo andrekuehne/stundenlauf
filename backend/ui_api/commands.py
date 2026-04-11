@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal, cast
 
+from backend.domain.club import optional_club_from_cell
 from backend.domain.identity import person_with_updated_identity, yob_bounds
 from backend.domain.identity_merge import (
     merge_identities,
@@ -75,7 +76,7 @@ def _new_singles_identity_from_review(entry: RaceEntry, candidate: Person) -> tu
         return _clone_person_identity(candidate), "clone_candidate"
     parsed = parse_person_name(raw)
     yob = mm.incoming_yob if mm.incoming_yob is not None else candidate.yob
-    club = mm.incoming_club
+    club = optional_club_from_cell(mm.incoming_club)
     return (
         Person(
             name=raw,
@@ -119,9 +120,10 @@ def _new_team_identity_from_review(entry: RaceEntry, candidate: Couple) -> tuple
     if cc:
         cparts = [p.strip() for p in cc.split(" / ")]
         if cparts:
-            club_a = cparts[0] or club_a
-        if len(cparts) > 1:
-            club_b = cparts[1] or club_b
+            if cparts[0].strip():
+                club_a = optional_club_from_cell(cparts[0])
+        if len(cparts) > 1 and cparts[1].strip():
+            club_b = optional_club_from_cell(cparts[1])
     pa, pb = parse_person_name(name_a), parse_person_name(name_b)
     ma = Person(
         name=name_a,

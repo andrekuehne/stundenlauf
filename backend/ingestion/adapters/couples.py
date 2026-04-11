@@ -4,6 +4,7 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
+from backend.domain.club import optional_club_from_cell
 from backend.domain.enums import Division, RaceDuration
 from backend.ingestion.adapters.common import PARSER_VERSION, file_sha256, imported_now_iso, parse_decimal, parse_race_no, to_text
 from backend.ingestion.types import (
@@ -118,10 +119,10 @@ def parse_couples_workbook(path: Path, series_year: int, *, race_no_override: in
                     startnr=to_text(ws.cell(row=row_idx, column=2).value),
                     name_a=left_name,
                     yob_a=_parse_yob(ws.cell(row=row_idx, column=4).value),
-                    club_a=_normalize_optional_text(ws.cell(row=row_idx, column=5).value),
+                    club_a=optional_club_from_cell(ws.cell(row=row_idx, column=5).value),
                     name_b=right_name,
                     yob_b=_parse_yob(ws.cell(row=row_idx, column=7).value),
-                    club_b=_normalize_optional_text(ws.cell(row=row_idx, column=8).value),
+                    club_b=optional_club_from_cell(ws.cell(row=row_idx, column=8).value),
                     distance_km=parse_decimal(ws.cell(row=row_idx, column=9).value),
                     points=parse_decimal(ws.cell(row=row_idx, column=11).value),
                 )
@@ -147,13 +148,6 @@ def parse_couples_workbook(path: Path, series_year: int, *, race_no_override: in
         return ParsedWorkbook(meta=meta, couples_sections=tuple(sections))
     finally:
         wb.close()
-
-
-def _normalize_optional_text(value: object) -> str | None:
-    text = to_text(value)
-    if not text or text == "-":
-        return None
-    return text
 
 
 def _parse_yob(value: object) -> int:

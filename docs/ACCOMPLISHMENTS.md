@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-11 - Club no-affiliation normalization (import + identity)
+- Requirement/Milestone: [R1, R4; M2, M5]
+- What shipped: `optional_club_from_cell` in `backend/domain/club.py` maps empty and punctuation-only Verein strings (including `-`, `'-`, en-dash, underscores) to `None`; wired into Excel singles/couples adapters, `person_with_updated_identity`, and UI API review identity rebuild helpers. Matching unchanged (empty `club_normalized` vs empty).
+- Evidence: `backend/domain/club.py`, `backend/ingestion/adapters/singles.py`, `backend/ingestion/adapters/couples.py`, `backend/domain/identity.py`, `backend/ui_api/commands.py`, `docs/features/club-no-affiliation-normalization.md`, `tests/test_domain_club.py`; `uv run pytest`
+- Impact: Fewer spurious club mismatches and cleaner stored identities for “no club” rows.
+- Follow-up: none
+
 ### 2026-04-11 - F20 Standings export (PDF + CSV, declarative spec)
 - Requirement/Milestone: [R5, R7; M5]
 - What shipped: Backend `backend/export` builds format-agnostic sections from `ProjectDocument` / session JSON with `ExportSpec` (categories, columns/presets, F15 `eligible_only`/`full_grid`, race filter `all_active` / `race_event_uids` / `up_to_race_no`, embedded vs live snapshot). ReportLab PDF (landscape, repeated headers, ruleset/timestamp footer) and UTF-8 CSV reuse the same projection. Shared `build_standings_rows_for_category` in `backend/standings_view.py` with display helpers in `backend/standings_display.py` to match `get_standings` without import cycles. CLI: `uv run python -m backend.export`.

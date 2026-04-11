@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import UTC, datetime
 
+from backend.domain.club import optional_club_from_cell
 from backend.domain.models import Couple, Person
 from backend.matching.normalize import normalize_club, parse_person_name
 
@@ -23,8 +24,8 @@ def person_with_updated_identity(*, person: Person, name: str, yob: int, club: s
     """Rebuild derived name/club fields; preserves uid and gender."""
     trimmed = name.strip()
     parsed = parse_person_name(trimmed)
-    club_norm = normalize_club(club)
-    club_value: str | None = club.strip() if club is not None and club.strip() else None
+    club_value = optional_club_from_cell(club)
+    club_norm = normalize_club(club_value)
     return replace(
         person,
         name=trimmed,
