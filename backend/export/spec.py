@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Literal, cast
+from typing import Any, Iterable, Literal, cast
 
 StandingsSource = Literal["embedded", "live"]
 RaceFilterMode = Literal["all_active", "race_event_uids", "up_to_race_no"]
@@ -29,6 +29,8 @@ KNOWN_COLUMN_IDS: frozenset[str] = frozenset(
 COLUMN_PRESETS: dict[str, tuple[str, ...]] = {
     "minimal": ("platz", "display_name", "punkte_gesamt", "distanz_gesamt"),
     "official_board": ("platz", "display_name", "club", "punkte_gesamt", "distanz_gesamt"),
+    # Placeholder preset: use with pdf.table_layout "laufuebersicht" (projection builds columns from races).
+    "laufuebersicht_board": (),
     "debug_uid": (
         "platz",
         "display_name",
@@ -103,18 +105,71 @@ class RowsSpec:
         return RowsSpec(eligibility=cast(RowEligibility, el))
 
 
+TableLayout = Literal["flat", "laufuebersicht"]
+
+
+def sort_category_keys_for_export(category_keys: Iterable[str]) -> tuple[str, ...]:
+    """Sort ``year:duration:division`` keys for typical print order.
+
+    Order: Halbstundenlauf W, Halbstundenlauf M, Stundenlauf W, Stundenlauf M,
+    then Paare (W, M, MW) for each duration in the same order, then any other
+    divisions last. Within each bucket, ascending year.
+    """
+
+    def _key(k: str) -> tuple[int, int, int, int, str]:
+        parts = k.split(":")
+        if len(parts) != 3:
+            return (99, 99, 99, 9999, k)
+        year_s, duration, division = parts[0], parts[1], parts[2]
+        try:
+            year = int(year_s)
+        except ValueError:
+            year = 9999
+        dur_ord = 0 if duration == "half_hour" else (1 if duration == "hour" else 50)
+        if division == "women":
+            return (0, dur_ord, 0, year, k)
+        if division == "men":
+            return (0, dur_ord, 1, year, k)
+        if division == "couples_women":
+            return (1, dur_ord, 0, year, k)
+        if division == "couples_men":
+            return (1, dur_ord, 1, year, k)
+        if division == "couples_mixed":
+            return (1, dur_ord, 2, year, k)
+        return (50, dur_ord, 99, year, k)
+
+    return tuple(sorted(category_keys, key=_key))
+
+
+# Default main organizer line in PDF footers (overridable via export spec ``pdf.organizer_footer``).
+DEFAULT_PDF_ORGANIZER_FOOTER = "HSG Uni Greifswald Triathlon Laufgruppe"
+
+
 @dataclass(frozen=True)
 class PdfStyleSpec:
     page_size: Literal["A4", "A3"] = "A4"
     orientation: Literal["portrait", "landscape"] = "landscape"
     title: str = ""
     subtitle: str = ""
-    show_ruleset_footer: bool = True
+    # Deprecated: ruleset is no longer printed in the PDF footer; kept for spec compatibility.
+    show_ruleset_footer: bool = False
+    show_category_footer: bool = True
     show_export_timestamp_footer: bool = True
+    organizer_footer: str = DEFAULT_PDF_ORGANIZER_FOOTER
+    show_organizer_footer: bool = True
+    show_season_footer: bool = True
     repeat_header: bool = True
     logo_path: str | None = None
     max_columns: int = 48
     max_rows_per_category: int = 5000
+    table_layout: TableLayout = "flat"
+    # None = layout defaults (9 pt flat; 7 pt body / 8 pt header for laufuebersicht).
+    table_font_size: int | None = None
+    table_header_font_size: int | None = None
+    # Laufübersicht: added to body font for Distanz (Pkt.) columns (per-race + Gesamt); Gesamt also bold.
+    laufuebersicht_result_font_extra_pt: int = 1
+    # Insert a page break before each category section after the first (multi-category PDFs).
+    page_break_before_each_category: bool = False
 
     @staticmethod
     def from_dict(raw: dict[str, Any]) -> PdfStyleSpec:
@@ -125,17 +180,38 @@ class PdfStyleSpec:
         if ori not in ("portrait", "landscape"):
             raise ValueError(f"pdf.orientation invalid: {ori!r}")
         logo = raw.get("logo_path")
+        layout = str(raw.get("table_layout", "flat")).strip().lower()
+        if layout not in ("flat", "laufuebersicht"):
+            raise ValueError(f"pdf.table_layout must be 'flat' or 'laufuebersicht', got {layout!r}")
+        tfs = raw.get("table_font_size")
+        thfs = raw.get("table_header_font_size")
+        res_extra = raw.get("laufuebersicht_result_font_extra_pt", 1)
+        page_break_cats = bool(raw.get("page_break_before_each_category", False))
+        if "organizer_footer" in raw:
+            ov = raw["organizer_footer"]
+            organizer_footer = str(ov).strip() if ov is not None else ""
+        else:
+            organizer_footer = DEFAULT_PDF_ORGANIZER_FOOTER
         return PdfStyleSpec(
             page_size=cast(Any, ps),
             orientation=cast(Any, ori),
             title=str(raw.get("title", "") or ""),
             subtitle=str(raw.get("subtitle", "") or ""),
-            show_ruleset_footer=bool(raw.get("show_ruleset_footer", True)),
+            show_ruleset_footer=bool(raw.get("show_ruleset_footer", False)),
+            show_category_footer=bool(raw.get("show_category_footer", True)),
             show_export_timestamp_footer=bool(raw.get("show_export_timestamp_footer", True)),
+            organizer_footer=organizer_footer,
+            show_organizer_footer=bool(raw.get("show_organizer_footer", True)),
+            show_season_footer=bool(raw.get("show_season_footer", True)),
             repeat_header=bool(raw.get("repeat_header", True)),
             logo_path=str(logo) if logo else None,
             max_columns=int(raw.get("max_columns", 48)),
             max_rows_per_category=int(raw.get("max_rows_per_category", 5000)),
+            table_layout=cast(TableLayout, layout),
+            table_font_size=int(tfs) if tfs is not None else None,
+            table_header_font_size=int(thfs) if thfs is not None else None,
+            laufuebersicht_result_font_extra_pt=int(res_extra),
+            page_break_before_each_category=page_break_cats,
         )
 
 
@@ -151,8 +227,16 @@ class ExportSpec:
 
     def resolved_columns(self) -> tuple[str, ...]:
         """Expand presets to concrete column ids."""
+        if self.pdf.table_layout == "laufuebersicht":
+            if self.columns != ("laufuebersicht_board",):
+                raise ValueError(
+                    "pdf.table_layout 'laufuebersicht' requires columns: ['laufuebersicht_board'] exactly"
+                )
+            return ()
         out: list[str] = []
         for item in self.columns:
+            if item == "laufuebersicht_board":
+                raise ValueError("laufuebersicht_board is only valid with pdf.table_layout: laufuebersicht")
             if item in COLUMN_PRESETS:
                 out.extend(COLUMN_PRESETS[item])
             elif item == "points_per_race" or item in KNOWN_COLUMN_IDS:

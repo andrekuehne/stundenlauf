@@ -82,6 +82,7 @@ Checkboxes mark **product-level** satisfaction. Capabilities delivered only via 
 |---|---|---|
 | 2026-04-11 | Merge review GUI club previews use same no-affiliation normalization | `get_review_queue` + granular review display; [`docs/features/club-no-affiliation-normalization.md`](docs/features/club-no-affiliation-normalization.md) |
 | 2026-04-11 | Club no-affiliation normalization (`optional_club_from_cell`) | Empty/punctuation-only Verein → `None` at import and identity updates; [`docs/features/club-no-affiliation-normalization.md`](docs/features/club-no-affiliation-normalization.md) |
+| 2026-04-11 | F20 PDF Laufübersicht layout (`pdf.table_layout: laufuebersicht`) | Per-race km/Pkt cells, two-row header, Paarlauf split rows + spans; [`tests/test_f20_export.py`](tests/test_f20_export.py) |
 | 2026-04-11 | Shipped F20 backend standings export (PDF + CSV, CLI) | `backend/export`, shared `standings_view` / `standings_display`, tests; [`docs/features/F20-standings-multi-format-export.md`](docs/features/F20-standings-multi-format-export.md) |
 | 2026-04-11 | Added F20 standings multi-format export feature plan (PDF-first) | Spec for backend export from season JSON: pluggable formats, configurable columns/races/styling; [`docs/features/F20-standings-multi-format-export.md`](docs/features/F20-standings-multi-format-export.md) |
 | 2026-04-11 | Shipped F19 import review merge + identity correction | Import queue button opens comparison/edit modal, sequential `apply_match_decision` + `update_participant_identity`; Paarlauf accept uses `target_team_uid` |

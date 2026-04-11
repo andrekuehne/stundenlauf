@@ -21,3 +21,5 @@ data/2023/paare/exports/**/*.xlsx
 data/2023/**/*.csv
 data/2023/**/*.json
 data/2023/**/*.json.bak
+
+example/

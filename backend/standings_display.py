@@ -5,6 +5,14 @@ from __future__ import annotations
 from backend.domain.enums import Division, RaceDuration
 from backend.domain.models import Couple, Person, ProjectDocument, RaceEvent, StandingsRow
 
+_DIVISION_WORD_DE: dict[Division, str] = {
+    Division.MEN: "Männer",
+    Division.WOMEN: "Frauen",
+    Division.COUPLES_MEN: "Paare Männer",
+    Division.COUPLES_WOMEN: "Paare Frauen",
+    Division.COUPLES_MIXED: "Paare gemischt",
+}
+
 
 def category_label(duration: RaceDuration, division: Division) -> str:
     duration_label = "Halbstundenlauf" if duration == RaceDuration.HALF_HOUR else "Stundenlauf"
@@ -16,6 +24,18 @@ def category_label(duration: RaceDuration, division: Division) -> str:
         Division.COUPLES_MIXED: "Paare MW",
     }
     return f"{duration_label} - {division_label_map[division]}"
+
+
+def export_pdf_category_title(year: int, duration: RaceDuration, division: Division) -> str:
+    """Single-line PDF heading: season year + readable category (em dash, spelled-out divisions)."""
+    duration_label = "Halbstundenlauf" if duration == RaceDuration.HALF_HOUR else "Stundenlauf"
+    return f"Saison {year} \u2014 {duration_label} {_DIVISION_WORD_DE[division]}"
+
+
+def category_footer_label(duration: RaceDuration, division: Division) -> str:
+    """PDF footer line: duration and division with hyphen (e.g. Halbstundenlauf - Frauen)."""
+    duration_label = "Halbstundenlauf" if duration == RaceDuration.HALF_HOUR else "Stundenlauf"
+    return f"{duration_label} - {_DIVISION_WORD_DE[division]}"
 
 
 def people_by_uid(document: ProjectDocument) -> dict[str, Person]:

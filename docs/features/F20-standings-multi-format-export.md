@@ -113,7 +113,8 @@ Serializable dict (for future API/CLI). Exact names are implementation details; 
     "page_size": "A4",
     "orientation": "landscape",
     "title": "Stundenlauf {series_year} — Zwischenstand",
-    "show_ruleset_footer": true,
+    "organizer_footer": "HSG Uni Greifswald Triathlon Laufgruppe",
+    "show_category_footer": true,
     "repeat_header": true,
     "theme": "default"
   }
@@ -124,9 +125,12 @@ Serializable dict (for future API/CLI). Exact names are implementation details; 
 
 **Column bundles:** Presets such as `minimal`, `official_board`, `debug_uid` reduce configuration burden for callers.
 
+**Laufübersicht PDF layout:** Set `pdf.table_layout` to `laufuebersicht` and `columns` to `["laufuebersicht_board"]` only. Produces a two-row header (`n. Lauf` / `Gesamt` over `Platz` / `Name` / `Verein` / `Distanz (Pkt.)`), one combined cell per race formatted like `8,123 km (47)` (German decimal comma), `Name (Jg.)` for eligible rows, and two PDF rows per team with merged Platz and numeric columns. Optional `pdf.table_font_size` and `pdf.table_header_font_size` override the default 7 pt / 8 pt body/header sizes for this layout. `pdf.laufuebersicht_result_font_extra_pt` (default 1) adds that many points to the **Distanz (Pkt.)** body cells only; the **Gesamt** body column is also **bold**.
+
 ## Implementation (shipped)
 
 - Package: [`backend/export/`](../../backend/export/) — `ExportSpec.from_dict`, `export_standings` / `export_standings_to_path`, `export_standings_pdf_bytes`, `resolve_document_for_export`, `build_export_sections`, ReportLab PDF + CSV second format.
+- PDF footer: centered line **Organizer - Saison YYYY - category - Export: …** (hyphen-separated). Default organizer is `HSG Uni Greifswald Triathlon Laufgruppe` (`pdf.organizer_footer`); omit it with `""` or `pdf.show_organizer_footer: false`. Season uses the section’s category year (`pdf.show_season_footer`). Category line is spelled-out (e.g. `Stundenlauf - Männer`; `pdf.show_category_footer`). `pdf.show_ruleset_footer` is deprecated (ignored for rendering).
 - Shared standings rows (GUI/export parity): [`backend/standings_view.py`](../../backend/standings_view.py) (`build_standings_rows_for_category`); display helpers in [`backend/standings_display.py`](../../backend/standings_display.py) (avoids `ui_api` import cycles).
 - CLI: `uv run python -m backend.export --input <session_project.json> --output <file.pdf|csv>` (optional `--spec export.json`).
 

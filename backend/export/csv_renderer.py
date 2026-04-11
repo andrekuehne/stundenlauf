@@ -23,8 +23,13 @@ def render_csv(sections: tuple[ExportSection, ...], dest: Path | TextIO) -> None
         for sec in sections:
             w.writerow([f"# category: {sec.category_key}"])
             w.writerow([sec.title, sec.subtitle, sec.category_label])
-            w.writerow([c.header for c in sec.columns])
-            for row in sec.rows:
+            if sec.header_rows is not None:
+                for hr in sec.header_rows:
+                    w.writerow(list(hr))
+            else:
+                w.writerow([c.header for c in sec.columns])
+            body = sec.csv_rows if sec.csv_rows is not None else sec.rows
+            for row in body:
                 w.writerow(list(row))
             w.writerow([])
     finally:

@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-11 - F20 PDF: Laufübersicht table layout (per-race km/Pkt, team split rows)
+- Requirement/Milestone: [R5, R7; M5]
+- What shipped: `pdf.table_layout: laufuebersicht` with `columns: ["laufuebersicht_board"]` builds a two-row grouped header, one combined distance/points cell per race and Gesamt, `Name (Jg.)` for eligible rows, and two PDF body rows per team with ReportLab `SPAN` on Platz and numeric columns; CSV duplicates team numerics on the second line. Optional `pdf.table_font_size` / `table_header_font_size` override layout defaults (7/8 pt).
+- Evidence: `backend/export/spec.py`, `backend/export/projection.py`, `backend/export/pdf_renderer.py`, `backend/export/csv_renderer.py`, `tests/test_f20_export.py`, `scripts/pdf_export_playground.py`; `uv run pytest tests/test_f20_export.py`
+- Impact: Printable race overview closer to GUI “Aktuelle Wertung” while respecting eligible-only (non–a.W.) export semantics.
+- Follow-up: none
+
 ### 2026-04-11 - Merge review GUI: club display uses no-affiliation normalization
 - Requirement/Milestone: [R6, R8; M4]
 - What shipped: `get_review_queue` previews and granular `candidate_review_displays` normalize club strings (including Paarlauf `a / b`) so punctuation-only values show like empty; `optional_club_composite_from_field` in `backend/domain/club.py`.

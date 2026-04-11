@@ -14,14 +14,71 @@ from reportlab.lib.pagesizes import A3, A4, landscape, portrait
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
-from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Image, PageBreak, PageTemplate, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus.doctemplate import BaseDocTemplate, _doNothing
+from reportlab.platypus.flowables import Flowable
+from reportlab.platypus.frames import Frame
 
-from backend.export.projection import ExportSection
+from backend.export.projection import ColumnDef, ExportSection
 from backend.export.spec import ExportSpec, PdfStyleSpec
 
 
 def _para_text(s: str) -> str:
     return xml_escape(s, entities={'"': "&quot;", "'": "&apos;"})
+
+
+def _table_col_widths(columns: tuple[ColumnDef, ...], w_avail: float) -> list[float]:
+    """Narrow fixed widths for rank / points / km; remaining width split across other columns."""
+    n = len(columns)
+    if n == 0:
+        return []
+    narrow_by_id: dict[str, float] = {
+        "platz": 0.95 * cm,
+        "punkte_gesamt": 1.15 * cm,
+        "distanz_gesamt": 1.35 * cm,
+        "gesamt_compact": 2.7 * cm,
+    }
+    widths = [0.0] * n
+    fixed_total = 0.0
+    flex_indices: list[int] = []
+    for j, c in enumerate(columns):
+        nw = narrow_by_id.get(c.id)
+        if c.id.startswith("race_compact:"):
+            nw = 2.4 * cm
+        if nw is not None:
+            widths[j] = nw
+            fixed_total += nw
+        else:
+            flex_indices.append(j)
+    if not flex_indices or fixed_total >= w_avail:
+        return [w_avail / n] * n
+    each_flex = (w_avail - fixed_total) / len(flex_indices)
+    for j in flex_indices:
+        widths[j] = each_flex
+    return widths
+
+
+def _laufuebersicht_podium_fill(band_gid: int) -> colors.Color:
+    """Yellow tint via per-channel multiply on zebra base so odd/even rows stay distinct."""
+    if band_gid % 2 == 0:
+        br, bg, bb = 255, 255, 255
+    else:
+        br, bg, bb = 245, 245, 245
+    yr, yg, yb = 255, 236, 150
+    r = min(255, br * yr // 255)
+    g = min(255, bg * yg // 255)
+    b = min(255, bb * yb // 255)
+    return colors.HexColor(f"#{r:02x}{g:02x}{b:02x}")
+
+
+def _table_font_sizes(pdf: PdfStyleSpec, header_rows: tuple[tuple[str, ...], ...] | None) -> tuple[int, int]:
+    if header_rows is not None:
+        body = pdf.table_font_size if pdf.table_font_size is not None else 7
+        hdr = pdf.table_header_font_size if pdf.table_header_font_size is not None else 8
+        return body, hdr
+    body = pdf.table_font_size if pdf.table_font_size is not None else 9
+    hdr = pdf.table_header_font_size if pdf.table_header_font_size is not None else body
+    return body, hdr
 
 
 def _page_size_tuple(pdf: PdfStyleSpec) -> tuple[float, float]:
@@ -31,28 +88,89 @@ def _page_size_tuple(pdf: PdfStyleSpec) -> tuple[float, float]:
     return portrait(base)
 
 
-def _footer_canvas(
-    pdf: PdfStyleSpec,
-    ruleset_versions: tuple[str, ...],
-    export_ts: str,
-):
-    def _draw(canv: canvas.Canvas, doc: object) -> None:
+class _SectionFooterHint(Flowable):
+    """Zero-height marker; :meth:`_ExportPdfDocTemplate.afterFlowable` sets per-section footer fields."""
+
+    def __init__(self, season_year: int, footer_category_line: str) -> None:
+        Flowable.__init__(self)
+        self._season_year = season_year
+        self._footer_category_line = footer_category_line
+
+    def wrap(self, availWidth, availHeight):
+        return (0, 0)
+
+    def draw(self) -> None:
+        pass
+
+
+class _ExportPdfDocTemplate(SimpleDocTemplate):
+    def __init__(
+        self,
+        filename,
+        *,
+        pdf_style: PdfStyleSpec,
+        export_ts: str,
+        page_size_tuple: tuple[float, float],
+        **kw,
+    ) -> None:
+        self._pdf_style = pdf_style
+        self._export_ts = export_ts
+        self._page_size_tuple = page_size_tuple
+        self._footer_season_year = 0
+        self._footer_category_line = ""
+        super().__init__(filename, **kw)
+
+    def afterFlowable(self, flowable):
+        SimpleDocTemplate.afterFlowable(self, flowable)
+        if isinstance(flowable, _SectionFooterHint):
+            self._footer_season_year = flowable._season_year
+            self._footer_category_line = flowable._footer_category_line
+
+    def build(self, flowables, canvasmaker=canvas.Canvas):
+        """Like SimpleDocTemplate.build, but footer runs in onPageEnd (after flowables), not beforeDrawPage."""
+        self._calc()
+        frame_t = Frame(self.leftMargin, self.bottomMargin, self.width, self.height, id="normal")
+        foot = self._on_page
+        self.pageTemplates = []
+        self.addPageTemplates(
+            [
+                PageTemplate(
+                    id="First",
+                    frames=frame_t,
+                    onPage=_doNothing,
+                    onPageEnd=foot,
+                    pagesize=self.pagesize,
+                ),
+                PageTemplate(
+                    id="Later",
+                    frames=frame_t,
+                    onPage=_doNothing,
+                    onPageEnd=foot,
+                    pagesize=self.pagesize,
+                ),
+            ]
+        )
+        BaseDocTemplate.build(self, flowables, canvasmaker=canvasmaker)
+
+    def _on_page(self, canv: canvas.Canvas, doc: object) -> None:
         canv.saveState()
         canv.setFont("Helvetica", 8)
-        lines: list[str] = []
-        if pdf.show_ruleset_footer:
-            uniq = ", ".join(sorted({v for v in ruleset_versions if v}))
-            if uniq:
-                lines.append(f"Regelwerk: {uniq}")
-        if pdf.show_export_timestamp_footer:
-            lines.append(f"Export: {export_ts}")
-        text = "  |  ".join(lines)
+        parts: list[str] = []
+        if self._pdf_style.show_organizer_footer:
+            org = self._pdf_style.organizer_footer.strip()
+            if org:
+                parts.append(org)
+        if self._pdf_style.show_season_footer and self._footer_season_year > 0:
+            parts.append(f"Saison {self._footer_season_year}")
+        if self._pdf_style.show_category_footer and self._footer_category_line:
+            parts.append(self._footer_category_line)
+        if self._pdf_style.show_export_timestamp_footer:
+            parts.append(f"Export: {self._export_ts}")
+        text = " - ".join(parts)
         if text:
-            w, _h = _page_size_tuple(pdf)
+            w, _h = self._page_size_tuple
             canv.drawCentredString(w / 2, 1.0 * cm, text)
         canv.restoreState()
-
-    return _draw
 
 
 def render_pdf(
@@ -78,16 +196,8 @@ def render_pdf(
         spaceAfter=12,
         alignment=TA_CENTER,
     )
-    section_heading = ParagraphStyle(
-        name="SectionHeading",
-        parent=styles["Heading2"],
-        fontSize=12,
-        spaceAfter=8,
-    )
 
     export_ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
-    ruleset_versions = tuple(s.ruleset_version for s in sections)
-    footer_fn = _footer_canvas(pdf, ruleset_versions, export_ts)
 
     buf_owner: BytesIO | None = None
     if isinstance(dest, Path):
@@ -96,8 +206,11 @@ def render_pdf(
     else:
         buf = dest
 
-    doc = SimpleDocTemplate(
+    doc = _ExportPdfDocTemplate(
         buf,
+        pdf_style=pdf,
+        export_ts=export_ts,
+        page_size_tuple=page_size,
         pagesize=page_size,
         leftMargin=1.5 * cm,
         rightMargin=1.5 * cm,
@@ -118,40 +231,89 @@ def render_pdf(
             except OSError:
                 pass
 
+    first_section = True
     for sec in sections:
+        if not first_section and pdf.page_break_before_each_category:
+            story.append(PageBreak())
+        first_section = False
+        story.append(_SectionFooterHint(sec.season_year, sec.footer_category_label))
         story.append(Paragraph(_para_text(sec.title), title_style))
         if sec.subtitle:
             story.append(Paragraph(_para_text(sec.subtitle), subtitle_style))
-        story.append(Paragraph(_para_text(sec.category_label), section_heading))
 
-        headers = [c.header for c in sec.columns]
-        data: list[list[str]] = [headers]
-        data.extend([list(r) for r in sec.rows])
+        hdr = sec.header_rows
+        if hdr is not None:
+            data = [list(r) for r in hdr]
+            data.extend([list(r) for r in sec.rows])
+            n_header = len(hdr)
+        else:
+            data = [[c.header for c in sec.columns]]
+            data.extend([list(r) for r in sec.rows])
+            n_header = 1
 
         col_widths = None
-        ncols = len(headers)
+        ncols = len(data[0]) if data else 0
         if ncols > 0:
             w_avail = page_size[0] - 3 * cm
-            col_widths = [w_avail / ncols] * ncols
+            col_widths = _table_col_widths(sec.columns, w_avail)
 
-        tbl = Table(data, colWidths=col_widths, repeatRows=1 if pdf.repeat_header else 0)
+        repeat_n = n_header if pdf.repeat_header else 0
+        tbl = Table(data, colWidths=col_widths, repeatRows=repeat_n)
+
+        body_fs, hdr_fs = _table_font_sizes(pdf, hdr)
+        hdr_last = n_header - 1
+        band_grey = colors.HexColor("#f5f5f5")
         tbl_style_cmds: list = [
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 9),
-            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+            ("FONTNAME", (0, 0), (-1, hdr_last), "Helvetica-Bold"),
+            ("FONTNAME", (0, n_header), (-1, -1), "Helvetica"),
+            ("FONTSIZE", (0, 0), (-1, hdr_last), hdr_fs),
+            ("FONTSIZE", (0, n_header), (-1, -1), body_fs),
+            ("BACKGROUND", (0, 0), (-1, hdr_last), colors.lightgrey),
             ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]
+        # Laufübersicht: larger type for Distanz (Pkt.) cells; Gesamt column body also bold.
+        if hdr is not None and ncols > 3:
+            extra = max(0, int(pdf.laufuebersicht_result_font_extra_pt))
+            res_fs = body_fs + extra
+            tbl_style_cmds.append(("FONTSIZE", (3, n_header), (ncols - 1, -1), res_fs))
+            last_c = ncols - 1
+            tbl_style_cmds.append(("FONTNAME", (last_c, n_header), (last_c, -1), "Helvetica-Bold"))
+        if sec.body_row_band_group is not None:
+            if len(sec.body_row_band_group) != len(sec.rows):
+                raise ValueError("body_row_band_group length must match body row count")
+            podium = sec.body_row_podium
+            if podium is not None:
+                if len(podium) != len(sec.body_row_band_group):
+                    raise ValueError("body_row_podium length must match body_row_band_group")
+            for br, gid in enumerate(sec.body_row_band_group):
+                tr = n_header + br
+                on_podium = podium[br] if podium is not None else False
+                if on_podium:
+                    fill = _laufuebersicht_podium_fill(gid)
+                else:
+                    fill = colors.white if gid % 2 == 0 else band_grey
+                tbl_style_cmds.append(("BACKGROUND", (0, tr), (-1, tr), fill))
+        else:
+            tbl_style_cmds.append(
+                ("ROWBACKGROUNDS", (0, n_header), (-1, -1), [colors.white, band_grey])
+            )
+        if sec.table_spans:
+            for (c0, r0), (c1, r1) in sec.table_spans:
+                tbl_style_cmds.append(("SPAN", (c0, r0), (c1, r1)))
+                # Paarlauf: vertically merge Platz + results — center content in the 2-row block.
+                if c0 == c1 and r1 == r0 + 1:
+                    tbl_style_cmds.append(("VALIGN", (c0, r0), (c0, r0), "MIDDLE"))
         for j, c in enumerate(sec.columns):
             if c.align == "right":
-                tbl_style_cmds.append(("ALIGN", (j, 1), (j, -1), "RIGHT"))
+                tbl_style_cmds.append(("ALIGN", (j, n_header), (j, -1), "RIGHT"))
             elif c.align == "center":
-                tbl_style_cmds.append(("ALIGN", (j, 1), (j, -1), "CENTER"))
+                tbl_style_cmds.append(("ALIGN", (j, n_header), (j, -1), "CENTER"))
         tbl.setStyle(TableStyle(tbl_style_cmds))
         story.append(tbl)
         story.append(Spacer(1, 0.6 * cm))
 
-    doc.build(story, onFirstPage=footer_fn, onLaterPages=footer_fn)
+    doc.build(story)
 
     if buf_owner is not None and isinstance(dest, Path):
         dest.write_bytes(buf_owner.getvalue())
