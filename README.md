@@ -56,17 +56,13 @@ The installer is written to `installer/output/`. Bump `/DMyAppVersion` to match 
 
 Workflow [`.github/workflows/windows-build.yml`](.github/workflows/windows-build.yml) runs **only when you push a version tag** whose name starts with `v` (e.g. `v1.0.0`):
 
-```bash
-git tag v1.0.0
-git push origin v1.0.0
+```powershell
+git add .
+git commit -m "Some release message"
+git push
+git tag -a v1.0.2 -m "Release v1.0.2"
+git push origin v1.0.2
 ```
-
-Then open **Actions**, select the **Windows build** run for that tag, and download **Artifacts**:
-
-- **`stundenlauf-setup-<version>`** — `Stundenlauf-Auswertung-<version>-Setup.exe` (Inno installer).
-- **`stundenlauf-portable-<version>`** — the PyInstaller `Stundenlauf` folder (zip).
-
-The installer version matches the tag without the `v` prefix (e.g. tag `v1.2.3` → version `1.2.3`).
 
 To run tests:
 
