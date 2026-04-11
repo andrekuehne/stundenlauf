@@ -23,6 +23,7 @@ from backend.export.spec import (
     ExportSpec,
     RaceFilterSpec,
     sort_category_keys_for_export,
+    split_category_keys_einzel_paare,
 )
 from backend.standings_display import category_footer_label, export_pdf_category_title
 from backend.ranking.engine import recompute_project_standings
@@ -104,6 +105,16 @@ class TestExportSpec(unittest.TestCase):
                 "2025:hour:couples_mixed",
             ),
         )
+
+    def test_split_category_keys_einzel_paare(self) -> None:
+        keys = [
+            "2025:hour:couples_men",
+            "2025:half_hour:men",
+            "2025:hour:men",
+        ]
+        einzel, paare = split_category_keys_einzel_paare(keys)
+        self.assertEqual(einzel, ("2025:half_hour:men", "2025:hour:men"))
+        self.assertEqual(paare, ("2025:hour:couples_men",))
 
     def test_pdf_organizer_footer_default_and_override(self) -> None:
         d0 = ExportSpec.from_dict({"format": "pdf", "categories": [_ck()], "columns": ["minimal"]})
@@ -618,6 +629,36 @@ class TestPdfSmoke(unittest.TestCase):
         self.assertIn("Saison 2026", text)
         self.assertIn("Stundenlauf", text)
         self.assertIn("M\u00e4nner", text)
+
+    def test_laufuebersicht_pdf_section_number_respects_start(self) -> None:
+        c = _cat_couples()
+        team = Couple(
+            uid="t1",
+            member_a=Person(name="A", yob=1980, gender=Gender.M, club="TSV"),
+            member_b=Person(name="B", yob=1981, gender=Gender.F, club="TSV"),
+        )
+        ev = RaceEvent(
+            race_event_uid="r1",
+            category=c,
+            race_date="2026-01-01",
+            race_no=1,
+            entries=(RaceEntry(team_uid="t1", result=EntryResult(1.0, 1.0)),),
+        )
+        doc = recompute_project_standings(
+            ProjectDocument(schema_version=SCHEMA_VERSION_V2, couples=(team,), events=(ev,))
+        )
+        spec = ExportSpec.from_dict(
+            {
+                "format": "pdf",
+                "categories": [_ck_couples()],
+                "columns": ["laufuebersicht_board"],
+                "pdf": {"table_layout": "laufuebersicht", "laufuebersicht_section_number_start": 4},
+            }
+        )
+        pdf_bytes = export_standings_pdf_bytes(doc, spec)
+        text = "".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf_bytes)).pages)
+        self.assertIn("4. Stundenlauf - Paare M\u00e4nner", text)
+        self.assertNotIn("1. Stundenlauf - Paare", text)
 
 
 if __name__ == "__main__":

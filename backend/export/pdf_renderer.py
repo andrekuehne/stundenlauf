@@ -467,7 +467,7 @@ def render_pdf(
         notice_body = pdf.resolved_laufuebersicht_notice()
         notice_xml = f"<u>{_para_text('Hinweis:')}</u><br/>{_para_text(notice_body)}"
         story.append(Paragraph(notice_xml, cover_notice_style))
-        story.append(PageBreak())
+        story.append(Spacer(1, 0.35 * cm))
 
     for sec in sections:
         if not first_section and pdf.page_break_before_each_category:

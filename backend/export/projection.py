@@ -195,7 +195,8 @@ def _build_laufuebersicht_sections(document: ProjectDocument, spec: ExportSpec) 
 
     sections: list[ExportSection] = []
     title_override = spec.pdf.title.strip()
-    for section_no, cat_key in enumerate(spec.categories, start=1):
+    sec0 = spec.pdf.laufuebersicht_section_number_start
+    for section_no, cat_key in enumerate(spec.categories, start=sec0):
         category = _find_category(document, cat_key)
         races = _ordered_active_races_for_category(document, cat_key)
         column_defs = _laufuebersicht_column_defs(races)

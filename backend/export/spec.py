@@ -141,6 +141,20 @@ def sort_category_keys_for_export(category_keys: Iterable[str]) -> tuple[str, ..
     return tuple(sorted(category_keys, key=_key))
 
 
+def category_key_is_couples(category_key: str) -> bool:
+    """True if ``year:duration:division`` uses a Paare division (``couples_*``)."""
+    parts = category_key.split(":")
+    return len(parts) == 3 and str(parts[2]).startswith("couples_")
+
+
+def split_category_keys_einzel_paare(category_keys: Iterable[str]) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Export order within Einzel vs Paare (same global order as :func:`sort_category_keys_for_export`)."""
+    ordered = sort_category_keys_for_export(category_keys)
+    einzel = tuple(k for k in ordered if not category_key_is_couples(k))
+    paare = tuple(k for k in ordered if category_key_is_couples(k))
+    return einzel, paare
+
+
 # Default main organizer line in PDF footers (overridable via export spec ``pdf.organizer_footer``).
 DEFAULT_PDF_ORGANIZER_FOOTER = "HSG Uni Greifswald Triathlon Laufgruppe"
 
@@ -179,6 +193,8 @@ class PdfStyleSpec:
     page_break_before_each_category: bool = False
     # Laufübersicht: dedicated first page (season year + Hinweis) before category tables.
     laufuebersicht_show_cover: bool = True
+    # First section heading index for ``N. Halbstundenlauf - …`` (Paare PDF continues after Einzel).
+    laufuebersicht_section_number_start: int = 1
     # Override cover notice body; empty string uses ``DEFAULT_LAUFUEBERSICHT_NOTICE``.
     laufuebersicht_notice: str = ""
 
@@ -199,6 +215,9 @@ class PdfStyleSpec:
         res_extra = raw.get("laufuebersicht_result_font_extra_pt", 0)
         page_break_cats = bool(raw.get("page_break_before_each_category", False))
         show_lauf_cover = bool(raw.get("laufuebersicht_show_cover", True))
+        lauf_sec_start = int(raw.get("laufuebersicht_section_number_start", 1))
+        if lauf_sec_start < 1:
+            raise ValueError("pdf.laufuebersicht_section_number_start must be >= 1")
         lauf_notice = raw.get("laufuebersicht_notice")
         lauf_notice_s = str(lauf_notice).strip() if lauf_notice is not None else ""
         if "organizer_footer" in raw:
@@ -227,6 +246,7 @@ class PdfStyleSpec:
             laufuebersicht_result_font_extra_pt=int(res_extra),
             page_break_before_each_category=page_break_cats,
             laufuebersicht_show_cover=show_lauf_cover,
+            laufuebersicht_section_number_start=lauf_sec_start,
             laufuebersicht_notice=lauf_notice_s,
         )
 

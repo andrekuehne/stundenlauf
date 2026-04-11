@@ -37,7 +37,15 @@ class PywebviewApiBridge:
         if request.get("method") == "pick_save_file":
             payload = request.get("payload") if isinstance(request.get("payload"), dict) else {}
             suggested_name = str(payload.get("suggested_name", "")).strip()
-            chosen = self._save_file_picker(suggested_name) if self._save_file_picker is not None else None
+            dialog_kind = str(payload.get("dialog_kind", "season_zip")).strip() or "season_zip"
+            picker = self._save_file_picker
+            if picker is not None:
+                try:
+                    chosen = picker(suggested_name, dialog_kind)  # type: ignore[call-arg]
+                except TypeError:
+                    chosen = picker(suggested_name)  # type: ignore[misc]
+            else:
+                chosen = None
             return {
                 "api_version": str(request.get("api_version", "v1")),
                 "request_id": str(request.get("request_id", "unknown")),

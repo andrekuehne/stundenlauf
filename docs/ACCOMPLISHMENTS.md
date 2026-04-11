@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-11 - GUI Laufübersicht: dual PDF (Einzel/Paare), continuous numbering, save-dialog filters
+- Requirement/Milestone: [R5, R7; M5]
+- What shipped: `export_standings_pdf` writes `{base}_einzel.pdf` and `{base}_paare.pdf` from a user-chosen base path; Paare section titles continue the Einzel numbering; year + Hinweis appear on both; first category table follows the Hinweis on the same page (no forced page break after the cover). `pick_save_file` accepts `dialog_kind` (`season_zip` vs `pdf`) so the season export keeps a `.zip` filter and the PDF flow uses PDF / all-files filters. API returns `export_files` plus total `bytes_written`.
+- Evidence: `backend/export/gui_pdf_spec.py`, `backend/export/spec.py` (`split_category_keys_einzel_paare`, `laufuebersicht_section_number_start`), `backend/ui_api/service.py`, `backend/ui_app.py`, `frontend/app.js`, `docs/api/ui-api-v1.md`, `tests/test_f08_ui_api.py`, `tests/test_f20_export.py`; `uv run pytest tests/test_f08_ui_api.py tests/test_f20_export.py`
+- Impact: Organizers get separate printouts for singles and couples without resetting section numbers; file dialogs match the export type.
+- Follow-up: none
+
 ### 2026-04-11 - F20 Laufübersicht PDF: cover page, numbered sections, board styling
 - Requirement/Milestone: [R5, R7; M5]
 - What shipped: Laufübersicht PDF opens with a **cover** (large blue calendar year, centered **Hinweis** with Pokal-/Gesamtwertung copy, then page break). Per-category titles default to **export order numbering** plus `Halbstundenlauf/Stundenlauf - {division}` (`pdf.title` still overrides all sections). Tables use a **green-tint** header block, **red** top-row run/Gesamt labels, **double** rule below the header, **thick** vertical after Verein, **dashed** verticals between Str./Wertung pairs, **double** vertical before Gesamt, and **blue** podium row tint. Optional `pdf.laufuebersicht_show_cover` / `pdf.laufuebersicht_notice` in `PdfStyleSpec`.

@@ -44,13 +44,18 @@ def launch_ui(workspace_dir: Path, project_file: Path | None = None) -> None:
             return None
         return str(selected[0])
 
-    def pick_save_file(suggested_name: str) -> str | None:
+    def pick_save_file(suggested_name: str, dialog_kind: str = "season_zip") -> str | None:
         fallback_name = "stundenlauf-season.stundenlauf-season.zip"
         file_name = suggested_name.strip() or fallback_name
+        kind = (dialog_kind or "season_zip").strip().lower()
+        if kind == "pdf":
+            file_types = ("PDF (*.pdf)", "Alle Dateien (*.*)")
+        else:
+            file_types = ("Stundenlauf Saison (*.zip)",)
         selected = window.create_file_dialog(
             webview.FileDialog.SAVE,
             save_filename=file_name,
-            file_types=("Stundenlauf Saison (*.zip)",),
+            file_types=file_types,
         )
         if not selected:
             return None

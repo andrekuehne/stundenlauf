@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import tempfile
+from io import BytesIO
 import unittest
 import zipfile
 from dataclasses import replace
@@ -604,19 +605,23 @@ class TestF08UiApi(unittest.TestCase):
             project_path = Path(temp_dir) / "session_project.json"
             _seed_project_for_year(project_path, 2026)
             service = UiApiService(project_path)
-            out_pdf = Path(temp_dir) / "wertung.pdf"
+            out_base = Path(temp_dir) / "wertung"
             exported = service.handle(
                 {
                     "api_version": API_VERSION_V1,
                     "request_id": "req_export_pdf",
                     "method": "export_standings_pdf",
-                    "payload": {"destination_path": str(out_pdf)},
+                    "payload": {"destination_path": str(out_base)},
                 }
             )
             self.assertEqual(exported["status"], "ok")
-            self.assertTrue(out_pdf.exists())
+            out_einzel = Path(temp_dir) / "wertung_einzel.pdf"
+            self.assertTrue(out_einzel.exists())
             self.assertGreater(exported["payload"]["bytes_written"], 0)
-            self.assertEqual(out_pdf.read_bytes()[:4], b"%PDF")
+            self.assertEqual(out_einzel.read_bytes()[:4], b"%PDF")
+            files = exported["payload"]["export_files"]
+            self.assertEqual(len(files), 1)
+            self.assertEqual(files[0], str(out_einzel))
 
     def test_export_standings_pdf_rejects_empty_season(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -636,7 +641,7 @@ class TestF08UiApi(unittest.TestCase):
             self.assertEqual(exported["error"]["code"], "VALIDATION_ERROR")
             self.assertIn("PDF-Export", exported["error"]["details"]["message"])
 
-    def test_export_standings_pdf_requires_pdf_suffix(self) -> None:
+    def test_export_standings_pdf_rejects_non_pdf_extension(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project_path = Path(temp_dir) / "session_project.json"
             _seed_project_for_year(project_path, 2026)
@@ -651,6 +656,79 @@ class TestF08UiApi(unittest.TestCase):
             )
             self.assertEqual(exported["status"], "error")
             self.assertEqual(exported["error"]["code"], "VALIDATION_ERROR")
+
+    def test_export_standings_pdf_accepts_pdf_suffix_as_base_stem(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "session_project.json"
+            _seed_project_for_year(project_path, 2026)
+            service = UiApiService(project_path)
+            out_pdf = Path(temp_dir) / "report.pdf"
+            exported = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_export_pdf_with_pdf_ext",
+                    "method": "export_standings_pdf",
+                    "payload": {"destination_path": str(out_pdf)},
+                }
+            )
+            self.assertEqual(exported["status"], "ok")
+            out_einzel = Path(temp_dir) / "report_einzel.pdf"
+            self.assertTrue(out_einzel.exists())
+            self.assertFalse(out_pdf.exists())
+
+    def test_export_standings_pdf_writes_einzel_and_paare_with_continuous_section_numbers(self) -> None:
+        from pypdf import PdfReader
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "session_project.json"
+            _seed_project_for_year(project_path, 2026)
+            doc = JsonProjectRepository(project_path).load()
+            cat_c = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.COUPLES_MIXED)
+            team = Couple(
+                uid="team_mx",
+                member_a=Person(name="Alex", yob=1985, gender=Gender.M, club="TSV"),
+                member_b=Person(name="Sina", yob=1990, gender=Gender.F, club="TSV"),
+            )
+            ev_c = RaceEvent(
+                race_event_uid="race_couples_1",
+                category=cat_c,
+                race_date="2026-02-01",
+                race_no=1,
+                source_file="c.xlsx",
+                source_sha256="sha-c",
+                imported_at="2026-02-01T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp-c",
+                entries=(
+                    RaceEntry(
+                        entry_uid="entry_c1",
+                        team_uid=team.uid,
+                        startnr="1",
+                        result=EntryResult(distance_km=8.0, points=15.0),
+                    ),
+                ),
+            )
+            merged = replace(doc, couples=(*doc.couples, team), events=(*doc.events, ev_c))
+            JsonProjectRepository(project_path).save(recompute_project_standings(merged))
+            service = UiApiService(project_path)
+            out_base = Path(temp_dir) / "dual"
+            exported = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_export_pdf_dual",
+                    "method": "export_standings_pdf",
+                    "payload": {"destination_path": str(out_base)},
+                }
+            )
+            self.assertEqual(exported["status"], "ok")
+            self.assertEqual(len(exported["payload"]["export_files"]), 2)
+            paare_path = Path(temp_dir) / "dual_paare.pdf"
+            self.assertTrue(paare_path.exists())
+            paare_text = "".join(
+                page.extract_text() or "" for page in PdfReader(BytesIO(paare_path.read_bytes())).pages
+            )
+            self.assertIn("2. Stundenlauf - Paare gemischt", paare_text)
+            self.assertNotIn("1. Stundenlauf - Paare", paare_text)
 
     def test_import_series_year_rejects_checksum_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

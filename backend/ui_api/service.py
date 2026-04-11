@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from backend.app_paths import default_workspace_dir
-from backend.export.gui_pdf_spec import laufuebersicht_export_spec_from_document
+from backend.export.gui_pdf_spec import laufuebersicht_einzel_paare_export_specs
 from backend.export.registry import export_standings_to_path
 from backend.matching.config import MatchingConfig
 from backend.storage.repository import JsonProjectRepository
@@ -93,20 +93,35 @@ class UiApiService:
         if not path_raw:
             raise validation_error("destination_path is required")
         destination_path = Path(path_raw)
-        if destination_path.suffix.lower() != ".pdf":
-            raise validation_error("destination_path must end with .pdf")
+        suffix = destination_path.suffix.lower()
+        if suffix not in ("", ".pdf"):
+            raise validation_error("destination_path must be a base file name or end with .pdf")
+        stem = destination_path.with_suffix("") if suffix == ".pdf" else destination_path
         project_file = self._require_active_project_file()
         repo = JsonProjectRepository(project_file)
         doc = repo.load()
         try:
-            spec = laufuebersicht_export_spec_from_document(doc)
+            spec_einzel, spec_paare = laufuebersicht_einzel_paare_export_specs(doc)
         except ValueError as exc:
             raise validation_error(str(exc)) from exc
-        destination_path.parent.mkdir(parents=True, exist_ok=True)
-        export_standings_to_path(project_file, spec, destination_path)
+        if spec_einzel is None and spec_paare is None:
+            raise validation_error("PDF-Export: keine Wertungskategorien in der Saison.")
+        out_einzel = stem.parent / f"{stem.name}_einzel.pdf"
+        out_paare = stem.parent / f"{stem.name}_paare.pdf"
+        stem.parent.mkdir(parents=True, exist_ok=True)
+        written: list[str] = []
+        total_bytes = 0
+        if spec_einzel is not None:
+            export_standings_to_path(project_file, spec_einzel, out_einzel)
+            written.append(str(out_einzel))
+            total_bytes += out_einzel.stat().st_size
+        if spec_paare is not None:
+            export_standings_to_path(project_file, spec_paare, out_paare)
+            written.append(str(out_paare))
+            total_bytes += out_paare.stat().st_size
         return {
-            "export_file": str(destination_path),
-            "bytes_written": destination_path.stat().st_size,
+            "export_files": written,
+            "bytes_written": total_bytes,
         }
 
     def _open_series_year(self, payload: dict[str, Any]) -> dict[str, Any]:

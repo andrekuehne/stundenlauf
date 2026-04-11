@@ -96,13 +96,13 @@ This document defines the frontend-facing Python API contract for the pywebview 
 ### `export_standings_pdf`
 - Requires an **active** opened season (`open_series_year`); uses the current `session_project.json` path held by the UI session.
 - Payload:
-  - `destination_path` (required, non-empty; must end with `.pdf`)
-- Renders a **Laufübersicht** PDF for **all categories** present in the project’s events (same declarative spec as the `pdf_export_playground` script: `laufuebersicht_board`, embedded standings, all active races, eligible-only rows, landscape A4, page break before each category after the first).
+  - `destination_path` (required, non-empty): **base path** for the export (no extension, or ending in `.pdf` which is stripped). The service writes `{base}_einzel.pdf` and `{base}_paare.pdf` when both Einzel- and Paare-Kategorien exist; otherwise only the file(s) that have at least one category.
+- Renders **Laufübersicht** PDFs: **Einzel** (women/men divisions) and **Paare** (`couples_*`) separately, each with the same year + Hinweis header and the same declarative spec as the GUI (`laufuebersicht_board`, embedded standings, all active races, eligible-only rows, landscape A4, page break before each category after the first). Section headings (`1. …`, `2. …`, …) continue across the Paare PDF (Paare does not restart at `1.`).
 - Returns:
-  - `export_file` (written path)
-  - `bytes_written`
+  - `export_files` (list of written paths, one or two entries)
+  - `bytes_written` (sum of file sizes)
 - Errors:
-  - `VALIDATION_ERROR` when `destination_path` is missing, does not end with `.pdf`, or the season has no events/categories
+  - `VALIDATION_ERROR` when `destination_path` is missing, has a suffix other than `.pdf` or none, or the season has no events/categories
   - `VALIDATION_ERROR` / `INTERNAL_ERROR` for other export failures (same envelope rules as other methods)
 
 ### `import_series_year`

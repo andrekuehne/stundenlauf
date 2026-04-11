@@ -161,7 +161,10 @@
       exportPdfButton: "Wertungen als PDF speichern",
       exportPdfPickFailed: "Zielpfad für das PDF konnte nicht gewählt werden.",
       exportPdfFailed: "PDF konnte nicht exportiert werden.",
-      exportPdfDone: (path) => `PDF gespeichert: ${path}`,
+      exportPdfDone: (paths) =>
+        Array.isArray(paths) && paths.length
+          ? `PDFs gespeichert: ${paths.join(", ")}`
+          : "PDFs gespeichert.",
       titleCurrent: "Aktuelle Wertung",
       emptyNoCategory: "Noch keine Ergebnisse vorhanden.",
       loadFailed: "Wertung konnte nicht geladen werden.",

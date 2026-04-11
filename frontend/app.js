@@ -389,7 +389,7 @@
       button.addEventListener("click", async () => {
         const year = Number(button.getAttribute("data-export-year"));
         const suggestedName = `stundenlauf-${year}.stundenlauf-season.zip`;
-        const picked = await api("pick_save_file", { suggested_name: suggestedName });
+        const picked = await api("pick_save_file", { suggested_name: suggestedName, dialog_kind: "season_zip" });
         if (picked.status !== "ok") {
           setStatus(se.exportPickFailed, true);
           return;
@@ -739,8 +739,8 @@
     }
     btn.addEventListener("click", async () => {
       const year = state.seriesYear;
-      const suggestedName = `stundenlauf-${year}-laufuebersicht.pdf`;
-      const picked = await api("pick_save_file", { suggested_name: suggestedName });
+      const suggestedName = `stundenlauf-${year}-laufuebersicht`;
+      const picked = await api("pick_save_file", { suggested_name: suggestedName, dialog_kind: "pdf" });
       if (picked.status !== "ok") {
         setStatus(st.exportPdfPickFailed, true);
         return;
@@ -754,7 +754,8 @@
         setStatus(getApiErrorMessage(exported.error, st.exportPdfFailed), true);
         return;
       }
-      setStatus(st.exportPdfDone(exported.payload.export_file), false);
+      const paths = (exported.payload && exported.payload.export_files) || [];
+      setStatus(st.exportPdfDone(paths), false);
     });
   }
 
