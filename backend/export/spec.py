@@ -166,8 +166,8 @@ class PdfStyleSpec:
     # None = layout defaults (9 pt flat; 7 pt body / 8 pt header for laufuebersicht).
     table_font_size: int | None = None
     table_header_font_size: int | None = None
-    # Laufübersicht: added to body font for Distanz (Pkt.) columns (per-race + Gesamt); Gesamt also bold.
-    laufuebersicht_result_font_extra_pt: int = 1
+    # Reserved for spec compatibility; Laufübersicht uses one body size for all columns (see pdf_renderer).
+    laufuebersicht_result_font_extra_pt: int = 0
     # Insert a page break before each category section after the first (multi-category PDFs).
     page_break_before_each_category: bool = False
 
@@ -185,7 +185,7 @@ class PdfStyleSpec:
             raise ValueError(f"pdf.table_layout must be 'flat' or 'laufuebersicht', got {layout!r}")
         tfs = raw.get("table_font_size")
         thfs = raw.get("table_header_font_size")
-        res_extra = raw.get("laufuebersicht_result_font_extra_pt", 1)
+        res_extra = raw.get("laufuebersicht_result_font_extra_pt", 0)
         page_break_cats = bool(raw.get("page_break_before_each_category", False))
         if "organizer_footer" in raw:
             ov = raw["organizer_footer"]

@@ -5,11 +5,11 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path
-from typing import BinaryIO
+from typing import Any, BinaryIO
 from xml.sax.saxutils import escape as xml_escape
 
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.lib.pagesizes import A3, A4, landscape, portrait
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
@@ -27,24 +27,72 @@ def _para_text(s: str) -> str:
     return xml_escape(s, entities={'"': "&quot;", "'": "&apos;"})
 
 
+_Lauf_PDF_EM_DASH = "\u2014"
+
+
+def _laufuebersicht_apply_result_cell_paragraphs(
+    data: list[list[Any]],
+    *,
+    n_header: int,
+    ncols: int,
+    body_fs: int,
+    styles: Any,
+    style_tag: int,
+) -> None:
+    """Str. (km) and Pkt. body cells as Paragraphs with shared leading (centered)."""
+    leading = body_fs + 2
+    cell_plain = ParagraphStyle(
+        name=f"LaufResPl_{style_tag}",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=body_fs,
+        leading=leading,
+        alignment=TA_CENTER,
+    )
+    cell_bold = ParagraphStyle(
+        name=f"LaufResBd_{style_tag}",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=body_fs,
+        leading=leading,
+        alignment=TA_CENTER,
+    )
+    for r in range(n_header, len(data)):
+        for j in range(3, ncols):
+            cell = data[r][j]
+            if not isinstance(cell, str):
+                continue
+            if cell == "":
+                continue
+            is_km = (j - 3) % 2 == 0
+            if is_km:
+                data[r][j] = Paragraph(_para_text(cell), cell_plain)
+            elif cell == _Lauf_PDF_EM_DASH:
+                data[r][j] = Paragraph(_para_text(cell), cell_plain)
+            else:
+                data[r][j] = Paragraph(f"<b>{_para_text(cell)}</b>", cell_bold)
+
+
 def _table_col_widths(columns: tuple[ColumnDef, ...], w_avail: float) -> list[float]:
     """Narrow fixed widths for rank / points / km; remaining width split across other columns."""
     n = len(columns)
     if n == 0:
         return []
+    _laufuebersicht_km_pkt_w = 1.25 * cm
     narrow_by_id: dict[str, float] = {
         "platz": 0.95 * cm,
         "punkte_gesamt": 1.15 * cm,
         "distanz_gesamt": 1.35 * cm,
-        "gesamt_compact": 2.7 * cm,
+        "gesamt_km": _laufuebersicht_km_pkt_w,
+        "gesamt_pkt": _laufuebersicht_km_pkt_w,
     }
     widths = [0.0] * n
     fixed_total = 0.0
     flex_indices: list[int] = []
     for j, c in enumerate(columns):
         nw = narrow_by_id.get(c.id)
-        if c.id.startswith("race_compact:"):
-            nw = 2.4 * cm
+        if c.id.startswith("race_km:") or c.id.startswith("race_pkt:"):
+            nw = _laufuebersicht_km_pkt_w
         if nw is not None:
             widths[j] = nw
             fixed_total += nw
@@ -268,6 +316,7 @@ def render_pdf(
                 pass
 
     first_section = True
+    lauf_table_seq = 0
     for sec in sections:
         if not first_section and pdf.page_break_before_each_category:
             story.append(PageBreak())
@@ -294,9 +343,20 @@ def render_pdf(
             col_widths = _table_col_widths(sec.columns, w_avail)
 
         repeat_n = n_header if pdf.repeat_header else 0
-        tbl = Table(data, colWidths=col_widths, repeatRows=repeat_n)
 
         body_fs, hdr_fs = _table_font_sizes(pdf, hdr)
+        if sec.body_row_band_group is not None and ncols > 3:
+            lauf_table_seq += 1
+            _laufuebersicht_apply_result_cell_paragraphs(
+                data,
+                n_header=n_header,
+                ncols=ncols,
+                body_fs=body_fs,
+                styles=styles,
+                style_tag=lauf_table_seq,
+            )
+
+        tbl = Table(data, colWidths=col_widths, repeatRows=repeat_n)
         hdr_last = n_header - 1
         band_grey = colors.HexColor("#f5f5f5")
         tbl_style_cmds: list = [
@@ -308,6 +368,15 @@ def render_pdf(
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]
         n_rows_tbl = len(data)
+        # Laufübersicht: compact sub-header (Laufstr./Wertung, units); centered in narrow columns.
+        if sec.body_row_band_group is not None and ncols > 3 and n_header == 3:
+            hdr_sub = max(5, hdr_fs - 2)
+            tbl_style_cmds.append(("FONTNAME", (3, 1), (-1, hdr_last), "Helvetica"))
+            tbl_style_cmds.append(("FONTSIZE", (3, 1), (-1, hdr_last), hdr_sub))
+            tbl_style_cmds.append(("ALIGN", (3, 1), (-1, hdr_last), "CENTER"))
+            tbl_style_cmds.append(("ALIGN", (3, 0), (-1, 0), "CENTER"))
+        if sec.body_row_band_group is not None and ncols > 3:
+            tbl_style_cmds.append(("VALIGN", (3, n_header), (ncols - 1, -1), "MIDDLE"))
         if sec.body_row_band_group is not None:
             line_grey = colors.grey
             tbl_style_cmds.append(("BOX", (0, 0), (-1, -1), _PDF_LINE_NORMAL, line_grey))
@@ -325,13 +394,6 @@ def render_pdf(
                     tbl_style_cmds.append(("LINEBELOW", (0, r), (-1, r), w, line_grey))
         else:
             tbl_style_cmds.append(("GRID", (0, 0), (-1, -1), _PDF_LINE_NORMAL, colors.grey))
-        # Laufübersicht: larger type for Distanz (Pkt.) cells; Gesamt column body also bold.
-        if hdr is not None and ncols > 3:
-            extra = max(0, int(pdf.laufuebersicht_result_font_extra_pt))
-            res_fs = body_fs + extra
-            tbl_style_cmds.append(("FONTSIZE", (3, n_header), (ncols - 1, -1), res_fs))
-            last_c = ncols - 1
-            tbl_style_cmds.append(("FONTNAME", (last_c, n_header), (last_c, -1), "Helvetica-Bold"))
         if sec.body_row_band_group is not None:
             if len(sec.body_row_band_group) != len(sec.rows):
                 raise ValueError("body_row_band_group length must match body row count")
@@ -354,8 +416,8 @@ def render_pdf(
         if sec.table_spans:
             for (c0, r0), (c1, r1) in sec.table_spans:
                 tbl_style_cmds.append(("SPAN", (c0, r0), (c1, r1)))
-                # Paarlauf: vertically merge Platz + results — center content in the 2-row block.
-                if c0 == c1 and r1 == r0 + 1:
+                # Vertical merge (Paarlauf body, Laufübersicht header Platz/Name/Verein): center content.
+                if c0 == c1 and r1 > r0:
                     tbl_style_cmds.append(("VALIGN", (c0, r0), (c0, r0), "MIDDLE"))
         for j, c in enumerate(sec.columns):
             if c.align == "right":

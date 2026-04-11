@@ -10,7 +10,6 @@ from backend.domain.models import ProjectDocument, RaceEvent, RaceSeriesCategory
 from backend.export.spec import GERMAN_HEADER_BY_COLUMN, ExportSpec
 from backend.standings_view import build_standings_rows_for_category
 from backend.standings_display import category_footer_label, category_label, export_pdf_category_title
-from backend.ui_api.ranking_display import apply_ranking_exclusions_to_rows, ranking_exclusion_set
 
 
 @dataclass(frozen=True)
@@ -105,7 +104,7 @@ def _build_column_defs(
     return tuple(cols)
 
 
-# Empty Laufübersicht cells (PDF/CSV). Per-race columns are centered; Verein stays left-aligned.
+# Empty Laufübersicht cells (PDF/CSV). Str./Pkt. columns are centered in PDF; Verein stays left.
 _EM_DASH = "\u2014"
 
 
@@ -116,21 +115,34 @@ def _laufuebersicht_club_cell(raw: Any) -> str:
     return s if s else _EM_DASH
 
 
-def _compact_km_pkt(uid: str, row: dict[str, Any]) -> str:
+def _race_km_cell(uid: str, row: dict[str, Any]) -> str:
     pr = row.get("points_by_race") or {}
     dr = row.get("distance_by_race") or {}
     p_raw, d_raw = pr.get(uid), dr.get(uid)
     if p_raw is None and d_raw is None:
         return _EM_DASH
-    if p_raw is not None and d_raw is not None:
-        return f"{_format_distance(float(d_raw))} km ({_format_points(float(p_raw))})"
     if d_raw is not None:
-        return f"{_format_distance(float(d_raw))} km"
-    return f"({_format_points(float(p_raw))})"
+        return _format_distance(float(d_raw))
+    return _EM_DASH
 
 
-def _gesamt_compact_cell(row: dict[str, Any]) -> str:
-    return f"{_format_distance(float(row.get('distanz_gesamt', 0.0)))} km ({_format_points(float(row.get('punkte_gesamt', 0.0)))})"
+def _race_pkt_cell(uid: str, row: dict[str, Any]) -> str:
+    pr = row.get("points_by_race") or {}
+    dr = row.get("distance_by_race") or {}
+    p_raw, d_raw = pr.get(uid), dr.get(uid)
+    if p_raw is None and d_raw is None:
+        return _EM_DASH
+    if p_raw is not None:
+        return _format_points(float(p_raw))
+    return _EM_DASH
+
+
+def _gesamt_km_cell(row: dict[str, Any]) -> str:
+    return _format_distance(float(row.get("distanz_gesamt", 0.0)))
+
+
+def _gesamt_pkt_cell(row: dict[str, Any]) -> str:
+    return _format_points(float(row.get("punkte_gesamt", 0.0)))
 
 
 def _display_name_yob_line(name: str, yob: Any) -> str:
@@ -147,24 +159,35 @@ def _laufuebersicht_column_defs(race_events: tuple[RaceEvent, ...]) -> tuple[Col
         ColumnDef(id="club", header="Verein", align="left"),
     ]
     for ev in race_events:
-        rid = f"race_compact:{ev.race_event_uid}"
-        cols.append(ColumnDef(id=rid, header="", align="center"))
-    cols.append(ColumnDef(id="gesamt_compact", header="Gesamt", align="right"))
+        uid = ev.race_event_uid
+        cols.append(ColumnDef(id=f"race_km:{uid}", header="Str. (km)", align="center"))
+        cols.append(ColumnDef(id=f"race_pkt:{uid}", header="Pkt.", align="center"))
+    cols.append(ColumnDef(id="gesamt_km", header="Str. (km)", align="center"))
+    cols.append(ColumnDef(id="gesamt_pkt", header="Pkt.", align="center"))
     return tuple(cols)
 
 
-def _build_laufuebersicht_header_rows(race_events: tuple[RaceEvent, ...]) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    n = len(race_events)
-    top: list[str] = ["", "", ""]
+def _build_laufuebersicht_header_rows(
+    race_events: tuple[RaceEvent, ...],
+) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+    """Three-row header: run / Gesamt group labels, then Laufstr.|Wertung, then (km)|(Punkte)."""
+    row0: list[str] = ["Platz", "Name", "Verein"]
+    row1: list[str] = ["", "", ""]
+    row2: list[str] = ["", "", ""]
     for ev in race_events:
         label = f"{ev.race_no}. Lauf" if ev.race_no else ev.race_event_uid[:8]
-        top.append(label)
-    top.append("Gesamt")
-    sub = ["Platz", "Name", "Verein"] + ["Distanz (Pkt.)"] * (n + 1)
-    return (tuple(top), tuple(sub))
+        row0.extend((label, ""))
+        row1.extend(("Laufstr.", "Wertung"))
+        row2.extend(("(km)", "(Punkte)"))
+    row0.extend(("Gesamt", ""))
+    row1.extend(("Laufstr.", "Wertung"))
+    row2.extend(("(km)", "(Punkte)"))
+    return (tuple(row0), tuple(row1), tuple(row2))
 
 
 def _build_laufuebersicht_sections(document: ProjectDocument, spec: ExportSpec) -> tuple[ExportSection, ...]:
+    from backend.ui_api.ranking_display import apply_ranking_exclusions_to_rows, ranking_exclusion_set
+
     sections: list[ExportSection] = []
     for cat_key in spec.categories:
         category = _find_category(document, cat_key)
@@ -181,7 +204,7 @@ def _build_laufuebersicht_sections(document: ProjectDocument, spec: ExportSpec) 
             raise ValueError(
                 f"Category {cat_key!r} has {len(table_rows)} rows; max {spec.pdf.max_rows_per_category}"
             )
-        ncols_chk = 4 + len(races)
+        ncols_chk = 5 + 2 * len(races)
         if ncols_chk > spec.pdf.max_columns:
             raise ValueError(
                 f"laufuebersicht: category {cat_key!r} needs {ncols_chk} columns; max {spec.pdf.max_columns}"
@@ -193,9 +216,14 @@ def _build_laufuebersicht_sections(document: ProjectDocument, spec: ExportSpec) 
         subtitle = spec.pdf.subtitle
 
         n_r = len(races)
-        last_col = 3 + n_r  # gesamt column index
-        hdr_n = 2
+        last_col = 3 + 2 * (n_r + 1) - 1  # last Str./Pkt. column (Gesamt Pkt.)
+        hdr_n = 3
         spans: list[tuple[tuple[int, int], tuple[int, int]]] = []
+        for col in (0, 1, 2):
+            spans.append(((col, 0), (col, hdr_n - 1)))
+        for i in range(n_r + 1):
+            c0 = 3 + 2 * i
+            spans.append(((c0, 0), (c0 + 1, 0)))
         pdf_body: list[tuple[str, ...]] = []
         csv_body: list[tuple[str, ...]] = []
         band_groups: list[int] = []
@@ -203,8 +231,13 @@ def _build_laufuebersicht_sections(document: ProjectDocument, spec: ExportSpec) 
         band_g = 0
 
         def numeric_cells(r: dict[str, Any]) -> list[str]:
-            cells = [_compact_km_pkt(ev.race_event_uid, r) for ev in races]
-            cells.append(_gesamt_compact_cell(r))
+            cells: list[str] = []
+            for ev in races:
+                uid = ev.race_event_uid
+                cells.append(_race_km_cell(uid, r))
+                cells.append(_race_pkt_cell(uid, r))
+            cells.append(_gesamt_km_cell(r))
+            cells.append(_gesamt_pkt_cell(r))
             return cells
 
         for row in table_rows:
@@ -316,6 +349,8 @@ def build_export_sections(document: ProjectDocument, spec: ExportSpec) -> tuple[
     """Build table sections from an already :func:`resolve_document_for_export` document."""
     if spec.pdf.table_layout == "laufuebersicht":
         return _build_laufuebersicht_sections(document, spec)
+
+    from backend.ui_api.ranking_display import apply_ranking_exclusions_to_rows, ranking_exclusion_set
 
     resolved_cols = spec.resolved_columns()
 

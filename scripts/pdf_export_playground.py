@@ -64,7 +64,7 @@ if len(category_keys) > 12:
 spec_dict: dict = {
     "format": "pdf",
     "categories": list(category_keys),
-    # Laufübersicht layout: per-race "Distanz (Pkt.)" columns, two-line header, team rows split (PDF).
+    # Laufübersicht layout: per-race Str. (km) + Pkt. columns, two-line header, team rows split (PDF).
     "columns": ["laufuebersicht_board"],
     "standings": {"source": "embedded", "recompute": False},
     "race_filter": {"mode": "all_active"},
@@ -78,8 +78,6 @@ spec_dict: dict = {
         # Optional: override defaults (7 pt body / 8 pt header for this layout)
         # "table_font_size": 7,
         # "table_header_font_size": 8,
-        # Extra pt on Distanz (Pkt.) + Gesamt body cells (Gesamt is also bold); default 1
-        # "laufuebersicht_result_font_extra_pt": 2,
         # "title": "Meine Wertung",
         # "subtitle": "Nachbearbeitung",
         # "logo_path": str(ROOT / "path" / "to" / "logo.png"),

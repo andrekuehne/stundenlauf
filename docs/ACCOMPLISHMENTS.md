@@ -17,6 +17,20 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-11 - F20 Laufübersicht PDF: three-row run headers (Laufstr. / Wertung / units)
+- Requirement/Milestone: [R5, R7; M5]
+- What shipped: Laufübersicht PDF/CSV header is three rows: merged Platz/Name/Verein; per run and Gesamt a spanned `n. Lauf` / `Gesamt` label over **Laufstr.** | **Wertung** and **(km)** | **(Punkte)**; PDF vertical spans use middle alignment for merged header cells.
+- Evidence: `backend/export/projection.py`, `backend/export/pdf_renderer.py`, `tests/test_f20_export.py`; `uv run pytest tests/test_f20_export.py`
+- Impact: Run columns read clearly as distance vs scoring at a glance.
+- Follow-up: none
+
+### 2026-04-11 - F20 Laufübersicht PDF: split Str. (km) / Pkt. columns
+- Requirement/Milestone: [R5, R7; M5]
+- What shipped: Laufübersicht export uses separate **Str. (km)** and **Pkt.** columns per race and for Gesamt (equal fixed widths); **Pkt.** body text is bold; top header row spans each Lauf/Gesamt over both subcolumns; projection defers `ranking_display` import to avoid export↔`ui_api` circular imports on test collection.
+- Evidence: `backend/export/projection.py`, `backend/export/pdf_renderer.py`, `backend/export/spec.py`, `tests/test_f20_export.py`; `uv run pytest tests/test_f20_export.py`
+- Impact: Printed overview matches the emphasis on points as the ranking criterion; layout uses width from the former combined race columns.
+- Follow-up: none
+
 ### 2026-04-11 - F22 Windows PyInstaller onedir build + bootloader splash
 - Requirement/Milestone: [R7, R8; M5]
 - What shipped: `win_bundle/stundenlauf_windows.spec` and `win_bundle/gui_entry.py` produce `win_bundle/dist/Stundenlauf/Stundenlauf.exe` (onedir); frozen `project_root_dir()` uses `sys._MEIPASS`; `pyi_splash.close()` on pywebview `loaded`; `dependency-groups` dev includes PyInstaller; README build instructions; feature plan `docs/features/F22-windows-pyinstaller-packaging.md`.
@@ -33,7 +47,7 @@ Copy this block for each notable accomplishment:
 
 ### 2026-04-11 - F20 PDF: Laufübersicht table layout (per-race km/Pkt, team split rows)
 - Requirement/Milestone: [R5, R7; M5]
-- What shipped: `pdf.table_layout: laufuebersicht` with `columns: ["laufuebersicht_board"]` builds a two-row grouped header, one combined distance/points cell per race and Gesamt, `Name (Jg.)` for eligible rows, and two PDF body rows per team with ReportLab `SPAN` on Platz and numeric columns; CSV duplicates team numerics on the second line. Optional `pdf.table_font_size` / `table_header_font_size` override layout defaults (7/8 pt).
+- What shipped: `pdf.table_layout: laufuebersicht` with `columns: ["laufuebersicht_board"]` builds a two-row grouped header, **Str. (km)** / **Pkt.** columns per race and Gesamt (see newer entry for split-column detail), `Name (Jg.)` for eligible rows, and two PDF body rows per team with ReportLab `SPAN` on Platz and numeric columns; CSV duplicates team numerics on the second line. Optional `pdf.table_font_size` / `table_header_font_size` override layout defaults (7/8 pt).
 - Evidence: `backend/export/spec.py`, `backend/export/projection.py`, `backend/export/pdf_renderer.py`, `backend/export/csv_renderer.py`, `tests/test_f20_export.py`, `scripts/pdf_export_playground.py`; `uv run pytest tests/test_f20_export.py`
 - Impact: Printable race overview closer to GUI “Aktuelle Wertung” while respecting eligible-only (non–a.W.) export semantics.
 - Follow-up: none

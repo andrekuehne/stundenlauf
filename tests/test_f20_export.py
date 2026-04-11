@@ -246,13 +246,17 @@ class TestExportProjection(unittest.TestCase):
         self.assertEqual(sec.title, "Saison 2026 \u2014 Stundenlauf M\u00e4nner")
         self.assertEqual(sec.season_year, 2026)
         assert sec.header_rows is not None
-        self.assertEqual(len(sec.header_rows), 2)
+        self.assertEqual(len(sec.header_rows), 3)
+        self.assertEqual(sec.header_rows[0][:3], ("Platz", "Name", "Verein"))
         self.assertIn("1. Lauf", sec.header_rows[0])
         self.assertIn("Gesamt", sec.header_rows[0])
-        self.assertEqual(sec.header_rows[1][:3], ("Platz", "Name", "Verein"))
+        self.assertEqual(sec.header_rows[1][3:5], ("Laufstr.", "Wertung"))
+        self.assertEqual(sec.header_rows[2][3:5], ("(km)", "(Punkte)"))
         self.assertEqual(sec.rows[0][1], "Anna Müller (1990)")
-        self.assertIn("8,234 km", sec.rows[0][3])
-        self.assertIn("(47)", sec.rows[0][3])
+        self.assertEqual(sec.rows[0][3], "8,234")
+        self.assertEqual(sec.rows[0][4], "47")
+        self.assertEqual(sec.rows[0][5], "2,000")
+        self.assertEqual(sec.rows[0][6], "7")
         self.assertEqual(sec.csv_rows, sec.rows)
         assert sec.body_row_band_group is not None
         self.assertEqual(sec.body_row_band_group, (0,))
@@ -287,9 +291,14 @@ class TestExportProjection(unittest.TestCase):
         )
         sections = build_export_sections(doc, spec)
         sec = sections[0]
-        self.assertEqual(sec.rows[0][4], "\u2014")
-        race_cols = [c for c in sec.columns if c.id.startswith("race_compact:")]
-        self.assertEqual([c.align for c in race_cols], ["center", "center"])
+        self.assertEqual(sec.rows[0][5], "\u2014")
+        self.assertEqual(sec.rows[0][6], "\u2014")
+        race_km = [c for c in sec.columns if c.id.startswith("race_km:")]
+        race_pkt = [c for c in sec.columns if c.id.startswith("race_pkt:")]
+        self.assertEqual(len(race_km), 2)
+        self.assertEqual(len(race_pkt), 2)
+        self.assertEqual([c.align for c in race_km], ["center", "center"])
+        self.assertEqual([c.align for c in race_pkt], ["center", "center"])
 
     def test_laufuebersicht_empty_club_shows_em_dash(self) -> None:
         c = _cat()
@@ -574,7 +583,10 @@ class TestPdfSmoke(unittest.TestCase):
         text = "".join(page.extract_text() or "" for page in reader.pages)
         self.assertIn("Müller", text)
         self.assertIn("1. Lauf", text)
-        self.assertIn("Distanz (Pkt.)", text)
+        self.assertIn("Laufstr.", text)
+        self.assertIn("Wertung", text)
+        self.assertIn("(km)", text)
+        self.assertIn("(Punkte)", text)
 
     def test_laufuebersicht_pdf_default_title_uses_season_and_readable_category(self) -> None:
         c = _cat()
