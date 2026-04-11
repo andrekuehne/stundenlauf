@@ -1,0 +1,11 @@
+# Install: uv sync --group dev && uv run pre-commit install --hook-type commit-msg
+# Skip the build: STUNDENLAUF_SKIP_WIN_COMMIT_BUILD=1 git commit ...
+repos:
+  - repo: local
+    hooks:
+      - id: windows-build-on-build-marker
+        name: PyInstaller when commit message contains [build]
+        entry: uv run python scripts/commit_msg_win_build.py
+        language: system
+        stages: [commit-msg]
+        always_run: true

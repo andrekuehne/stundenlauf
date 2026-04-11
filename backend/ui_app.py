@@ -6,6 +6,17 @@ from backend.app_paths import project_root_dir
 from backend.ui_api.pywebview_bridge import PywebviewApiBridge
 
 
+def _close_pyi_splash() -> None:
+    try:
+        import pyi_splash
+    except ImportError:
+        return
+    try:
+        pyi_splash.close()
+    except Exception:
+        pass
+
+
 def launch_ui(workspace_dir: Path, project_file: Path | None = None) -> None:
     try:
         import webview
@@ -52,4 +63,5 @@ def launch_ui(workspace_dir: Path, project_file: Path | None = None) -> None:
         save_file_picker=pick_save_file,
     )
     window.expose(bridge.invoke)
+    window.events.loaded += _close_pyi_splash
     webview.start(debug=False, http_server=True, gui="edgechromium")

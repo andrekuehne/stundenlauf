@@ -23,3 +23,6 @@ data/2023/**/*.json
 data/2023/**/*.json.bak
 
 example/
+
+# Inno Setup output (local builds)
+installer/output/

@@ -1,0 +1,54 @@
+# Build PyInstaller onedir, compile Inno Setup installer, upload artifacts.
+# Runs only when you push a version tag (e.g. v1.0.0).
+name: Windows build
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Python 3.13
+        run: uv python install 3.13
+
+      - name: Sync dependencies
+        run: uv sync --group dev
+
+      - name: PyInstaller (onedir)
+        run: uv run build_windows --noconfirm
+
+      - name: Installer version from tag
+        shell: bash
+        run: echo "INST_VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_ENV"
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Compile installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { $iscc = "$env:ProgramFiles\Inno Setup 6\ISCC.exe" }
+          & $iscc /DMyAppVersion="$env:INST_VERSION" installer\Stundenlauf.iss
+
+      - name: Upload installer (Setup.exe)
+        uses: actions/upload-artifact@v4
+        with:
+          name: stundenlauf-setup-${{ env.INST_VERSION }}
+          path: installer/output/*-Setup.exe
+
+      - name: Upload portable (PyInstaller folder)
+        uses: actions/upload-artifact@v4
+        with:
+          name: stundenlauf-portable-${{ env.INST_VERSION }}
+          path: win_bundle/dist/Stundenlauf/

@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-11 - F22 Windows PyInstaller onedir build + bootloader splash
+- Requirement/Milestone: [R7, R8; M5]
+- What shipped: `win_bundle/stundenlauf_windows.spec` and `win_bundle/gui_entry.py` produce `win_bundle/dist/Stundenlauf/Stundenlauf.exe` (onedir); frozen `project_root_dir()` uses `sys._MEIPASS`; `pyi_splash.close()` on pywebview `loaded`; `dependency-groups` dev includes PyInstaller; README build instructions; feature plan `docs/features/F22-windows-pyinstaller-packaging.md`.
+- Evidence: `backend/app_paths.py`, `backend/ui_app.py`, `win_bundle/stundenlauf_windows.spec`, `tests/test_app_paths_frozen.py`; `uv run pytest tests/test_app_paths_frozen.py`; `uv run pyinstaller --workpath win_bundle/build --distpath win_bundle/dist win_bundle/stundenlauf_windows.spec`
+- Impact: Organizers can run the desktop app without a Python install; splash covers cold start while the WebView loads.
+- Follow-up: optional onefile spec, installer, CI, code signing
+
 ### 2026-04-11 - F20 GUI: Laufübersicht PDF export from Aktuelle Wertung
 - Requirement/Milestone: [R5, R7, R8; M4, M5]
 - What shipped: UI API `export_standings_pdf` writes the playground-equivalent Laufübersicht PDF for the active season; **Aktuelle Wertung** sidebar **Export** section with “Laufübersicht als PDF speichern” (`pick_save_file` + export). Shared spec builder `backend/export/gui_pdf_spec.py`.

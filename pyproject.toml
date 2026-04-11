@@ -1,6 +1,6 @@
 [project]
 name = "stundenlauf"
-version = "0.1.0"
+version = "1.0.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -15,7 +15,8 @@ dependencies = [
 ]
 
 [project.scripts]
-stundenlauf_gui = "main:stundenlauf_gui"
+gui = "main:stundenlauf_gui"
+build_windows = "win_bundle.build:main"
 
 [tool.uv]
 package = true
@@ -24,11 +25,17 @@ package = true
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
+[dependency-groups]
+dev = [
+    "pre-commit>=4.5.1",
+    "pyinstaller>=6.19.0",
+]
+
 [tool.setuptools]
 py-modules = ["main"]
 
 [tool.setuptools.packages.find]
-include = ["backend*", "frontend*"]
+include = ["backend*", "frontend*", "win_bundle*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
