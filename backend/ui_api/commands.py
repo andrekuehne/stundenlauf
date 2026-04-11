@@ -18,7 +18,8 @@ from backend.matching.normalize import normalize_club, parse_person_name
 from backend.ranking.engine import recompute_project_standings
 from backend.storage.repository import JsonProjectRepository
 from backend.ui_api.errors import not_found, validation_error
-from backend.ui_api.queries import _find_category, _table_by_category_key
+from backend.standings_view import build_standings_rows_for_category
+from backend.ui_api.queries import _find_category
 from backend.ui_api.ranking_display import (
     merge_ranking_exclusions_after_identity_merge,
     update_ranking_exclusions,
@@ -228,7 +229,7 @@ def merge_standings_entities(project_file: Path, payload: dict[str, Any]) -> dic
     if category.year != series_year:
         raise validation_error("Das Jahr der Kategorie stimmt nicht mit series_year überein.")
 
-    _, rows = _table_by_category_key(document, category_key)
+    _, rows = build_standings_rows_for_category(document, category_key)
     allowed = {str(r["entity_uid"]) for r in rows}
     if survivor_uid not in allowed or absorbed_uid not in allowed:
         raise validation_error("Beide Einträge müssen in der Wertung dieser Kategorie vorkommen.")
@@ -310,7 +311,7 @@ def set_ranking_eligibility(project_file: Path, payload: dict[str, Any]) -> dict
     repo = JsonProjectRepository(project_file)
     document = repo.load()
     _find_category(document, category_key)
-    _, rows = _table_by_category_key(document, category_key)
+    _, rows = build_standings_rows_for_category(document, category_key)
     allowed = {str(r["entity_uid"]) for r in rows}
     if entity_uid not in allowed:
         raise validation_error("entity_uid is not in standings for this category")

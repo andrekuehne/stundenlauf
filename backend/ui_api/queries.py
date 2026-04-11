@@ -6,16 +6,9 @@ from typing import Any
 from backend.domain.enums import RaceEventState
 from backend.domain.models import Couple, MatchingDecision, Person, ProjectDocument, RaceEntry, RaceEvent, RaceSeriesCategory
 from backend.matching.review_display import build_candidate_review_display
-from backend.ranking.engine import recompute_project_standings
+from backend.standings_view import build_standings_rows_for_category
 from backend.ui_api.errors import not_found, validation_error
-from backend.ui_api.mappers import (
-    category_label,
-    club_for_row,
-    display_name_for_row,
-    race_event_identity,
-    teams_by_uid,
-    yob_for_row,
-)
+from backend.ui_api.mappers import category_label, race_event_identity
 from backend.ui_api.ranking_display import apply_ranking_exclusions_to_rows, ranking_exclusion_set
 
 
@@ -45,61 +38,6 @@ def _find_category(document: ProjectDocument, category_key: str) -> RaceSeriesCa
         if event.category.key == category_key:
             return event.category
     raise not_found("category_key", category_key)
-
-
-def _team_members_for_standings_row(document: ProjectDocument, team_uid: str) -> list[dict[str, Any]]:
-    """Per-member identity for Paarlauf standings rows (GUI identity correction)."""
-    team = teams_by_uid(document).get(team_uid)
-    if team is None:
-        return []
-    return [
-        {
-            "member": "a",
-            "name": team.member_a.name,
-            "yob": team.member_a.yob,
-            "club": team.member_a.club or "",
-        },
-        {
-            "member": "b",
-            "name": team.member_b.name,
-            "yob": team.member_b.yob,
-            "club": team.member_b.club or "",
-        },
-    ]
-
-
-def _table_by_category_key(document: ProjectDocument, category_key: str) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    doc = document if document.standings is not None else recompute_project_standings(document)
-    if doc.standings is None:
-        return {"ruleset_version": "", "calculated_at": "", "category_key": category_key}, []
-    for table in doc.standings.category_tables:
-        if table.category_key != category_key:
-            continue
-        rows: list[dict[str, Any]] = []
-        for row in table.rows:
-            payload: dict[str, Any] = {
-                "platz": row.platz,
-                "entity_kind": row.entity_kind,
-                "entity_uid": row.entity_uid,
-                "display_name": display_name_for_row(row, doc),
-                "yob": yob_for_row(row, doc),
-                "club": club_for_row(row, doc),
-                "punkte_gesamt": row.punkte_gesamt,
-                "distanz_gesamt": row.distanz_gesamt,
-                "contribution_by_race": {
-                    item.race_event_uid: item.counts_toward_total for item in row.race_contributions
-                },
-            }
-            if row.entity_kind == "team":
-                payload["team_members"] = _team_members_for_standings_row(doc, row.entity_uid)
-            rows.append(payload)
-        meta = {
-            "ruleset_version": doc.standings.ruleset_version,
-            "calculated_at": doc.standings.calculated_at,
-            "category_key": category_key,
-        }
-        return meta, rows
-    return {"ruleset_version": doc.standings.ruleset_version, "calculated_at": doc.standings.calculated_at, "category_key": category_key}, []
 
 
 def get_project_state(document: ProjectDocument) -> dict[str, Any]:
@@ -140,7 +78,7 @@ def get_standings(document: ProjectDocument, payload: dict[str, Any]) -> dict[st
     if not category_key:
         raise validation_error("category_key is required")
     _find_category(document, category_key)
-    meta, rows = _table_by_category_key(document, category_key)
+    meta, rows = build_standings_rows_for_category(document, category_key)
     excluded = ranking_exclusion_set(document, category_key)
     eligible, _ = apply_ranking_exclusions_to_rows(rows, excluded)
     return {"meta": meta, "rows": eligible}
@@ -171,7 +109,7 @@ def get_category_current_results_table(document: ProjectDocument, payload: dict[
     if max_races is not None:
         active_events = active_events[:max_races]
 
-    meta, standings_rows = _table_by_category_key(document, category_key)
+    meta, standings_rows = build_standings_rows_for_category(document, category_key)
     excluded = ranking_exclusion_set(document, category_key)
     _, full_rows = apply_ranking_exclusions_to_rows(standings_rows, excluded)
     response_rows: list[dict[str, Any]] = []

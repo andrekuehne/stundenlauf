@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-11 - F20 Standings export (PDF + CSV, declarative spec)
+- Requirement/Milestone: [R5, R7; M5]
+- What shipped: Backend `backend/export` builds format-agnostic sections from `ProjectDocument` / session JSON with `ExportSpec` (categories, columns/presets, F15 `eligible_only`/`full_grid`, race filter `all_active` / `race_event_uids` / `up_to_race_no`, embedded vs live snapshot). ReportLab PDF (landscape, repeated headers, ruleset/timestamp footer) and UTF-8 CSV reuse the same projection. Shared `build_standings_rows_for_category` in `backend/standings_view.py` with display helpers in `backend/standings_display.py` to match `get_standings` without import cycles. CLI: `uv run python -m backend.export`.
+- Evidence: `backend/export/*`, `backend/standings_view.py`, `backend/standings_display.py`, `backend/ui_api/mappers.py`, `backend/ui_api/queries.py`, `backend/ui_api/commands.py`, `tests/test_f20_export.py`, `pyproject.toml` (pypdf); `uv run pytest`
+- Impact: Organizers can produce printable/shareable standings files locally; mid-season exports use race-scoped recompute on an ephemeral document.
+- Follow-up: GUI/API bridge (`export_standings` in ui-api) optional in F20b.
+
 ### 2026-04-11 - Historie: human-readable identity merge & correction details
 - Requirement/Milestone: [R6, R8; M5]
 - What shipped: `MatchingDecision.identity_timeline` stores display snapshots at merge/correction time; `get_year_timeline` / `get_audit_timeline` expose `identity_timeline`; **Historie** renders multi-line German-labeled survivor/absorbed and vorher/nachher with UID fallback for older data.
