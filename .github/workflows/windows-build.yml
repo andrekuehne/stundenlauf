@@ -1,5 +1,3 @@
-# Build PyInstaller onedir, compile Inno Setup installer, upload artifacts.
-# Runs only when you push a version tag (e.g. v1.0.0).
 name: Windows build
 
 on:
@@ -7,9 +5,13 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
 jobs:
   windows:
     runs-on: windows-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -41,14 +43,45 @@ jobs:
           if (-not (Test-Path $iscc)) { $iscc = "$env:ProgramFiles\Inno Setup 6\ISCC.exe" }
           & $iscc /DMyAppVersion="$env:INST_VERSION" installer\Stundenlauf.iss
 
-      - name: Upload installer (Setup.exe)
+      - name: Create portable zip
+        shell: pwsh
+        run: |
+          $zipName = "Stundenlauf-${env:INST_VERSION}-portable.zip"
+          if (Test-Path $zipName) { Remove-Item $zipName -Force }
+          Compress-Archive -Path "win_bundle/dist/Stundenlauf/*" -DestinationPath $zipName
+
+      - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: stundenlauf-setup-${{ env.INST_VERSION }}
           path: installer/output/*-Setup.exe
 
-      - name: Upload portable (PyInstaller folder)
+      - name: Upload portable artifact
         uses: actions/upload-artifact@v4
         with:
           name: stundenlauf-portable-${{ env.INST_VERSION }}
-          path: win_bundle/dist/Stundenlauf/
+          path: Stund*portable.zip
+
+      - name: Create release if missing
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view $env:GITHUB_REF_NAME
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $env:GITHUB_REF_NAME --generate-notes
+          }
+
+      - name: Upload installer to release
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload $env:GITHUB_REF_NAME installer/output/*-Setup.exe --clobber
+
+      - name: Upload portable zip to release
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload $env:GITHUB_REF_NAME Stundenlauf-${env:INST_VERSION}-portable.zip --clobber
