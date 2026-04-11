@@ -49,7 +49,9 @@ def launch_ui(workspace_dir: Path, project_file: Path | None = None) -> None:
         file_name = suggested_name.strip() or fallback_name
         kind = (dialog_kind or "season_zip").strip().lower()
         if kind == "pdf":
-            file_types = ("PDF (*.pdf)", "Alle Dateien (*.*)")
+            # Default must not be the *.pdf filter: Windows then treats the target as name.pdf and
+            # prompts to overwrite a legacy single-file export, while we write name_einzel.pdf / name_paare.pdf.
+            file_types = ("Alle Dateien (*.*)", "PDF (*.pdf)")
         else:
             file_types = ("Stundenlauf Saison (*.zip)",)
         selected = window.create_file_dialog(

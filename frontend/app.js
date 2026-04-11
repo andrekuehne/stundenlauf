@@ -733,11 +733,11 @@
 
   function wireStandingsPdfExport() {
     const st = STR.standings;
-    const btn = standingsView.querySelector("button[data-export-standings-pdf]");
-    if (!btn) {
+    const buttons = standingsView.querySelectorAll("button[data-export-standings-pdf]");
+    if (!buttons.length) {
       return;
     }
-    btn.addEventListener("click", async () => {
+    const onClick = async () => {
       const year = state.seriesYear;
       const suggestedName = `stundenlauf-${year}-laufuebersicht`;
       const picked = await api("pick_save_file", { suggested_name: suggestedName, dialog_kind: "pdf" });
@@ -756,7 +756,10 @@
       }
       const paths = (exported.payload && exported.payload.export_files) || [];
       setStatus(st.exportPdfDone(paths), false);
-    });
+    };
+    for (const btn of buttons) {
+      btn.addEventListener("click", onClick);
+    }
   }
 
   async function renderStandingsView(options = {}) {
@@ -793,7 +796,7 @@
             </div>
             <div class="sidebar-section">
               <h3>${st.exportSectionTitle}</h3>
-              <button type="button" class="secondary sidebar-top-action" data-export-standings-pdf>${st.exportPdfButton}</button>
+              <button type="button" class="secondary sidebar-top-action" data-export-standings-pdf title="${st.exportPdfSaveHint}">${st.exportPdfButton}</button>
             </div>
           </aside>
           <div class="standings-content">
@@ -943,7 +946,7 @@
             </div>
             <div class="sidebar-section">
               <h3>${st.exportSectionTitle}</h3>
-              <button type="button" class="secondary sidebar-top-action" data-export-standings-pdf>${st.exportPdfButton}</button>
+              <button type="button" class="secondary sidebar-top-action" data-export-standings-pdf title="${st.exportPdfSaveHint}">${st.exportPdfButton}</button>
             </div>
         </aside>
         <div class="standings-content">

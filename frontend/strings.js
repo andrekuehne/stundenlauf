@@ -159,6 +159,9 @@
       sidebarCouples: "Paare",
       exportSectionTitle: "Export",
       exportPdfButton: "Wertungen als PDF speichern",
+      exportPdfSaveHint:
+        "Basisname ohne Endung wählen (Dateityp „Alle Dateien“). " +
+        "Es entstehen …_einzel.pdf und …_paare.pdf — eine alte einzelne …pdf wird dabei nicht überschrieben.",
       exportPdfPickFailed: "Zielpfad für das PDF konnte nicht gewählt werden.",
       exportPdfFailed: "PDF konnte nicht exportiert werden.",
       exportPdfDone: (paths) =>
