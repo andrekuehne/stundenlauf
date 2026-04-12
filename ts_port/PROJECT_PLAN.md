@@ -77,7 +77,7 @@ Features are prefixed `F-TS` to distinguish from the Python version's `F` prefix
 | F-TS02 | Client-side Excel (.xlsx) parsing | M-TS2 | Planned |
 | F-TS03 | Fuzzy matching engine and review workflow | M-TS3 | Planned |
 | F-TS04 | Ranking engine and standings computation | M-TS4 | Planned |
-| F-TS05 | Import orchestration workflow | M-TS2 | Planned |
+| F-TS05 | Import orchestration workflow (parse → validate → match → review → emit) | M-TS2 | Planned |
 | | *(additional features to be added as planning progresses)* | | |
 
 ## Mapping from Python Features
@@ -92,7 +92,7 @@ The following maps Python features to their TS-port equivalents or notes on appr
 | F04 Ranking engine | F-TS04: port as `stundenlauf_v1` ruleset; pure derived view over SeasonState |
 | F05 German UI | New UI framework; same German copy catalog |
 | F08 API layer | Eliminated – UI calls domain directly (no pywebview bridge) |
-| F09–F19 Identity/matching/review features | Subsumed into TS matching + review features |
+| F09–F19 Identity/matching/review features | Subsumed into F-TS03 (matching) + F-TS05 (orchestration & review workflow) |
 | F20 Export | Client-side PDF/CSV generation |
 | F22 Windows packaging | Eliminated – replaced by GitHub Pages + PWA |
 
@@ -141,3 +141,4 @@ TS version: UI components call domain functions directly. No serialization bound
 |---|---|---|
 | 2026-04-12 | Initial project plan scaffold | Begin TS port planning |
 | 2026-04-12 | Self-consistency review fixes | Terminology (command→event), added F-TS05 import orchestrator, fixed cross-doc type inconsistencies |
+| 2026-04-12 | F-TS05 feature plan created | Detailed import orchestration workflow: phased API, eager resolution, review staging, event batch construction |
