@@ -8,7 +8,7 @@
 - Status: Planned
 - Related requirement(s): R1, R2, R3, R5, R7
 - Related milestone(s): M-TS1
-- Python predecessor(s): F01 (domain model & storage), parts of F02 (ingestion merge), F03 (matching decisions), F04 (standings), F09 (identity correction), F16 (identity merge)
+- Python predecessor(s): F01 (domain model & storage), parts of F02 (ingestion merge), F04 (standings), F09 (identity correction), F16 (identity merge)
 
 ## Problem Statement
 
@@ -23,24 +23,26 @@ The TS port replaces this with an **event-sourced / command-sourced** architectu
 - The **command log** (append-only, ordered) is the single source of truth.
 - The **current state** is a deterministic projection (fold) over all commands.
 - **Teams** are the universal participant entity (size 1 = solo, size 2 = couple), eliminating the Person-vs-Couple split.
-- Matching decisions, identity corrections, and rollbacks are all just commands in the same log – no separate audit table.
+- Identity corrections, rollbacks, and all other mutations are just commands in the same log – no separate audit table.
+- **Matching is external to the data model.** The matching engine (fuzzy scoring, candidate ranking, auto-link thresholds, strict mode, replay of past decisions) is a workflow that runs *before* commands are emitted. Its output is simply "assign entry X to existing team T" or "create new team T and assign entry X to it." Both outcomes are expressed using the same `race.register` and `team.register` commands.
 
 ## Scope
 
 ### In Scope
 
-- Define the full set of **command types** that can appear in the log.
+- Define the minimal set of **command types** that can appear in the log.
 - Define the **domain value types** (Team, Person, RaceEvent, Entry, Category, etc.) that the projection produces.
 - Define the **projection function** that folds commands into current state.
 - Define the **storage format** for the command log (JSON, IndexedDB schema).
 - Define **snapshot** strategy for fast startup (optional cache, never authoritative).
 - Define validation rules per command type.
+- Establish the boundary: matching logic is **outside** this data model.
 
 ### Out of Scope
 
 - UI framework choice (F-TS02).
 - Excel parsing (separate feature).
-- Fuzzy matching algorithm details (separate feature – matching is *invoked by* import commands but the scoring logic is its own module).
+- Matching engine internals (fuzzy scoring, candidate ranking, thresholds, replay heuristics). Matching is a separate workflow module that *produces* commands; it is not part of the command/event model itself.
 - PDF/CSV export.
 - Deployment and PWA.
 
@@ -93,7 +95,7 @@ CommandEnvelope {
   timestamp: string       // ISO 8601
   type: string            // discriminator
   payload: { ... }        // type-specific
-  metadata: {             // optional provenance
+  metadata?: {            // optional provenance
     source_file?: string
     source_sha256?: string
     parser_version?: string
@@ -101,7 +103,25 @@ CommandEnvelope {
 }
 ```
 
-Below is the complete catalog of command types, derived from analysis of every state mutation in the Python backend.
+#### Design Principle: Matching Is Not a Command
+
+The Python version has a `matching_decisions` table with 7 kinds of decision (auto, manual_link, manual_reject, replay, identity_correction, identity_merge, ...). This complexity exists because the Python model mixes *what happened to the data* with *how the matching engine arrived at that decision*.
+
+In the TS port, matching is **purely external to the command log**. The matching engine is a workflow that:
+1. Reads the current projected state (existing teams) and the raw incoming Excel rows.
+2. Decides, for each row: "this is existing team T" or "this needs a new team."
+3. Emits plain `race.register` and `team.register` commands as output.
+
+The *how* (fuzzy scores, candidate lists, auto-link thresholds, strict mode, replay of fingerprint decisions) is the matching engine's internal concern. It may store its own working state (candidate rankings, rejection preferences, replay hints) outside the command log — in a UI preferences store or ephemerally in memory. None of that is season data.
+
+**What about the review queue?** In the Python version, some entries land in a "review" state after import — provisionally linked to a best-guess candidate, awaiting user confirmation. Two clean approaches:
+
+- **Eager resolution (preferred):** The import workflow does not emit `race.register` until every entry is fully resolved. Parsing + matching + user review is a staging process. Only once the user has confirmed all assignments does the atomic `race.register` command go into the log with every entry carrying a definitive `team_id`. This means the command log never contains half-resolved state.
+- **Deferred resolution (fallback):** Emit `race.register` with `team_id: null` on unresolved entries, then use a single `entry.assign_team` command when the user resolves them. Still just one extra command type, not seven.
+
+We will proceed with **eager resolution** as the default approach. The review queue lives in the UI/workflow layer, not the event log.
+
+Below is the complete command catalog — intentionally minimal.
 
 ---
 
@@ -150,73 +170,11 @@ Below is the complete catalog of command types, derived from analysis of every s
 
 ---
 
-#### Race Event Commands
-
-| Command Type | Purpose | Python Equivalent |
-|---|---|---|
-| `race.register` | Register a new race event with its entries | `import_excel_into_project` (core event creation) |
-| `race.rollback` | Soft-delete a race event | `rollback_race` |
-| `race.rollback_batch` | Soft-delete all race events from a source file | `rollback_source_batch` |
-
-**`race.register`** — the central import command. In the Python version, importing an Excel file does many things in one transaction: creates Person/Couple entities, creates a RaceEvent with entries, runs matching, appends matching decisions. In the event-sourced model, we decompose this into sub-commands grouped in a **batch**:
-
-```
-{
-  race_event_id: string     // uuid
-  series_year: number
-  category: {
-    year: number
-    duration: "half_hour" | "hour"
-    division: "men" | "women" | "couples_men" | "couples_women" | "couples_mixed"
-  }
-  race_no: number
-  race_date: string
-  source_file: string
-  source_sha256: string
-  entries: RaceEntryInput[]
-}
-
-RaceEntryInput {
-  entry_id: string          // uuid
-  startnr: string
-  distance_km: number
-  points: number
-  // Raw incoming data for matching:
-  incoming: {
-    display_name: string    // singles: "Nachname, Vorname"; couples: "A / B"
-    yob: number | null      // singles; null for couples (use yob_text)
-    yob_text: string | null // couples: "1985 / 1990"
-    club: string | null
-    kind: "solo" | "team"
-  }
-}
-```
-
-This command does NOT assign team IDs to entries. The matching step (below) connects entries to teams.
-
-**`race.rollback`**
-```
-{
-  race_event_id: string
-  reason: string
-}
-```
-
-**`race.rollback_batch`**
-```
-{
-  source_sha256: string
-  reason: string
-}
-```
-
----
-
 #### Team & Identity Commands
 
 | Command Type | Purpose | Python Equivalent |
 |---|---|---|
-| `team.register` | Create a new team identity (solo or couple) | Implicit in `process_singles_section` / `process_couples_section` (new_identity path) |
+| `team.register` | Create a new team identity (solo or couple) | Implicit in `process_singles_section` / `process_couples_section` (new_identity path); also `apply_match_decision(create_new_identity)` |
 | `team.update_member` | Correct a team member's canonical identity | `update_participant_identity` |
 | `team.merge` | Merge two duplicate team identities into one | `merge_standings_entities` |
 
@@ -271,105 +229,56 @@ PersonInput {
 
 ---
 
-#### Matching / Linking Commands
+#### Race Event Commands
 
 | Command Type | Purpose | Python Equivalent |
 |---|---|---|
-| `match.auto_link` | System auto-links an entry to an existing team | `MatchingDecision(kind="auto")` with auto route |
-| `match.auto_new_identity` | System creates a new team for an unmatched entry | `MatchingDecision(kind="auto")` with new_identity route |
-| `match.review_pending` | System flags an entry for human review | `MatchingDecision(kind="auto")` with review route |
-| `match.manual_link` | User confirms link to an existing team | `apply_match_decision(decision_action="link_existing")` |
-| `match.manual_new_identity` | User rejects all candidates and creates a new team | `apply_match_decision(decision_action="create_new_identity")` |
-| `match.replay` | System replays a previous manual decision for a fingerprint | `MatchingDecision(kind="replay")` |
-| `match.reject_candidate` | User rejects a specific candidate (future use) | `MatchingDecision(kind="manual_reject")` – modeled but unused in Python |
+| `race.register` | Register a fully-resolved race event with its entries | `import_excel_into_project` (after matching resolves all entries) |
+| `race.rollback` | Soft-delete a race event | `rollback_race` |
+| `race.rollback_batch` | Soft-delete all race events from a source file | `rollback_source_batch` |
 
-Each matching command links a `race_event_id` + `entry_id` to a `team_id`:
+**`race.register`** — the central import command. Entries arrive **fully resolved**: every entry carries its `team_id`. The matching engine has already done its work before this command is emitted.
 
-**`match.auto_link`**
 ```
 {
   race_event_id: string
+  series_year: number
+  category: {
+    year: number
+    duration: "half_hour" | "hour"
+    division: "men" | "women" | "couples_men" | "couples_women" | "couples_mixed"
+  }
+  race_no: number
+  race_date: string
+  source_file: string
+  source_sha256: string
+  entries: RaceEntryInput[]
+}
+
+RaceEntryInput {
   entry_id: string
-  team_id: string
-  fingerprint: string           // identity hash for replay
-  confidence: number
-  candidate_ids: string[]       // ranked
-  candidate_confidences: number[]
-  feature_scores: Record<string, number>
+  startnr: string
+  team_id: string           // always resolved — the whole point
+  distance_km: number
+  points: number
 }
 ```
 
-**`match.auto_new_identity`**
+Note: the raw incoming data (display name, yob, club as typed in the Excel file) is **not** stored in the command log. It's consumed by the matching engine during import and discarded. If we later need audit provenance ("where did this team assignment come from?"), that can ride as optional `metadata` on the command envelope — not as a domain payload field.
+
+**`race.rollback`**
 ```
 {
   race_event_id: string
-  entry_id: string
-  team_id: string               // the newly created team
-  fingerprint: string
-  confidence: number            // of best rejected candidate, if any
-  candidate_ids: string[]
-  candidate_confidences: number[]
-  feature_scores: Record<string, number>
+  reason: string
 }
 ```
 
-**`match.review_pending`**
+**`race.rollback_batch`**
 ```
 {
-  race_event_id: string
-  entry_id: string
-  team_id: string               // provisional link to best candidate
-  fingerprint: string
-  confidence: number
-  candidate_ids: string[]
-  candidate_confidences: number[]
-  feature_scores: Record<string, number>
-  conflict_flags: string[]
-}
-```
-
-**`match.manual_link`**
-```
-{
-  race_event_id: string
-  entry_id: string
-  team_id: string               // confirmed target
-  fingerprint: string
-  rationale: string
-  field_resolutions: FieldResolution[]
-}
-```
-
-**`match.manual_new_identity`**
-```
-{
-  race_event_id: string
-  entry_id: string
-  team_id: string               // the new team created by user
-  fingerprint: string
-  rationale: string
-}
-```
-
-**`match.replay`**
-```
-{
-  race_event_id: string
-  entry_id: string
-  team_id: string
-  fingerprint: string
-  replayed_from_command_id: string   // the original manual decision
-}
-```
-
-**`match.reject_candidate`**
-```
-{
-  race_event_id: string
-  entry_id: string
-  rejected_team_id: string
-  fingerprint: string
-  rationale: string
+  source_sha256: string
+  reason: string
 }
 ```
 
@@ -400,36 +309,45 @@ Each matching command links a `race_event_id` + `entry_id` to a `team_id`:
 
 ---
 
-### 3. Import as a Command Batch
+### 3. What the Matching Engine Does (Outside the Command Log)
 
-In the Python version, a single `import_excel_into_project` call:
-1. Parses the Excel file into rows.
-2. For each row, either finds an existing identity or creates a new one.
-3. Creates a `RaceEvent` with entries linked to identities.
-4. Appends matching decisions.
-5. Recomputes standings.
-6. Clears ranking exclusions.
-7. Saves.
+The matching engine is a **workflow module**, not part of the event-sourced core. It:
 
-In the event-sourced model, **importing a file** produces a **batch** of commands emitted atomically:
+1. Takes raw parsed Excel rows and the current `SeasonState` as input.
+2. For each row, decides: link to existing team T, or create new team.
+3. Outputs a list of `team.register` commands (for new teams) and a single `race.register` command (with all entries carrying their resolved `team_id`).
+4. Optionally appends `ranking.clear_exclusions`.
+
+The matching engine may maintain its own working state for features like:
+- **Replay hints:** "fingerprint F was previously linked to team T" — derived by scanning the command log for past `race.register` entries, not stored as separate commands.
+- **Rejection preferences:** "don't auto-link fingerprint F to team T" — UI preference, not season data.
+- **Candidate scoring / confidence:** computed on the fly, surfaced in the review UI, never persisted in the log.
+
+This keeps the command log minimal and focused on *what happened to the season data*, while the matching engine's heuristics can evolve independently.
+
+### 4. Import Workflow → Command Batch
+
+In the Python version, a single `import_excel_into_project` call does parsing, matching, event creation, decision logging, standings recompute, and exclusion clearing in one transaction.
+
+In the TS port, **importing a file** is a multi-step workflow:
+
+1. **Parse:** Read Excel/CSV → raw row data.
+2. **Match:** For each row, the matching engine resolves to an existing or new team. If some rows need review, the UI presents a review queue. This all happens *before* any commands are emitted.
+3. **Emit:** Once every entry is resolved, emit commands atomically:
 
 ```
 [
-  team.register { ... }          // 0 or more, for new identities
-  team.register { ... }
-  race.register { ... entries }  // 1 per parsed section
-  match.auto_link { ... }        // 1 per entry that auto-matched
-  match.auto_new_identity { ... }
-  match.review_pending { ... }
+  team.register { ... }           // 0 or more, for newly created teams
+  race.register { ... entries }   // 1 per parsed section, all entries resolved
   ranking.clear_exclusions { ... }
 ]
 ```
 
-The batch is appended to the log atomically. The projection function processes commands in order to build current state.
+The batch is appended to the command log in a single IndexedDB transaction.
 
-### 4. Derived / Projected State
+### 5. Derived / Projected State
 
-The projection (fold) over the command log produces the following materialized state:
+The projection (fold) over the command log produces:
 
 ```
 SeasonState {
@@ -438,27 +356,24 @@ SeasonState {
 
   // Entity registries (built from team.register, team.update_member, team.merge)
   teams: Map<team_id, Team>
-  persons: Map<person_id, Person>   // denormalized from teams for lookup
 
   // Race events (built from race.register, race.rollback*)
   events: Map<race_event_id, RaceEvent>
   // Each RaceEvent has state: "active" | "rolled_back"
-  // Each entry within has its team_id set by matching commands
-
-  // Matching state (built from match.* commands)
-  entry_team_links: Map<entry_id, team_id>           // resolved links
-  review_queue: Set<entry_id>                         // entries pending review
-  fingerprint_decisions: Map<fingerprint, command_id> // latest decision per fingerprint (for replay)
-  rejected_candidates: Map<fingerprint, Set<team_id>> // rejection log
+  // Each entry has a team_id (always populated)
 
   // Ranking exclusions (built from ranking.* commands)
   exclusions: Map<category_key, Set<team_id>>
 }
 ```
 
+That's it. No matching state, no review queue, no fingerprint index in the projected state. Those are concerns of the matching workflow layer.
+
 **Standings** are NOT part of the projected state. They are computed on-demand from `SeasonState` using the ranking engine (same v1_legacy_top4 rules). This eliminates the need to store `StandingsSnapshot` and keeps the command log lean.
 
-### 5. Storage Format
+**Participation** is implicit: if a team has no entry in a given `race_event_id`, they didn't participate in that race. No explicit "did not participate" records are needed.
+
+### 6. Storage Format
 
 The command log for each season year is stored as:
 
@@ -490,7 +405,7 @@ Snapshots (optional, for fast startup):
 }
 ```
 
-### 6. Projection Implementation
+### 7. Projection Implementation
 
 ```typescript
 function projectState(commands: CommandEnvelope[]): SeasonState {
@@ -503,29 +418,30 @@ function projectState(commands: CommandEnvelope[]): SeasonState {
 
 function applyCommand(state: SeasonState, cmd: CommandEnvelope): SeasonState {
   switch (cmd.type) {
+    case "season.create":       return applySeasonCreate(state, cmd.payload);
+    case "season.reset":        return applySeasonReset(state, cmd.payload);
     case "team.register":       return applyTeamRegister(state, cmd.payload);
     case "team.update_member":  return applyTeamUpdateMember(state, cmd.payload);
     case "team.merge":          return applyTeamMerge(state, cmd.payload);
     case "race.register":       return applyRaceRegister(state, cmd.payload);
     case "race.rollback":       return applyRaceRollback(state, cmd.payload);
     case "race.rollback_batch": return applyRaceRollbackBatch(state, cmd.payload);
-    case "match.auto_link":     return applyMatchLink(state, cmd.payload);
-    // ... etc
-    default: return state; // forward-compatible: unknown types are no-ops
+    case "ranking.set_eligibility":  return applySetEligibility(state, cmd.payload);
+    case "ranking.clear_exclusions": return applyClearExclusions(state, cmd.payload);
+    default: return state; // forward-compatible: unknown command types are no-ops
   }
 }
 ```
 
 The projection is **pure** (no side effects, no I/O). This makes it trivially testable and deterministic.
 
-### 7. Validation
+### 8. Validation
 
 Each command is validated before being appended to the log:
 
-- `race.register`: no duplicate `race_event_id`; no active event with same category + race_no; no active event with same `source_sha256`.
-- `team.register`: no duplicate `team_id`; members.length matches division constraints (validated on matching, not on registration).
+- `race.register`: no duplicate `race_event_id`; no active event with same category + race_no; no active event with same `source_sha256`; every entry's `team_id` must reference a registered team.
+- `team.register`: no duplicate `team_id`.
 - `team.merge`: both teams exist; no overlapping race participation in the same category.
-- `match.*`: referenced `race_event_id` and `entry_id` must exist; `team_id` must exist (or be registered in the same batch).
 - `ranking.set_eligibility`: team must have entries in the category.
 - `season.reset`: `confirmation_year === series_year`.
 
@@ -544,10 +460,11 @@ Each command is validated before being appended to the log:
 
 - The command log IS the source of truth. There is no separate "current state" file.
 - `Team` replaces both `Person` (solo) and `Couple` (pair). Entries always reference `team_id`.
-- Matching decisions are commands in the log, not a separate audit table. The audit trail IS the data.
+- **Matching is external to the data model.** The 7-kind `matching_decisions` table disappears entirely. The matching engine produces plain `team.register` and `race.register` commands. Audit provenance (scores, candidates) can optionally ride in `metadata` on the command envelope, but it's not domain state.
 - Standings are never stored; they are computed on demand from projected state.
 - `ranking_exclusions` are commands, not a field on the document.
 - Rollbacks are commands that mark events as rolled back; the original `race.register` command stays in the log forever.
+- The review queue is a UI workflow concern, not stored in the command log. Entries are never half-resolved in the log.
 
 ### Reusable logic
 
@@ -569,7 +486,6 @@ type Gender = "M" | "F" | "X";
 type RaceDuration = "half_hour" | "hour";
 type Division = "men" | "women" | "couples_men" | "couples_women" | "couples_mixed";
 type RaceEventState = "active" | "rolled_back";
-type MatchRoute = "auto" | "review" | "new_identity";
 ```
 
 ### Person (value object, always nested in Team)
@@ -633,43 +549,19 @@ interface RaceEvent {
 interface RaceEntry {
   entry_id: string;
   startnr: string;
-  team_id: string | null;        // null until matching resolves it
+  team_id: string;         // always resolved before entering the log
   distance_km: number;
   points: number;
-  match_state: {
-    route: MatchRoute;
-    confidence: number;
-    candidate_ids: string[];
-    candidate_confidences: number[];
-    feature_scores: Record<string, number>;
-    conflict_flags: string[];
-    fingerprint: string;
-  } | null;
-  incoming: {                     // raw import data preserved for review UI
-    display_name: string;
-    yob: number | null;
-    yob_text: string | null;
-    club: string | null;
-    kind: "solo" | "team";
-  };
 }
 ```
 
-### FieldResolution (for manual match audit)
-
-```typescript
-interface FieldResolution {
-  field_name: string;
-  kept_from: "incoming" | "existing" | "manual";
-  value: string;
-}
-```
+Entries are simple facts: team T ran in race R and achieved distance D / points P. No matching metadata, no provisional links, no incoming raw data. All of that is the matching engine's transient working state.
 
 ---
 
 ## Risks and Assumptions
 
-- **Assumption:** Replay performance is acceptable for typical season sizes (≤10 races × ≤200 entries each = ≤2000 entries). With ~20 commands per entry (register + match), that's ~40k commands max – trivially fast to replay.
+- **Assumption:** Replay performance is acceptable for typical season sizes (≤10 races × ≤200 entries each = ≤2000 entries). With the simplified model (one `team.register` per new identity + one `race.register` per section), a full season is ~100–500 commands — trivially fast to replay.
 - **Assumption:** Browser IndexedDB can hold the full command log for multiple seasons without hitting storage limits.
 - **Risk:** Event schema evolution – if a command payload shape changes, old logs must still replay correctly.
   - Mitigation: Versioned command schemas; projection applies sensible defaults for missing fields; new command types are simply ignored by old projections (forward-compatible by default).
@@ -708,13 +600,13 @@ interface FieldResolution {
 ## Links
 
 - Python source reference(s):
-  - `backend/domain/models.py` – current data model
-  - `backend/domain/enums.py` – enums
-  - `backend/ui_api/commands.py` – all mutation handlers
-  - `backend/ingestion/service.py` – import orchestration
-  - `backend/matching/workflow.py` – matching + identity creation
-  - `backend/domain/identity_merge.py` – merge logic
-  - `backend/ranking/engine.py` – standings computation
+  - `backend/domain/models.py` – current data model (Person, Couple, RaceEvent, RaceEntry, ProjectDocument)
+  - `backend/domain/enums.py` – enums (Gender, Division, RaceDuration, RaceEventState)
+  - `backend/ui_api/commands.py` – all mutation handlers (import_race, rollback, identity correction, merge, eligibility)
+  - `backend/ingestion/service.py` – import orchestration (what becomes the import workflow above)
+  - `backend/domain/identity_merge.py` – merge logic (rewiring entries, pruning orphans)
+  - `backend/ranking/engine.py` – standings computation (pure projection from active events)
   - `backend/storage/schema_v2.py` – serialization format
-  - `backend/storage/repository.py` – persistence layer
-  - `backend/ui_api/workspace.py` – season lifecycle
+  - `backend/storage/repository.py` – persistence layer (atomic JSON writes)
+  - `backend/ui_api/workspace.py` – season lifecycle (create, delete, reset, export, import)
+  - `backend/matching/workflow.py` – matching engine (external to this feature, but useful reference for the future matching feature)
