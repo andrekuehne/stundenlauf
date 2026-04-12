@@ -166,31 +166,32 @@ PDF_LAYOUT_PRESETS: dict[str, dict[str, Any]] = {
         "margin_right_cm": 0.45,
         "margin_top_cm": 0.45,
         "margin_bottom_cm": 0.65,
-        "footer_font_size_pt": 7.0,
+        "footer_font_size_pt": 6.0,
         "footer_y_cm": 0.55,
-        "section_title_font_size_pt": 11.0,
-        "section_title_space_after_pt": 2.0,
-        "section_subtitle_font_size_pt": 8.0,
-        "section_subtitle_space_after_pt": 4.0,
-        "cover_year_font_size_pt": 20.0,
-        "cover_year_leading_pt": 22.0,
-        "cover_year_space_after_pt": 8.0,
-        "cover_notice_font_size_pt": 8.0,
-        "cover_notice_leading_pt": 10.0,
+        "section_title_font_size_pt": 10.0,
+        "section_title_space_after_pt": 1.5,
+        "section_subtitle_font_size_pt": 7.0,
+        "section_subtitle_space_after_pt": 3.0,
+        "cover_year_font_size_pt": 17.0,
+        "cover_year_leading_pt": 19.0,
+        "cover_year_space_after_pt": 6.0,
+        "cover_notice_font_size_pt": 7.0,
+        "cover_notice_leading_pt": 9.0,
         "cover_spacer_after_cm": 0.2,
         "table_spacer_after_cm": 0.25,
         "logo_draw_height_cm": 1.5,
         "logo_spacer_after_cm": 0.12,
-        "table_font_size": 7,
-        "table_header_font_size": 7,
+        "table_font_size": 6,
+        "table_header_font_size": 6,
         "lauf_result_leading_extra_pt": 0,
+        "table_plain_leading_extra_pt": 0,
         "table_cell_horizontal_padding_pt": 2.0,
-        "table_cell_vertical_padding_pt": 0.5,
+        "table_cell_vertical_padding_pt": 0.35,
         "table_width_extra_margin_cm": 0.8,
-        "narrow_platz_cm": 0.78,
-        "narrow_punkte_gesamt_cm": 0.95,
-        "narrow_distanz_gesamt_cm": 1.05,
-        "narrow_laufuebersicht_km_pkt_cm": 1.05,
+        "narrow_platz_cm": 0.72,
+        "narrow_punkte_gesamt_cm": 0.82,
+        "narrow_distanz_gesamt_cm": 0.88,
+        "narrow_laufuebersicht_km_pkt_cm": 0.88,
     },
 }
 
@@ -327,6 +328,9 @@ class PdfStyleSpec:
     # ReportLab default cell padding is 6 pt horizontal / 3 pt vertical; lower = denser rows.
     table_cell_horizontal_padding_pt: float = 6.0
     table_cell_vertical_padding_pt: float = 3.0
+    # Extra leading (pt) for plain string table cells; Laufübersicht km/Pkt Paragraphs add this too.
+    # Default 1 matches prior hard-coded hdr/body leading = fontSize + 1.
+    table_plain_leading_extra_pt: int = 1
 
     @staticmethod
     def from_dict(raw: dict[str, Any]) -> PdfStyleSpec:
@@ -430,6 +434,7 @@ class PdfStyleSpec:
             table_width_extra_margin_cm=_pdf_opt_float(merged, "table_width_extra_margin_cm", 3.0),
             table_cell_horizontal_padding_pt=_pdf_opt_float(merged, "table_cell_horizontal_padding_pt", 6.0),
             table_cell_vertical_padding_pt=_pdf_opt_float(merged, "table_cell_vertical_padding_pt", 3.0),
+            table_plain_leading_extra_pt=_pdf_opt_int(merged, "table_plain_leading_extra_pt", 1),
         )
 
     def resolved_laufuebersicht_notice(self) -> str:

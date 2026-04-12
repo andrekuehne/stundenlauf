@@ -38,11 +38,12 @@ def _laufuebersicht_apply_result_cell_paragraphs(
     ncols: int,
     body_fs: int,
     leading_extra: int,
+    plain_leading_extra: int,
     styles: Any,
     style_tag: int,
 ) -> None:
     """Str. (km) and Pkt. body cells as Paragraphs with shared leading (centered)."""
-    leading = body_fs + leading_extra
+    leading = body_fs + leading_extra + plain_leading_extra
     cell_plain = ParagraphStyle(
         name=f"LaufResPl_{style_tag}",
         parent=styles["Normal"],
@@ -481,6 +482,7 @@ def render_pdf(
                 ncols=ncols,
                 body_fs=body_fs,
                 leading_extra=layout.lauf_result_leading_extra_pt,
+                plain_leading_extra=layout.table_plain_leading_extra_pt,
                 styles=styles,
                 style_tag=lauf_table_seq,
             )
@@ -509,8 +511,18 @@ def render_pdf(
             ("FONTNAME", (0, n_header), (-1, -1), "Helvetica"),
             ("FONTSIZE", (0, 0), (-1, hdr_last), hdr_fs),
             ("FONTSIZE", (0, n_header), (-1, -1), body_fs),
-            ("LEADING", (0, 0), (-1, hdr_last), hdr_fs + 1),
-            ("LEADING", (0, n_header), (-1, -1), body_fs + 1),
+            (
+                "LEADING",
+                (0, 0),
+                (-1, hdr_last),
+                hdr_fs + layout.table_plain_leading_extra_pt,
+            ),
+            (
+                "LEADING",
+                (0, n_header),
+                (-1, -1),
+                body_fs + layout.table_plain_leading_extra_pt,
+            ),
             ("BACKGROUND", (0, 0), (-1, hdr_last), header_bg),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]

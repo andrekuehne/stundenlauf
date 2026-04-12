@@ -68,6 +68,7 @@ class PdfLayoutTokens:
     table_width_extra_margin_cm: float
     table_cell_horizontal_padding_pt: float
     table_cell_vertical_padding_pt: float
+    table_plain_leading_extra_pt: int
 
     @property
     def line_grey(self) -> colors.Color:
@@ -145,6 +146,7 @@ def pdf_layout_tokens(pdf: PdfStyleSpec) -> PdfLayoutTokens:
         table_width_extra_margin_cm=pdf.table_width_extra_margin_cm,
         table_cell_horizontal_padding_pt=pdf.table_cell_horizontal_padding_pt,
         table_cell_vertical_padding_pt=pdf.table_cell_vertical_padding_pt,
+        table_plain_leading_extra_pt=pdf.table_plain_leading_extra_pt,
     )
 
 
