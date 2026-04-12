@@ -29,6 +29,7 @@ build-backend = "setuptools.build_meta"
 dev = [
     "pre-commit>=4.5.1",
     "pyinstaller>=6.19.0",
+    "ruff>=0.15.10",
 ]
 
 [tool.setuptools]
@@ -39,3 +40,24 @@ include = ["backend*", "frontend*", "win_bundle*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+ignore = [
+    "E501",    # line length — not previously enforced; revisit later
+    "RUF001",  # ambiguous unicode in strings (German text is intentional)
+    "RUF002",  # ambiguous unicode in docstrings (German text is intentional)
+    "RUF003",  # ambiguous unicode in comments (German text is intentional)
+    "SIM108",  # if-else-block-instead-of-if-exp — often less readable
+]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/*" = ["E402", "T201"]
+"docs/*" = ["E402", "F811"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend", "frontend", "win_bundle"]

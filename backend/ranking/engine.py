@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import replace
 from datetime import UTC, datetime
 
@@ -120,7 +121,7 @@ def compute_standings_snapshot(
 
             selected_set = set(agg.selected_race_event_uids)
             contributions: list[RaceContribution] = []
-            for race_uid, pts, dist in sorted(race_rows, key=lambda r: (r[0])):
+            for race_uid, pts, dist in sorted(race_rows, key=lambda r: r[0]):
                 contributions.append(
                     RaceContribution(
                         race_event_uid=race_uid,
@@ -146,10 +147,7 @@ def compute_standings_snapshot(
             rows_out,
             key=lambda r: (-r.punkte_gesamt, -r.distanz_gesamt, r.entity_kind, r.entity_uid),
         )
-        placed = tuple(
-            replace(row, platz=i + 1)
-            for i, row in enumerate(sorted_rows)
-        )
+        placed = tuple(replace(row, platz=i + 1) for i, row in enumerate(sorted_rows))
         if placed:
             tables.append(CategoryStandingsTable(category_key=cat_key, rows=placed))
 
