@@ -2,6 +2,11 @@
 
 ## Cursor Cloud specific instructions
 
+### Git branching (Cursor Cloud agents)
+
+- Treat **`dev`** as the integration branch for agent-driven work: **branch from `dev`**, open pull requests **into `dev`**, and set `base_branch` to **`dev`** when creating or updating PRs unless the task explicitly says otherwise.
+- Reserve **`master`** for release-ready or human-promoted merges from `dev` (do not target `master` with routine agent PRs by default).
+
 ### Project overview
 
 Stundenlauf is a local-first Python 3.13 desktop app (pywebview + GTK/WebKit on Linux, Edge WebView2 on Windows) for managing race series results. No external services, databases, or Docker required. All data stored as local JSON files.

@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-12 - Workflow: Cursor Cloud agents integrate on `dev`
+- Requirement/Milestone: [working agreements; delivery hygiene]
+- What shipped: Documented that agent work branches from **`dev`**, opens PRs against **`dev`**, and leaves **`master`** for promoted merges; recorded in `AGENTS.md`.
+- Evidence: `AGENTS.md` (Git branching section); PR targeting `dev`
+- Impact: Clear default for cloud agent sessions so integration stays off `master` until intentionally promoted.
+- Follow-up: Optionally set GitHub default branch to `dev` for the repo if all contributors should follow the same rule.
+
 ### 2026-04-11 - GUI Laufübersicht: dual PDF (Einzel/Paare), continuous numbering, save-dialog filters
 - Requirement/Milestone: [R5, R7; M5]
 - What shipped: `export_standings_pdf` writes `{base}_einzel.pdf` and `{base}_paare.pdf` from a user-chosen base path; Paare section titles continue the Einzel numbering; year + Hinweis appear on both; first category table follows the Hinweis on the same page (no forced page break after the cover). `pick_save_file` accepts `dialog_kind` (`season_zip` vs `pdf`) so the season export keeps a `.zip` filter and the PDF flow uses PDF / all-files filters. API returns `export_files` plus total `bytes_written`.
