@@ -8,7 +8,7 @@
 - Status: Planned
 - Related requirement(s): R1, R2, R3, R5, R7
 - Related milestone(s): M-TS1
-- Python predecessor(s): F01 (domain model & storage), parts of F02 (ingestion merge), F04 (standings), F09 (identity correction), F16 (identity merge)
+- Python predecessor(s): F01 (domain model & storage), parts of F02 (ingestion/matching integration), F04 (standings), F09 (identity correction workflow), and the **result-correction use cases** previously handled in parts of F16 (identity merge)
 
 ## Problem Statement
 
@@ -49,8 +49,9 @@ The TS port replaces this with an **event-sourced** architecture where:
 
 ## Acceptance Criteria
 
-- [ ] All Python-version state mutations are expressible as events in the log.
-- [ ] A fresh projection from an empty log through any valid event sequence produces the same logical state as the Python version would.
+- [ ] All **v1-supported season-domain** mutations are expressible as events in the season log, and workspace lifecycle operations are expressible in the workspace layer.
+- [ ] A fresh projection from an empty log through any valid event sequence produces the same **user-visible race result state and standings inputs** as the Python version for supported workflows.
+- [ ] **True identity merge/pruning is not required in v1**; operator correction of wrongly assigned imported results is supported via `entry.reassigned`, and orphaned person/team identities may remain in the registry.
 - [ ] The event log uses a `schema_version`; replay on an unrecognized event type or schema version fails loudly rather than silently skipping.
 - [ ] Solo participants and couples are both represented as Teams with validated member counts.
 - [ ] Persons are first-class identities: correcting a person updates all teams that reference them.
@@ -84,11 +85,20 @@ Team {
 }
 ```
 
-- Division rules validate team size: `men`/`women` divisions require solo teams; `couples_*` divisions require couple teams.
+When `club` is non-null, `club_normalized` must contain the normalization of `club` under the current normalization rules. When `club` is null, `club_normalized` must be the empty string.
+
+In v1, `Team` is intentionally named broadly to support future 1..n-person scoring units. However, the current implementation validates `member_person_ids.length` to **1 or 2 only**, and `team_kind` is currently limited to **`"solo" | "couple"`**. Larger teams are a future extension and are not part of this feature.
+
+- Division rules validate **participation shape only**: `men`/`women` divisions require solo teams; `couples_*` divisions require couple teams.
+- In v1, category validation is based on **solo-vs-couple structure**, not on recomputing or enforcing gender composition from `PersonIdentity.gender`.
 - Entries always reference `team_id`. There is no `participant_uid` vs `team_uid` branching.
 - Member order within a couple team is canonical (stored in order, but matching is order-insensitive).
 - Correcting a person's canonical data (`person.corrected`) updates one place; the change is visible through all teams that reference that person.
 - Cross-category or cross-season person linking is **not** in scope for now but is structurally possible because persons are independent of teams.
+
+In v1, **person/team identity merge is intentionally not modeled as a first-class domain event**. The supported correction workflow is narrower: if an imported result was assigned to the wrong team, that mistake is corrected using `entry.reassigned`. As a consequence, duplicate or wrongly-created persons/teams may remain as orphan historical identities in the registry after corrections. This is acceptable in v1.
+
+`gender` is stored as part of canonical person identity for provenance, display, and matching context, but in v1 it is **not used as a post-hoc structural validation input** for team legality. The system does not support gender reassignment/correction workflows in v1.
 
 ### 2. Event Types
 
@@ -104,12 +114,14 @@ EventEnvelope {
   payload: { ... }            // type-specific
   metadata: {
     app_version: string       // version of the app that produced this event
-    import_batch_id?: string  // links to an ImportBatchRecorded event, when applicable
+    import_batch_id?: string  // required on all events emitted as part of an import batch
   }
 }
 ```
 
 **Replay order** is determined exclusively by `seq`, never by `recorded_at`. Timestamps are human-readable provenance metadata.
+
+**Import-batch provenance:** For any event emitted by the import workflow as part of a specific import batch, `metadata.import_batch_id` is mandatory and must reference the corresponding `import_batch.recorded` event. This includes `race.registered` and any `ranking.eligibility_set` events emitted to clear prior exclusions. Without this, projection cannot reliably determine which events to suppress when a batch is rolled back.
 
 **Unknown event types or schema versions** cause replay to **fail** with an explicit error. There is no silent skipping. Forward compatibility (old logs on new code) works naturally because new code understands all old event types. Backward compatibility (new event types on old code) is handled by requiring the user to update the app.
 
@@ -140,7 +152,7 @@ Below is the complete event catalog.
 | Event Type | Purpose | Python Equivalent |
 |---|---|---|
 | `import_batch.recorded` | Record provenance for a file import operation | Implicit in `import_excel_into_project` |
-| `import_batch.rolled_back` | Roll back all events from an import batch | `rollback_source_batch` |
+| `import_batch.rolled_back` | Mark all race results from an import batch as ineffective | `rollback_source_batch` |
 
 **`import_batch.recorded`** — emitted once per file import, before the person/team/race events it produces.
 
@@ -160,6 +172,8 @@ Below is the complete event catalog.
   reason: string
 }
 ```
+
+`import_batch.rolled_back` is a **result-level rollback**, not a destructive entity rollback. During projection, all `race.registered` events associated with the rolled-back batch are treated as ineffective, and any `ranking.eligibility_set` events emitted by that batch are likewise ignored. `person.registered` and `team.registered` events from the batch remain part of the projected identity registries. This may leave orphaned persons or teams, which is acceptable.
 
 ---
 
@@ -247,7 +261,7 @@ IncomingRowData {
   yob: number | null          // solo; null for couples
   yob_text: string | null     // couples: "1985 / 1990"; null for solo
   club: string | null         // raw club string
-  kind: "solo" | "team"
+  row_kind: "solo" | "team"   // shape of the imported row, not the canonical TeamKind
   sheet_name: string          // source worksheet name
   section_name: string        // parsed section header (e.g. "Herren 60min")
   row_index: number           // 0-based row index in the sheet
@@ -443,13 +457,20 @@ SeasonState {
 }
 ```
 
+A race's stored lifecycle state and its replay effectiveness are distinct:
+
+- `race.state = "active" | "rolled_back"` captures race-level lifecycle.
+- **Effective** is a derived projection concept meaning: the race is not race-rolled-back **and** its import batch is not rolled back.
+
+Validation and standings computation must operate on **effective** races and effective entries, not merely on races whose local state is `"active"`.
+
 No matching state, no review queue, no fingerprint index in the projected state. Those are concerns of the matching workflow layer.
 
 **Standings** are NOT part of the projected state. They are computed on-demand from `SeasonState` using the ranking engine (same v1_legacy_top4 rules). This eliminates the need to store `StandingsSnapshot` and keeps the event log lean.
 
 **Participation** is implicit: if a team has no entry in a given `race_event_id`, they didn't participate in that race. No explicit "did not participate" records are needed.
 
-**Orphaned teams** are expected. When an operator corrects a matching mistake by reassigning all of a wrongly-created team's entries to the correct team, the original team remains in the registry with no associated entries. This is intentional: the event log stays truthful, no destructive cleanup is needed, and projections stay simple. In the UI, teams with no effective entries can be hidden by default or shown only in an identity administration view.
+**Orphaned teams and persons** are expected. When an operator corrects a matching mistake by reassigning all of a wrongly-created team's entries to the correct team, the original team (and its referenced persons) may remain in the registry with no effective participation. This is intentional: the event log stays truthful, no destructive cleanup is needed, and projections stay simple. In the UI, orphaned teams or persons with no effective participation can be hidden by default and surfaced only in identity administration views.
 
 ### 7. Storage Format
 
@@ -459,7 +480,7 @@ The event log for each season is stored as:
 {
   "format": "stundenlauf-ts-eventlog",
   "format_version": 1,
-  "season_id": "season_abc123",
+  "season_id": "550e8400-e29b-41d4-a716-446655440000",
   "label": "Stundenlauf 2025",
   "events": [
     { "event_id": "...", "seq": 0, "recorded_at": "...", "type": "person.registered", "schema_version": 1, "payload": { ... }, "metadata": { ... } },
@@ -476,7 +497,7 @@ Snapshots (optional, for fast startup):
 {
   "format": "stundenlauf-ts-snapshot",
   "format_version": 1,
-  "season_id": "season_abc123",
+  "season_id": "550e8400-e29b-41d4-a716-446655440000",
   "snapshot_after_seq": 42,
   "state": { ... }
 }
@@ -485,9 +506,10 @@ Snapshots (optional, for fast startup):
 ### 8. Projection Implementation
 
 ```typescript
-function projectState(events: EventEnvelope[]): SeasonState {
-  let state = emptySeasonState();
-  for (const event of events) {
+function projectState(seasonId: string, events: EventEnvelope[]): SeasonState {
+  let state = emptySeasonState(seasonId);
+  for (const rawEvent of events) {
+    const event = upcastEvent(rawEvent);
     state = applyEvent(state, event);
   }
   return state;
@@ -514,13 +536,7 @@ function applyEvent(state: SeasonState, event: EventEnvelope): SeasonState {
 
 The projection is **pure** (no side effects, no I/O). This makes it trivially testable and deterministic.
 
-**Correction precedence:** The effective state of any race entry is determined by replaying events in `seq` order. Specifically:
-
-1. Start from the base entry as recorded in `race.registered`.
-2. Apply any `entry.corrected` events (updating `distance_m`, `points`, `startnr`) in sequence order.
-3. Apply any `entry.reassigned` events (updating `team_id`) in sequence order.
-
-Because all correction events are applied in global `seq` order during projection, each correction sees the result of all prior corrections. The effective entry state after full replay is the single source of truth.
+**Correction precedence:** The effective state of an entry is determined by replaying **all events affecting that entry in global `seq` order**. Start from the base entry as recorded in `race.registered`. When an `entry.corrected` event is encountered, it updates the current effective entry fields (`distance_m`, `points`, `startnr`). When an `entry.reassigned` event is encountered, it updates the current effective `team_id`. The fully replayed effective entry state is the source of truth.
 
 ### 9. Validation
 
@@ -528,13 +544,17 @@ Each event is validated before being appended to the log. Validation runs agains
 
 - `person.registered`: no duplicate `person_id`.
 - `team.registered`: no duplicate `team_id`; all `member_person_ids` must reference registered persons; member count matches `team_kind`.
-- `race.registered`: no duplicate `race_event_id`; no active event with same category + race_no; no already-applied batch with same `import_batch_id`; every entry's `team_id` must reference a registered team.
-- `entry.reassigned`: entry exists in an active race; `from_team_id` matches current effective assignment; `to_team_id` references a registered team; `to_team_id` is compatible with the race's category (e.g. solo team for singles division, couple team for couples division); the race must not already contain an effective entry for `to_team_id` (no duplicate team participation in a single race).
-- `entry.corrected`: entry exists in an active race.
-- `race.metadata_corrected`: race event exists and is active.
+- `race.registered`: no duplicate `race_event_id`; no effective race with same category + race_no; every entry's `team_id` must reference a registered team; every `entry_id` introduced by the event must be globally unique within the season event log.
+- `entry.reassigned`: entry exists in an effective race; `from_team_id` matches current effective assignment; `to_team_id` references a registered team; `to_team_id` must match the race category's required **team shape** (solo for singles divisions, couple for couples divisions); the race must not already contain an effective entry for `to_team_id` (no duplicate team participation in a single race).
+- `entry.corrected`: entry exists in an effective race.
+- `race.metadata_corrected`: race event exists and is effective; the resulting `(category, race_no)` must not collide with another effective race; all effective entries in the race must remain compatible with the resulting category's required **team shape**; if the category change would invalidate existing category-scoped eligibility state, the correction must be rejected.
 - `ranking.eligibility_set`: team must have entries in the given category.
 - `import_batch.recorded`: no duplicate `import_batch_id`.
 - `import_batch.rolled_back`: batch exists and has not already been rolled back.
+
+**Cross-field consistency:** When `metadata.import_batch_id` is present on an event whose payload also carries `import_batch_id`, the two values must be identical.
+
+**Import-batch provenance completeness:** Any event emitted as part of an import batch must carry `metadata.import_batch_id`.
 
 ---
 
@@ -566,7 +586,7 @@ Each event is validated before being appended to the log. Validation runs agains
 - Ranking rules (`v1_legacy_top4`, top-4 selection, scoring, sorting) port directly.
 - Identity fingerprint and scoring functions port directly.
 - Name parsing and normalization port directly.
-- Division/gender validation rules port directly.
+- Division/team-shape validation rules port directly (v1 validates solo-vs-couple structure, not gender composition).
 
 ---
 
@@ -672,7 +692,7 @@ interface IncomingRowData {
   yob: number | null;
   yob_text: string | null;
   club: string | null;
-  kind: "solo" | "team";
+  row_kind: "solo" | "team";  // shape of the imported row, not the canonical TeamKind
   sheet_name: string;
   section_name: string;
   row_index: number;
@@ -765,7 +785,7 @@ This plan incorporates feedback from an external architecture review. Key change
 9. **Enriched provenance** — `IncomingRowData` includes `sheet_name`, `section_name`, `row_index` for row-level traceability.
 10. **Season ≠ year** — seasons are identified by uuid + label, decoupled from a single calendar year.
 11. **Richer metadata** — `app_version` and `schema_version` on every event envelope.
-12. **Result reassignment over merge** — `team.merged` removed in favor of `entry.reassigned` for correcting operator matching mistakes. The real business operation is result reassignment, not identity merging. Orphaned teams are acceptable historical artifacts.
+12. **Result reassignment over merge** — explicit identity merge events are intentionally out of scope for v1. Operator correction of wrongly matched imports is modeled via `entry.reassigned`. The supported business operation is result reassignment, not registry cleanup. Orphaned persons/teams are acceptable historical artifacts in the registry.
 13. **Per-entry eligibility clearing** — exclusions after import are cleared via individual `ranking.eligibility_set` events, not a blanket reset.
 14. **Race metadata corrections** — `race.metadata_corrected` allows fixing race date/number/category without rollback.
 15. **Points as source facts** — confirmed: points are organizer-assigned facts stored on entries, not derived.
