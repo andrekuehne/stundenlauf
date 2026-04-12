@@ -237,7 +237,7 @@ PersonInput {
 | `race.rollback` | Soft-delete a race event | `rollback_race` |
 | `race.rollback_batch` | Soft-delete all race events from a source file | `rollback_source_batch` |
 
-**`race.register`** — the central import command. Entries arrive **fully resolved**: every entry carries its `team_id`. The matching engine has already done its work before this command is emitted.
+**`race.register`** — the central import command. Entries arrive **fully resolved**: every entry carries its `team_id`. The matching engine has already done its work before this command is emitted. Each entry also preserves the **raw incoming data** from the source file for auditability.
 
 ```
 {
@@ -261,10 +261,19 @@ RaceEntryInput {
   team_id: string           // always resolved — the whole point
   distance_km: number
   points: number
+  incoming: IncomingRowData  // raw source data, preserved for audit
+}
+
+IncomingRowData {
+  display_name: string      // as typed in Excel: "Müller, Max" or "A / B"
+  yob: number | null        // solo; null for couples
+  yob_text: string | null   // couples: "1985 / 1990"; null for solo
+  club: string | null       // raw club string
+  kind: "solo" | "team"
 }
 ```
 
-Note: the raw incoming data (display name, yob, club as typed in the Excel file) is **not** stored in the command log. It's consumed by the matching engine during import and discarded. If we later need audit provenance ("where did this team assignment come from?"), that can ride as optional `metadata` on the command envelope — not as a domain payload field.
+The `incoming` field is the raw merge input — exactly what the Excel row said before the matching engine resolved it to a `team_id`. This is essential for auditability: when a user sees "Max Müller" attributed to team "Maximilian Mueller", they can inspect the original row data to understand the assignment. It also supports future re-matching or dispute resolution without requiring the original Excel file.
 
 **`race.rollback`**
 ```
@@ -552,10 +561,19 @@ interface RaceEntry {
   team_id: string;         // always resolved before entering the log
   distance_km: number;
   points: number;
+  incoming: IncomingRowData;
+}
+
+interface IncomingRowData {
+  display_name: string;    // raw name from source file
+  yob: number | null;
+  yob_text: string | null;
+  club: string | null;
+  kind: "solo" | "team";
 }
 ```
 
-Entries are simple facts: team T ran in race R and achieved distance D / points P. No matching metadata, no provisional links, no incoming raw data. All of that is the matching engine's transient working state.
+Entries carry the resolved `team_id` (the matching decision) alongside the raw `incoming` data (the evidence). This enables audit UIs to show "Excel said X, we assigned it to team Y" without needing the original file.
 
 ---
 
