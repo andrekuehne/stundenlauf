@@ -262,6 +262,7 @@ RaceEntryInput {
   distance_km: number
   points: number
   incoming: IncomingRowData  // raw source data, preserved for audit
+  resolution: ResolutionInfo // how the matching engine arrived at this team_id
 }
 
 IncomingRowData {
@@ -271,9 +272,25 @@ IncomingRowData {
   club: string | null       // raw club string
   kind: "solo" | "team"
 }
+
+ResolutionInfo {
+  method: "auto" | "manual" | "new_identity"
+  confidence: number | null  // matching score, null for new_identity / manual without score
+  candidate_count: number    // how many candidates were considered
+}
 ```
 
-The `incoming` field is the raw merge input — exactly what the Excel row said before the matching engine resolved it to a `team_id`. This is essential for auditability: when a user sees "Max Müller" attributed to team "Maximilian Mueller", they can inspect the original row data to understand the assignment. It also supports future re-matching or dispute resolution without requiring the original Excel file.
+Each entry carries two diagnostic fields alongside the resolved `team_id`:
+
+- **`incoming`** — what the Excel row said (raw evidence). Enables "why is this result here?" audits and future re-matching without the original file.
+- **`resolution`** — how the matching engine resolved it (diagnostic trace). Three methods:
+  - `auto`: the engine auto-linked at the given confidence level.
+  - `manual`: the user picked this team from a candidate list.
+  - `new_identity`: no suitable match existed; a new team was created.
+  
+  `confidence` captures the score at the time of resolution (null when not applicable). `candidate_count` records how many alternatives were considered, useful for spotting thin-candidate situations that might warrant review.
+
+This is deliberately minimal — enough to debug "why was this matched wrong?" without replicating the full candidate ranking. The matching engine's internal state (full candidate list, per-feature scores, rejection history) remains ephemeral.
 
 **`race.rollback`**
 ```
@@ -558,22 +575,32 @@ interface RaceEvent {
 interface RaceEntry {
   entry_id: string;
   startnr: string;
-  team_id: string;         // always resolved before entering the log
+  team_id: string;
   distance_km: number;
   points: number;
   incoming: IncomingRowData;
+  resolution: ResolutionInfo;
 }
 
 interface IncomingRowData {
-  display_name: string;    // raw name from source file
+  display_name: string;
   yob: number | null;
   yob_text: string | null;
   club: string | null;
   kind: "solo" | "team";
 }
+
+interface ResolutionInfo {
+  method: "auto" | "manual" | "new_identity";
+  confidence: number | null;
+  candidate_count: number;
+}
 ```
 
-Entries carry the resolved `team_id` (the matching decision) alongside the raw `incoming` data (the evidence). This enables audit UIs to show "Excel said X, we assigned it to team Y" without needing the original file.
+Three levels of information on every entry:
+- `team_id` + `distance_km` + `points` — the fact (who ran, what they achieved).
+- `incoming` — the evidence (what the source file said).
+- `resolution` — the diagnostic (how the assignment was made).
 
 ---
 
