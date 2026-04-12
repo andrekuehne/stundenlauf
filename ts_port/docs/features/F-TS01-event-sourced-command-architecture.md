@@ -492,6 +492,19 @@ The event log for each season is stored as:
 
 In the browser, this is stored in **IndexedDB** (one object store per season, or one store with season key). For export/import, the entire log is serialized as the JSON above.
 
+The storage adapter must expose methods for bulk event log access, consumed by F-TS07 (season data portability):
+
+```typescript
+// Read the full event log for a season, in seq order.
+function getEventLog(seasonId: string): Promise<EventEnvelope[]>
+
+// Write a complete event log for a season (used by import).
+// Atomic: either all events are written and the season registered, or nothing changes.
+function writeEventLog(seasonId: string, label: string, events: EventEnvelope[]): Promise<void>
+```
+
+`getEventLog` returns the raw persisted events without replaying them — the caller decides whether to project. `writeEventLog` is a bulk-write used exclusively by the import path; normal operation appends events individually or in batches via the standard commit path.
+
 Snapshots (optional, for fast startup):
 ```json
 {
