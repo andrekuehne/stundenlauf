@@ -203,7 +203,7 @@ The app has four top-level screens, each rendered by a dedicated function. The f
 
 - Domain logic implementation (F-TS01 through F-TS05 cover event store, parsing, matching, ranking, orchestration).
 - Client-side PDF generation internals (F-TS08).
-- Client-side CSV export (F-TS08).
+- Client-side Excel export (F-TS08).
 - Season ZIP export/import file format (F-TS07).
 - PWA service worker, offline caching, GitHub Pages deployment (F-TS09).
 - Dark mode or theme switching (not present in Python version; defer to polish phase).

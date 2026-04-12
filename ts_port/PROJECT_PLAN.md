@@ -50,7 +50,8 @@ Mapped from the Python version's requirements, adapted for the static-site conte
 | Storage | IndexedDB (via idb or Dexie) + JSON export | Offline persistence |
 | Excel Parsing | SheetJS (xlsx) or ExcelJS | Client-side .xlsx reading |
 | Fuzzy Matching | Custom port or fuse.js + custom scoring | Port Python matching logic |
-| PDF Export | jsPDF or pdfmake | Client-side PDF generation |
+| PDF Export | jsPDF + jsPDF-AutoTable | Client-side PDF generation (decided in F-TS08) |
+| Excel Export | ExcelJS | Client-side .xlsx generation for standings (decided in F-TS08) |
 | Testing | Vitest | Unit + integration |
 | Linting | ESLint + Prettier | Consistent code style |
 | Deployment | GitHub Pages via GitHub Actions | Static build output |
@@ -64,7 +65,7 @@ Mapped from the Python version's requirements, adapted for the static-site conte
 | M-TS3 | Matching engine and review workflow | Planned |
 | M-TS4 | Ranking engine and standings computation | Planned |
 | M-TS5 | German UI shell and core workflows | Planned |
-| M-TS6 | Export (PDF, CSV) and season portability | Planned |
+| M-TS6 | Export (PDF, Excel) and season portability | Planned |
 | M-TS7 | GitHub Pages deployment, PWA, polish | Planned |
 
 ## Feature Inventory
@@ -80,7 +81,7 @@ Features are prefixed `F-TS` to distinguish from the Python version's `F` prefix
 | F-TS05 | Import orchestration workflow (parse → validate → match → review → emit) | M-TS2 | Planned |
 | F-TS06 | UI framework and German UI shell | M-TS5 | Planned |
 | F-TS07 | Season data portability (JSON/ZIP export and import) | M-TS6 | Planned |
-| F-TS08 | Standings and results export (PDF, CSV) | M-TS6 | Planned |
+| F-TS08 | Standings and results export (PDF, Excel) | M-TS6 | Planned |
 | F-TS09 | GitHub Pages deployment and PWA | M-TS7 | Planned |
 
 ## Mapping from Python Features
@@ -99,7 +100,7 @@ The following maps Python features to their TS-port equivalents or notes on appr
 | F08 API layer | Eliminated – UI calls domain directly (no pywebview bridge) |
 | F09–F19 Identity/matching/review features | Subsumed into F-TS03 (matching) + F-TS05 (orchestration & review workflow) |
 | F12 Season import/export | F-TS07: browser-local season export/import (JSON/ZIP download/upload, IndexedDB ↔ file) |
-| F20 Export | F-TS08: client-side PDF/CSV generation for standings and results |
+| F20 Export | F-TS08: client-side PDF/Excel generation for standings and results |
 | F22 Windows packaging | Eliminated – replaced by F-TS09 (GitHub Pages deployment + PWA) |
 
 ## Python Dead Surface (Do Not Port)
@@ -188,3 +189,4 @@ TS version: UI components call domain functions directly. No serialization bound
 | 2026-04-12 | Added F-TS06 through F-TS09 | Fill feature inventory gaps for M-TS5 (UI), M-TS6 (export/portability), M-TS7 (deployment/PWA); updated Python mapping table |
 | 2026-04-12 | Python dead-surface audit | Documented 6 dead API methods, dead frontend code, stale re-exports, and drifted Python docs as porting reference; added F06/F07 to mapping table as dev-tooling (not ported) |
 | 2026-04-12 | F-TS06 feature plan created | Detailed UI framework & German shell plan: full audit of all 4 screens in app.js (2762 lines), line-by-line keep/change/eliminate dispositions, dead code inventory, bridge elimination mapping, file API migration, confirmation modal migration, CSS audit, component architecture, string catalog porting plan |
+| 2026-04-12 | F-TS08 feature plan created; CSV→Excel | Detailed standings/results export plan: PDF via jsPDF+AutoTable, Excel via ExcelJS replacing CSV; projection layer port, Laufübersicht layout, dual Einzel/Paare PDF, layout presets, German formatting; updated milestone M-TS6 and tech stack |
