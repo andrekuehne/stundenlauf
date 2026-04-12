@@ -11,8 +11,14 @@ Stundenlauf is a local-first Python 3.13 desktop app (pywebview + GTK/WebKit on 
 All Python commands must go through `uv` — see `.cursor/rules/python-uv-execution.mdc`. Key commands:
 
 - **Install deps:** `uv sync`
-- **Run tests:** `uv run pytest`
+- **Run tests:** `uv run pytest` (201 tests, ~10s, fully headless)
+- **Lint:** `uv run ruff check` and `uv run ruff format --check`
+- **Auto-fix lint:** `uv run ruff check --fix` and `uv run ruff format`
 - **Launch GUI:** see below
+
+### Lint
+
+Ruff is configured in `pyproject.toml` under `[tool.ruff]`. Rule sets: `E`, `F`, `W`, `I`, `UP`, `B`, `SIM`, `RUF`. German unicode characters (RUF001-003) and line length (E501) are globally ignored. Scripts have per-file ignores for `E402` (sys.path manipulation) and `T201` (print). Always run both `ruff check` and `ruff format --check` before committing.
 
 ### GUI on headless Cloud VMs
 
@@ -45,10 +51,6 @@ webview.start(debug=True, http_server=True)
 ```
 
 System packages needed for pywebview GTK backend (pre-installed in the VM snapshot): `gir1.2-webkit2-4.1`, `libgirepository-2.0-dev`, `libgirepository1.0-dev`, `libcairo2-dev`, `pkg-config`, plus `PyGObject` pip package. `scrot` is available for taking screenshots.
-
-### Lint
-
-No dedicated linter (ruff, flake8, mypy, etc.) is configured in this project. `pytest` is the primary quality gate.
 
 ### Testing
 

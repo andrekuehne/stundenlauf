@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from backend.domain.club import optional_club_from_cell
 from backend.domain.enums import Gender

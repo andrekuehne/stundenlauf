@@ -65,9 +65,7 @@ def _laufuebersicht_apply_result_cell_paragraphs(
             if cell == "":
                 continue
             is_km = (j - 3) % 2 == 0
-            if is_km:
-                data[r][j] = Paragraph(_para_text(cell), cell_plain)
-            elif cell == _Lauf_PDF_EM_DASH:
+            if is_km or cell == _Lauf_PDF_EM_DASH:
                 data[r][j] = Paragraph(_para_text(cell), cell_plain)
             else:
                 data[r][j] = Paragraph(f"<b>{_para_text(cell)}</b>", cell_bold)
@@ -198,11 +196,7 @@ def _laufuebersicht_append_column_lines(
     last_j = ncols - 2
     for j in range(last_j + 1):
         if j == 2:
-            cmds.append(
-                _laufuebersicht_line_cmd(
-                    "LINEAFTER", j, 0, j, n_rows_tbl - 1, _PDF_LINE_THICK, line_grey
-                )
-            )
+            cmds.append(_laufuebersicht_line_cmd("LINEAFTER", j, 0, j, n_rows_tbl - 1, _PDF_LINE_THICK, line_grey))
         elif double_after_last_race_pkt is not None and j == double_after_last_race_pkt:
             cmds.append(
                 _laufuebersicht_line_cmd(
@@ -231,11 +225,7 @@ def _laufuebersicht_append_column_lines(
                 )
             )
         else:
-            cmds.append(
-                _laufuebersicht_line_cmd(
-                    "LINEAFTER", j, 0, j, n_rows_tbl - 1, _PDF_LINE_NORMAL, line_grey
-                )
-            )
+            cmds.append(_laufuebersicht_line_cmd("LINEAFTER", j, 0, j, n_rows_tbl - 1, _PDF_LINE_NORMAL, line_grey))
 
 
 def _table_font_sizes(pdf: PdfStyleSpec, header_rows: tuple[tuple[str, ...], ...] | None) -> tuple[int, int]:
@@ -437,11 +427,7 @@ def render_pdf(
 
     first_section = True
     lauf_table_seq = 0
-    if (
-        pdf.table_layout == "laufuebersicht"
-        and sections
-        and pdf.laufuebersicht_show_cover
-    ):
+    if pdf.table_layout == "laufuebersicht" and sections and pdf.laufuebersicht_show_cover:
         story.append(_SectionFooterHint(sections[0].season_year, ""))
         cover_year_style = ParagraphStyle(
             name="LaufCoverYear",
@@ -591,9 +577,8 @@ def render_pdf(
             if len(sec.body_row_band_group) != len(sec.rows):
                 raise ValueError("body_row_band_group length must match body row count")
             podium = sec.body_row_podium
-            if podium is not None:
-                if len(podium) != len(sec.body_row_band_group):
-                    raise ValueError("body_row_podium length must match body_row_band_group")
+            if podium is not None and len(podium) != len(sec.body_row_band_group):
+                raise ValueError("body_row_podium length must match body_row_band_group")
             for br, gid in enumerate(sec.body_row_band_group):
                 tr = n_header + br
                 on_podium = podium[br] if podium is not None else False
@@ -603,9 +588,7 @@ def render_pdf(
                     fill = colors.white if gid % 2 == 0 else band_grey
                 tbl_style_cmds.append(("BACKGROUND", (0, tr), (-1, tr), fill))
         else:
-            tbl_style_cmds.append(
-                ("ROWBACKGROUNDS", (0, n_header), (-1, -1), [colors.white, band_grey])
-            )
+            tbl_style_cmds.append(("ROWBACKGROUNDS", (0, n_header), (-1, -1), [colors.white, band_grey]))
         if sec.table_spans:
             for (c0, r0), (c1, r1) in sec.table_spans:
                 tbl_style_cmds.append(("SPAN", (c0, r0), (c1, r1)))

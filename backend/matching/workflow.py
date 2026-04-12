@@ -16,7 +16,6 @@ from backend.domain.models import (
     RaceSeriesCategory,
 )
 from backend.ingestion.types import ImportRowCouples, ParsedSectionCouples, ParsedSectionSingles
-from backend.storage.schema_v2 import SCHEMA_VERSION_V2
 from backend.matching.candidates import build_person_block_index, gather_candidates
 from backend.matching.config import MatchingConfig
 from backend.matching.decisions import (
@@ -35,7 +34,13 @@ from backend.matching.score import (
     should_review_strong_name_yob_mismatch,
 )
 from backend.matching.strict_identity import couple_matches_strict_row, person_matches_strict_incoming
-from backend.matching.teams import _couple_division_ok, build_couple_block_index, gather_couple_candidates, score_couple_match
+from backend.matching.teams import (
+    _couple_division_ok,
+    build_couple_block_index,
+    gather_couple_candidates,
+    score_couple_match,
+)
+from backend.storage.schema_v2 import SCHEMA_VERSION_V2
 
 
 def _gender_for_division(division: Division) -> Gender:
@@ -619,7 +624,12 @@ def process_singles_section(
     entries: list[RaceEntry] = []
     incoming_keys: dict[tuple[str, int, str, str], int] = {}
     for row in section.rows:
-        row_key = (row.name.strip().casefold(), int(row.yob or 0), (row.club or "").strip().casefold(), row.startnr.strip())
+        row_key = (
+            row.name.strip().casefold(),
+            int(row.yob or 0),
+            (row.club or "").strip().casefold(),
+            row.startnr.strip(),
+        )
         incoming_keys[row_key] = incoming_keys.get(row_key, 0) + 1
     duplicate_rows = [
         {"name": key[0], "yob": key[1], "club": key[2], "startnr": key[3], "count": count}
@@ -627,10 +637,7 @@ def process_singles_section(
         if count > 1
     ]
     if duplicate_rows:
-        raise ValueError(
-            "Importkonflikt: Doppelte Teilnehmerzeile im selben Lauf "
-            "(Name/Jahrgang/Verein/Startnr)."
-        )
+        raise ValueError("Importkonflikt: Doppelte Teilnehmerzeile im selben Lauf (Name/Jahrgang/Verein/Startnr).")
 
     candidate_people = tuple(document.people)
     for row in section.rows:
@@ -747,11 +754,11 @@ def process_couples_section(
                     team_meta,
                     incoming_display_name=f"{row.name_a.strip()} / {row.name_b.strip()}",
                     incoming_yob=None,
-                    incoming_yob_text=(
-                        " / ".join([str(value) for value in (row.yob_a, row.yob_b) if value]) or None
-                    ),
+                    incoming_yob_text=(" / ".join([str(value) for value in (row.yob_a, row.yob_b) if value]) or None),
                     incoming_club=(
-                        " / ".join([item.strip() for item in (row.club_a or "", row.club_b or "") if item and item.strip()])
+                        " / ".join(
+                            [item.strip() for item in (row.club_a or "", row.club_b or "") if item and item.strip()]
+                        )
                         or None
                     ),
                     incoming_kind="team",

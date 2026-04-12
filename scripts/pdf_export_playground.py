@@ -1,4 +1,3 @@
-# ruff: noqa: T201
 """
 Interactive PDF export scratchpad for Cursor / VS Code “Run Cell” (#%%).
 
@@ -31,13 +30,14 @@ from backend.export.registry import export_standings_pdf_bytes, export_standings
 from backend.export.resolve import load_project_document
 from backend.export.spec import ExportSpec, sort_category_keys_for_export
 
+
 # %%
 def event_category_keys_from_json(path: Path) -> list[str]:
     """Category keys as used in ``ExportSpec.categories`` (mirrors ``backend.export.cli``)."""
 
     def _event_category_key(e: dict) -> str:
         c = e["category"]
-        return f'{c["year"]}:{c["duration"]}:{c["division"]}'
+        return f"{c['year']}:{c['duration']}:{c['division']}"
 
     payload = json.loads(path.read_text(encoding="utf-8"))
     cats = sorted({_event_category_key(e) for e in payload.get("events", [])})

@@ -15,7 +15,7 @@ class DivisionEligibility:
     individual_allowed_genders: dict[Division, set[Gender]]
 
     @staticmethod
-    def default() -> "DivisionEligibility":
+    def default() -> DivisionEligibility:
         return DivisionEligibility(
             individual_allowed_genders={
                 Division.MEN: {Gender.M},

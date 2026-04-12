@@ -27,9 +27,9 @@ def participation_race_uids_for_category(
         if event.state != RaceEventState.ACTIVE or event.category.key != category_key:
             continue
         for entry in event.entries:
-            if entity_kind == "participant" and entry.participant_uid == entity_uid:
-                out.add(event.race_event_uid)
-            elif entity_kind == "team" and entry.team_uid == entity_uid:
+            if (entity_kind == "participant" and entry.participant_uid == entity_uid) or (
+                entity_kind == "team" and entry.team_uid == entity_uid
+            ):
                 out.add(event.race_event_uid)
     return frozenset(out)
 

@@ -51,23 +51,35 @@ def import_excel_into_project(
         if active_source_events:
             active_uids = ", ".join(event.race_event_uid for event in active_source_events)
             raise ValueError(
-                "Doppelimport-Konflikt: Diese Datei wurde bereits importiert. "
-                f"Aktive Lauf-IDs: {active_uids}."
+                f"Doppelimport-Konflikt: Diese Datei wurde bereits importiert. Aktive Lauf-IDs: {active_uids}."
             )
 
     for event in document.events:
         if event.state != RaceEventState.ACTIVE:
             continue
-        if is_couples and not any(section.context.division == event.category.division for section in parsed.couples_sections):
+        if is_couples and not any(
+            section.context.division == event.category.division for section in parsed.couples_sections
+        ):
             continue
-        if (not is_couples) and not any(section.context.division == event.category.division for section in parsed.singles_sections):
+        if (not is_couples) and not any(
+            section.context.division == event.category.division for section in parsed.singles_sections
+        ):
             continue
-        candidate_race_no = parsed.couples_sections[0].context.race_no if is_couples else parsed.singles_sections[0].context.race_no
-        if event.category.year == series_year and event.race_no == candidate_race_no:
-            if (is_couples and event.category.division in {s.context.division for s in parsed.couples_sections}) or (
-                (not is_couples) and event.category.division in {s.context.division for s in parsed.singles_sections}
-            ):
-                raise ValueError("Importkonflikt: Rennen mit gleicher Kategorie und Laufnummer existiert bereits.")
+        candidate_race_no = (
+            parsed.couples_sections[0].context.race_no if is_couples else parsed.singles_sections[0].context.race_no
+        )
+        if (
+            event.category.year == series_year
+            and event.race_no == candidate_race_no
+            and (
+                (is_couples and event.category.division in {s.context.division for s in parsed.couples_sections})
+                or (
+                    (not is_couples)
+                    and event.category.division in {s.context.division for s in parsed.singles_sections}
+                )
+            )
+        ):
+            raise ValueError("Importkonflikt: Rennen mit gleicher Kategorie und Laufnummer existiert bereits.")
 
     source_meta = {
         "source_file": parsed.meta.source_file,

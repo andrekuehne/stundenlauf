@@ -3,15 +3,24 @@ from __future__ import annotations
 import hashlib
 import json
 import tempfile
-from io import BytesIO
 import unittest
 import zipfile
 from dataclasses import replace
+from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
 
 from backend.domain.enums import Division, Gender, RaceDuration, RaceEventState
-from backend.domain.models import Couple, EntryResult, Person, ProjectDocument, RaceEntry, RaceEntryMatchMeta, RaceEvent, RaceSeriesCategory
+from backend.domain.models import (
+    Couple,
+    EntryResult,
+    Person,
+    ProjectDocument,
+    RaceEntry,
+    RaceEntryMatchMeta,
+    RaceEvent,
+    RaceSeriesCategory,
+)
 from backend.ranking.engine import recompute_project_standings
 from backend.storage.repository import JsonProjectRepository
 from backend.storage.schema_v2 import SCHEMA_VERSION_V2
@@ -153,7 +162,9 @@ def _seed_project(path: Path) -> None:
             ),
         ),
     )
-    doc = ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(participant, old_participant), events=(event, old_event))
+    doc = ProjectDocument(
+        schema_version=SCHEMA_VERSION_V2, people=(participant, old_participant), events=(event, old_event)
+    )
     doc = recompute_project_standings(doc)
     JsonProjectRepository(path).save(doc)
 
@@ -318,7 +329,9 @@ class TestF08UiApi(unittest.TestCase):
             service = UiApiService(workspace_dir=workspace)
             project_file = workspace / "data" / "series" / "2026" / "session_project.json"
             men_category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.MEN)
-            couples_category = RaceSeriesCategory(year=2026, duration=RaceDuration.HOUR, division=Division.COUPLES_MIXED)
+            couples_category = RaceSeriesCategory(
+                year=2026, duration=RaceDuration.HOUR, division=Division.COUPLES_MIXED
+            )
             participant = Person(uid="participant_1", name="Max Muster", yob=1990, gender=Gender.M, club="TSV")
             team = Couple(
                 uid="team_1",
@@ -335,7 +348,14 @@ class TestF08UiApi(unittest.TestCase):
                 imported_at="2026-01-01T10:00:00+00:00",
                 parser_version="v1",
                 schema_fingerprint="fp_single_1",
-                entries=(RaceEntry(entry_uid="entry_single_1", participant_uid=participant.uid, startnr="1", result=EntryResult(10.0, 20.0)),),
+                entries=(
+                    RaceEntry(
+                        entry_uid="entry_single_1",
+                        participant_uid=participant.uid,
+                        startnr="1",
+                        result=EntryResult(10.0, 20.0),
+                    ),
+                ),
             )
             event_single_7 = RaceEvent(
                 race_event_uid="race_single_7",
@@ -347,7 +367,14 @@ class TestF08UiApi(unittest.TestCase):
                 imported_at="2026-02-01T10:00:00+00:00",
                 parser_version="v1",
                 schema_fingerprint="fp_single_7",
-                entries=(RaceEntry(entry_uid="entry_single_7", participant_uid=participant.uid, startnr="2", result=EntryResult(11.0, 22.0)),),
+                entries=(
+                    RaceEntry(
+                        entry_uid="entry_single_7",
+                        participant_uid=participant.uid,
+                        startnr="2",
+                        result=EntryResult(11.0, 22.0),
+                    ),
+                ),
             )
             event_couples_2 = RaceEvent(
                 race_event_uid="race_couples_2",
@@ -359,7 +386,11 @@ class TestF08UiApi(unittest.TestCase):
                 imported_at="2026-03-01T10:00:00+00:00",
                 parser_version="v1",
                 schema_fingerprint="fp_couples_2",
-                entries=(RaceEntry(entry_uid="entry_couples_2", team_uid=team.uid, startnr="5", result=EntryResult(9.0, 18.0)),),
+                entries=(
+                    RaceEntry(
+                        entry_uid="entry_couples_2", team_uid=team.uid, startnr="5", result=EntryResult(9.0, 18.0)
+                    ),
+                ),
             )
             event_rolled_back = RaceEvent(
                 race_event_uid="race_single_3_old",
@@ -372,7 +403,14 @@ class TestF08UiApi(unittest.TestCase):
                 parser_version="v1",
                 schema_fingerprint="fp_single_3_old",
                 state=RaceEventState.ROLLED_BACK,
-                entries=(RaceEntry(entry_uid="entry_single_3_old", participant_uid=participant.uid, startnr="3", result=EntryResult(10.5, 21.0)),),
+                entries=(
+                    RaceEntry(
+                        entry_uid="entry_single_3_old",
+                        participant_uid=participant.uid,
+                        startnr="3",
+                        result=EntryResult(10.5, 21.0),
+                    ),
+                ),
             )
             event_invalid_race_no = RaceEvent(
                 race_event_uid="race_single_invalid",
@@ -384,7 +422,14 @@ class TestF08UiApi(unittest.TestCase):
                 imported_at="2026-01-20T10:00:00+00:00",
                 parser_version="v1",
                 schema_fingerprint="fp_single_invalid",
-                entries=(RaceEntry(entry_uid="entry_single_invalid", participant_uid=participant.uid, startnr="4", result=EntryResult(8.0, 16.0)),),
+                entries=(
+                    RaceEntry(
+                        entry_uid="entry_single_invalid",
+                        participant_uid=participant.uid,
+                        startnr="4",
+                        result=EntryResult(8.0, 16.0),
+                    ),
+                ),
             )
             doc = ProjectDocument(
                 schema_version=SCHEMA_VERSION_V2,
@@ -1498,7 +1543,9 @@ class TestF08UiApi(unittest.TestCase):
                 entries=(),
             )
             JsonProjectRepository(project_path).save(
-                recompute_project_standings(ProjectDocument(schema_version=SCHEMA_VERSION_V2, events=(event_a, event_b)))
+                recompute_project_standings(
+                    ProjectDocument(schema_version=SCHEMA_VERSION_V2, events=(event_a, event_b))
+                )
             )
             service = UiApiService(project_path)
             response = service.handle(
@@ -1891,7 +1938,9 @@ class TestF08UiApi(unittest.TestCase):
                 entries=(review_entry,),
             )
             JsonProjectRepository(project_path).save(
-                recompute_project_standings(ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(existing,), events=(event,)))
+                recompute_project_standings(
+                    ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(existing,), events=(event,))
+                )
             )
             service = UiApiService(project_path)
             response = service.handle(
@@ -2338,9 +2387,7 @@ class TestF08UiApi(unittest.TestCase):
             )
             self.assertEqual(timeline["status"], "ok")
             kinds = [
-                item["kind"]
-                for item in timeline["payload"]["items"]
-                if item.get("event_type") == "matching_decision"
+                item["kind"] for item in timeline["payload"]["items"] if item.get("event_type") == "matching_decision"
             ]
             self.assertIn("identity_correction", kinds)
             corr = next(

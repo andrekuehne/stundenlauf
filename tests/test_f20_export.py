@@ -25,8 +25,8 @@ from backend.export.spec import (
     sort_category_keys_for_export,
     split_category_keys_einzel_paare,
 )
-from backend.standings_display import category_footer_label, export_pdf_category_title
 from backend.ranking.engine import recompute_project_standings
+from backend.standings_display import category_footer_label, export_pdf_category_title
 from backend.storage.schema_v2 import SCHEMA_VERSION_V2
 from backend.ui_api import queries
 
@@ -171,9 +171,7 @@ class TestExportProjection(unittest.TestCase):
             race_no=1,
             entries=(RaceEntry(participant_uid="p1", result=EntryResult(distance_km=5.5, points=10.0)),),
         )
-        doc = recompute_project_standings(
-            ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(p,), events=(ev,))
-        )
+        doc = recompute_project_standings(ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(p,), events=(ev,)))
         spec = ExportSpec.from_dict(
             {
                 "format": "pdf",
@@ -321,9 +319,7 @@ class TestExportProjection(unittest.TestCase):
             race_no=1,
             entries=(RaceEntry(participant_uid="p1", result=EntryResult(distance_km=5.0, points=10.0)),),
         )
-        doc = recompute_project_standings(
-            ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(p,), events=(ev,))
-        )
+        doc = recompute_project_standings(ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(p,), events=(ev,)))
         spec = ExportSpec.from_dict(
             {
                 "format": "pdf",
@@ -520,9 +516,7 @@ class TestPdfSmoke(unittest.TestCase):
             race_date="2026-01-01",
             entries=(RaceEntry(participant_uid="p1", result=EntryResult(1.0, 1.0)),),
         )
-        doc = recompute_project_standings(
-            ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(p,), events=(ev,))
-        )
+        doc = recompute_project_standings(ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(p,), events=(ev,)))
         spec = ExportSpec.from_dict(
             {
                 "format": "pdf",
@@ -550,9 +544,7 @@ class TestPdfSmoke(unittest.TestCase):
             race_date="2026-01-01",
             entries=(RaceEntry(participant_uid="p1", result=EntryResult(1.0, 1.0)),),
         )
-        doc = recompute_project_standings(
-            ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(p,), events=(ev,))
-        )
+        doc = recompute_project_standings(ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(p,), events=(ev,)))
         spec = ExportSpec.from_dict(
             {
                 "format": "pdf",
@@ -562,8 +554,7 @@ class TestPdfSmoke(unittest.TestCase):
             }
         )
         text = "".join(
-            page.extract_text() or ""
-            for page in PdfReader(BytesIO(export_standings_pdf_bytes(doc, spec))).pages
+            page.extract_text() or "" for page in PdfReader(BytesIO(export_standings_pdf_bytes(doc, spec))).pages
         )
         self.assertIn("ACME Sport", text)
         self.assertNotIn("Greifswald", text)
@@ -578,9 +569,7 @@ class TestPdfSmoke(unittest.TestCase):
             race_no=1,
             entries=(RaceEntry(participant_uid="p1", result=EntryResult(1.0, 1.0)),),
         )
-        doc = recompute_project_standings(
-            ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(p,), events=(ev,))
-        )
+        doc = recompute_project_standings(ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(p,), events=(ev,)))
         spec = ExportSpec.from_dict(
             {
                 "format": "pdf",
@@ -610,9 +599,7 @@ class TestPdfSmoke(unittest.TestCase):
             race_no=1,
             entries=(RaceEntry(participant_uid="p1", result=EntryResult(1.0, 1.0)),),
         )
-        doc = recompute_project_standings(
-            ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(p,), events=(ev,))
-        )
+        doc = recompute_project_standings(ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(p,), events=(ev,)))
         spec = ExportSpec.from_dict(
             {
                 "format": "pdf",

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from backend.domain.models import ProjectDocument
+from backend.ingestion.types import ParsedSectionCouples, ParsedSectionSingles
 from backend.matching.config import MatchingConfig
 from backend.matching.report import MatchingReport
 from backend.matching.workflow import process_couples_section, process_singles_section
-from backend.ingestion.types import ParsedSectionCouples, ParsedSectionSingles
 
 
 def map_singles_section(

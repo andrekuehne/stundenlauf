@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 from uuid import uuid4
 
 from backend.domain.enums import Division, Gender, RaceDuration, RaceEventState
@@ -39,9 +39,9 @@ class MatchingDecision:
     row_fingerprint: str = ""
     race_event_uid: str = ""
     entry_uid: str = ""
-    target_participant_uid: Optional[str] = None
-    target_team_uid: Optional[str] = None
-    merged_absorbed_uid: Optional[str] = None
+    target_participant_uid: str | None = None
+    target_team_uid: str | None = None
+    merged_absorbed_uid: str | None = None
     scope_series_year: int | None = None
     rationale: str = ""
     field_resolutions: tuple[FieldResolution, ...] = ()
@@ -55,15 +55,15 @@ class RaceEntryMatchMeta:
 
     route: Literal["auto", "review", "new_identity"] = "new_identity"
     confidence: float = 0.0
-    top_candidate_uid: Optional[str] = None
+    top_candidate_uid: str | None = None
     candidate_uids: tuple[str, ...] = ()
     candidate_confidences: tuple[float, ...] = ()
     features: dict[str, float] = field(default_factory=dict)
     conflict_flags: tuple[str, ...] = ()
     incoming_display_name: str = ""
-    incoming_yob: Optional[int] = None
-    incoming_yob_text: Optional[str] = None
-    incoming_club: Optional[str] = None
+    incoming_yob: int | None = None
+    incoming_yob_text: str | None = None
+    incoming_club: str | None = None
     incoming_kind: Literal["participant", "team", "unknown"] = "unknown"
 
 
@@ -73,7 +73,7 @@ class Person:
     name: str = ""
     yob: int = 0
     gender: Gender = Gender.X
-    club: Optional[str] = None
+    club: str | None = None
     canonical_given: str = ""
     canonical_family: str = ""
     club_normalized: str = ""
@@ -107,10 +107,10 @@ class EntryResult:
 class RaceEntry:
     entry_uid: str = field(default_factory=lambda: _new_uid("entry"))
     startnr: str = ""
-    participant_uid: Optional[str] = None
-    team_uid: Optional[str] = None
+    participant_uid: str | None = None
+    team_uid: str | None = None
     result: EntryResult = field(default_factory=lambda: EntryResult(distance_km=0.0, points=0.0))
-    match_meta: Optional[RaceEntryMatchMeta] = None
+    match_meta: RaceEntryMatchMeta | None = None
 
 
 @dataclass(frozen=True)
@@ -175,7 +175,7 @@ class RaceEvent:
     schema_fingerprint: str = ""
     state: RaceEventState = RaceEventState.ACTIVE
     entries: tuple[RaceEntry, ...] = ()
-    rollback: Optional[RollbackMetadata] = None
+    rollback: RollbackMetadata | None = None
 
 
 @dataclass(frozen=True)

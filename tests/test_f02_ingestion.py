@@ -19,7 +19,6 @@ from backend.ingestion.validation import ImportValidationError
 from backend.storage.repository import JsonProjectRepository
 from backend.storage.schema_v2 import SCHEMA_VERSION_V2
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 DATA_2023_EINZEL = WORKSPACE_ROOT / "data" / "2023" / "einzel"
 DATA_2023_PAARE = WORKSPACE_ROOT / "data" / "2023" / "paare"
@@ -69,7 +68,9 @@ class TestF02AdaptersWithFixtures(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             project_path = Path(temp_dir) / "project.json"
             import_excel_into_project(project_path, DATA_2023_EINZEL / "Ergebnisliste MW Lauf 1.xlsx", series_year=2023)
-            import_excel_into_project(project_path, DATA_2023_PAARE / "Ergebnisliste MW_Paare Lauf 1.xlsx", series_year=2023)
+            import_excel_into_project(
+                project_path, DATA_2023_PAARE / "Ergebnisliste MW_Paare Lauf 1.xlsx", series_year=2023
+            )
             repo = JsonProjectRepository(project_path)
             doc = repo.load()
             self.assertTrue(any(event.category.division in {Division.MEN, Division.WOMEN} for event in doc.events))
@@ -256,9 +257,11 @@ class TestF02SyntheticValidation(unittest.TestCase):
                 ),
                 couples_sections=(),
             )
-            with patch("backend.ingestion.service.parse_singles_workbook", return_value=parsed_stub):
-                with self.assertRaisesRegex(ValueError, "Doppelte Teilnehmerzeile im selben Lauf"):
-                    import_excel_into_project(project_path, Path("ignored.xlsx"), series_year=2026, source_type="singles")
+            with (
+                patch("backend.ingestion.service.parse_singles_workbook", return_value=parsed_stub),
+                self.assertRaisesRegex(ValueError, "Doppelte Teilnehmerzeile im selben Lauf"),
+            ):
+                import_excel_into_project(project_path, Path("ignored.xlsx"), series_year=2026, source_type="singles")
 
     def test_schema_fingerprint_mismatch_fails_fast(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -309,7 +312,9 @@ class TestF02SyntheticValidation(unittest.TestCase):
                 schema_fingerprint="fp",
                 entries=(),
             )
-            JsonProjectRepository(project_path).save(ProjectDocument(schema_version=SCHEMA_VERSION_V2, events=(existing,)))
+            JsonProjectRepository(project_path).save(
+                ProjectDocument(schema_version=SCHEMA_VERSION_V2, events=(existing,))
+            )
             parsed_stub = SimpleNamespace(
                 meta=SimpleNamespace(
                     source_file="fixture.xlsx",
@@ -321,9 +326,11 @@ class TestF02SyntheticValidation(unittest.TestCase):
                 singles_sections=(),
                 couples_sections=(),
             )
-            with patch("backend.ingestion.service.parse_singles_workbook", return_value=parsed_stub):
-                with self.assertRaisesRegex(ValueError, "Doppelimport-Konflikt"):
-                    import_excel_into_project(project_path, Path("ignored.xlsx"), series_year=2026, source_type="singles")
+            with (
+                patch("backend.ingestion.service.parse_singles_workbook", return_value=parsed_stub),
+                self.assertRaisesRegex(ValueError, "Doppelimport-Konflikt"),
+            ):
+                import_excel_into_project(project_path, Path("ignored.xlsx"), series_year=2026, source_type="singles")
 
     def test_import_after_full_source_batch_rollback_is_allowed(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -342,7 +349,9 @@ class TestF02SyntheticValidation(unittest.TestCase):
                 state=RaceEventState.ROLLED_BACK,
                 entries=(),
             )
-            JsonProjectRepository(project_path).save(ProjectDocument(schema_version=SCHEMA_VERSION_V2, events=(rolled_back,)))
+            JsonProjectRepository(project_path).save(
+                ProjectDocument(schema_version=SCHEMA_VERSION_V2, events=(rolled_back,))
+            )
             parsed_stub = SimpleNamespace(
                 meta=SimpleNamespace(
                     source_file="fixture.xlsx",
@@ -355,7 +364,9 @@ class TestF02SyntheticValidation(unittest.TestCase):
                 couples_sections=(),
             )
             with patch("backend.ingestion.service.parse_singles_workbook", return_value=parsed_stub):
-                result = import_excel_into_project(project_path, Path("ignored.xlsx"), series_year=2026, source_type="singles")
+                result = import_excel_into_project(
+                    project_path, Path("ignored.xlsx"), series_year=2026, source_type="singles"
+                )
             self.assertFalse(result.noop)
 
     def test_import_after_partial_source_batch_rollback_is_blocked(self) -> None:
@@ -401,6 +412,8 @@ class TestF02SyntheticValidation(unittest.TestCase):
                 singles_sections=(),
                 couples_sections=(),
             )
-            with patch("backend.ingestion.service.parse_singles_workbook", return_value=parsed_stub):
-                with self.assertRaisesRegex(ValueError, "Teilweiser Reimport-Konflikt"):
-                    import_excel_into_project(project_path, Path("ignored.xlsx"), series_year=2026, source_type="singles")
+            with (
+                patch("backend.ingestion.service.parse_singles_workbook", return_value=parsed_stub),
+                self.assertRaisesRegex(ValueError, "Teilweiser Reimport-Konflikt"),
+            ):
+                import_excel_into_project(project_path, Path("ignored.xlsx"), series_year=2026, source_type="singles")

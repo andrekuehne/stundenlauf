@@ -41,9 +41,7 @@ def to_dict(document: ProjectDocument) -> dict[str, Any]:
     if document.standings is not None:
         out["standings"] = _standings_snapshot_to_dict(document.standings)
     if document.ranking_exclusions:
-        out["ranking_exclusions"] = {
-            ck: sorted(uids) for ck, uids in document.ranking_exclusions
-        }
+        out["ranking_exclusions"] = {ck: sorted(uids) for ck, uids in document.ranking_exclusions}
     return out
 
 
@@ -55,9 +53,7 @@ def from_dict(payload: dict[str, Any]) -> ProjectDocument:
     people = tuple(_person_from_dict(item) for item in payload.get("people", []))
     couples = tuple(_couple_from_dict(item) for item in payload.get("couples", []))
     events = tuple(_event_from_dict(item) for item in payload.get("events", []))
-    matching_decisions = tuple(
-        _matching_decision_from_dict(item) for item in payload.get("matching_decisions", [])
-    )
+    matching_decisions = tuple(_matching_decision_from_dict(item) for item in payload.get("matching_decisions", []))
     standings_raw = payload.get("standings")
     standings = _standings_snapshot_from_dict(standings_raw) if standings_raw is not None else None
     ranking_exclusions = _ranking_exclusions_from_payload(payload.get("ranking_exclusions"))
@@ -257,7 +253,8 @@ def _matching_decision_to_dict(decision: MatchingDecision) -> dict[str, Any]:
         "scope_series_year": decision.scope_series_year,
         "rationale": decision.rationale,
         "field_resolutions": [
-            {"field_name": fr.field_name, "kept_from": fr.kept_from, "value": fr.value} for fr in decision.field_resolutions
+            {"field_name": fr.field_name, "kept_from": fr.kept_from, "value": fr.value}
+            for fr in decision.field_resolutions
         ],
         "feature_scores": dict(decision.feature_scores),
     }
@@ -329,9 +326,7 @@ def _standings_snapshot_from_dict(payload: dict[str, Any]) -> StandingsSnapshot:
     return StandingsSnapshot(
         ruleset_version=str(payload.get("ruleset_version", "")),
         calculated_at=str(payload.get("calculated_at", "")),
-        category_tables=tuple(
-            _category_standings_table_from_dict(item) for item in payload.get("category_tables", [])
-        ),
+        category_tables=tuple(_category_standings_table_from_dict(item) for item in payload.get("category_tables", [])),
     )
 
 
@@ -367,9 +362,7 @@ def _standings_row_from_dict(payload: dict[str, Any]) -> StandingsRow:
         punkte_gesamt=float(payload["punkte_gesamt"]),
         distanz_gesamt=float(payload["distanz_gesamt"]),
         platz=int(payload["platz"]),
-        race_contributions=tuple(
-            _race_contribution_from_dict(item) for item in payload.get("race_contributions", [])
-        ),
+        race_contributions=tuple(_race_contribution_from_dict(item) for item in payload.get("race_contributions", [])),
     )
 
 

@@ -59,9 +59,7 @@ def _comparison_issues(comparison: list[dict[str, object]]) -> tuple[int, int]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Gesamtwertung.xlsx vs project standings (Excel report)."
-    )
+    parser = argparse.ArgumentParser(description="Gesamtwertung.xlsx vs project standings (Excel report).")
     parser.add_argument("--ground-truth", type=Path, required=True, help="Organizer Gesamtwertung *.xlsx")
     parser.add_argument("--project", type=Path, required=True, help="session_project.json")
     parser.add_argument(

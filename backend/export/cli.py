@@ -29,7 +29,7 @@ def main() -> None:
 
         def _event_category_key(e: dict) -> str:
             c = e["category"]
-            return f'{c["year"]}:{c["duration"]}:{c["division"]}'
+            return f"{c['year']}:{c['duration']}:{c['division']}"
 
         cats: list[str] = sorted({_event_category_key(e) for e in payload.get("events", [])})
         if not cats:

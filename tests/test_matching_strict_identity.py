@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import typing
 import unittest
 
 from backend.domain.enums import Division, Gender, RaceDuration
@@ -125,9 +126,7 @@ class TestStrictIdentityHelpers(unittest.TestCase):
                 club_normalized="tsv",
             ),
         )
-        self.assertTrue(
-            couple_matches_strict_row(row, gender_a=Gender.M, gender_b=Gender.F, couple=team)
-        )
+        self.assertTrue(couple_matches_strict_row(row, gender_a=Gender.M, gender_b=Gender.F, couple=team))
 
     def test_couple_matches_strict_row_negative(self) -> None:
         row = ImportRowCouples(
@@ -161,13 +160,11 @@ class TestStrictIdentityHelpers(unittest.TestCase):
                 club_normalized="other",
             ),
         )
-        self.assertFalse(
-            couple_matches_strict_row(row, gender_a=Gender.M, gender_b=Gender.F, couple=team)
-        )
+        self.assertFalse(couple_matches_strict_row(row, gender_a=Gender.M, gender_b=Gender.F, couple=team))
 
 
 class TestStrictWorkflowIntegration(unittest.TestCase):
-    _SOURCE_META = {
+    _SOURCE_META: typing.ClassVar[dict[str, str]] = {
         "source_file": "t.xlsx",
         "source_sha256": "sha",
         "imported_at": "2026-01-01T12:00:00+00:00",
