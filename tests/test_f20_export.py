@@ -139,6 +139,39 @@ class TestExportSpec(unittest.TestCase):
         spec = ExportSpec.from_dict(raw)
         self.assertTrue(spec.pdf.page_break_before_each_category)
 
+    def test_pdf_layout_preset_unknown_raises(self) -> None:
+        raw = {
+            "format": "pdf",
+            "categories": [_ck()],
+            "columns": ["minimal"],
+            "pdf": {"layout_preset": "no_such_preset"},
+        }
+        with self.assertRaises(ValueError) as ctx:
+            ExportSpec.from_dict(raw)
+        self.assertIn("layout_preset", str(ctx.exception))
+
+    def test_pdf_layout_preset_merge_and_override(self) -> None:
+        raw = {
+            "format": "pdf",
+            "categories": [_ck()],
+            "columns": ["minimal"],
+            "pdf": {"layout_preset": "compact", "margin_left_cm": 2.0},
+        }
+        spec = ExportSpec.from_dict(raw)
+        self.assertEqual(spec.pdf.margin_left_cm, 2.0)
+        self.assertEqual(spec.pdf.margin_right_cm, 1.0)
+        self.assertEqual(spec.pdf.table_font_size, 8)
+
+    def test_pdf_laufuebersicht_result_font_extra_pt_from_dict(self) -> None:
+        raw = {
+            "format": "pdf",
+            "categories": [_ck()],
+            "columns": ["laufuebersicht_board"],
+            "pdf": {"table_layout": "laufuebersicht", "laufuebersicht_result_font_extra_pt": 2},
+        }
+        spec = ExportSpec.from_dict(raw)
+        self.assertEqual(spec.pdf.laufuebersicht_result_font_extra_pt, 2)
+
 
 class TestCategoryFooterLabel(unittest.TestCase):
     def test_category_footer_label_uses_spelled_divisions(self) -> None:
