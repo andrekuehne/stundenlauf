@@ -19,8 +19,7 @@ from reportlab.platypus.doctemplate import BaseDocTemplate, _doNothing
 from reportlab.platypus.flowables import Flowable
 from reportlab.platypus.frames import Frame
 
-from backend.export.pdf_layout_tokens import laufuebersicht_podium_fill, pdf_layout_tokens
-from backend.export.pdf_layout_tokens import PdfLayoutTokens
+from backend.export.pdf_layout_tokens import PdfLayoutTokens, laufuebersicht_podium_fill, pdf_layout_tokens
 from backend.export.projection import ColumnDef, ExportSection
 from backend.export.spec import ExportSpec, PdfStyleSpec
 
