@@ -6,8 +6,11 @@ from pathlib import Path
 from typing import Any
 
 from backend.app_paths import default_workspace_dir
-from backend.export.gui_pdf_spec import laufuebersicht_einzel_paare_export_specs
-from backend.export.registry import export_standings_to_path
+from backend.export.gui_dual_pdf_export import (
+    DualPdfExportError,
+    InvalidDualPdfDestinationSuffixError,
+    export_gui_laufuebersicht_dual_pdfs,
+)
 from backend.export.spec import normalize_pdf_layout_preset, pdf_layout_preset_catalog
 from backend.matching.config import MatchingConfig
 from backend.storage.repository import JsonProjectRepository
@@ -109,34 +112,19 @@ class UiApiService:
         except ValueError as exc:
             raise validation_error(str(exc)) from exc
         destination_path = Path(path_raw)
-        suffix = destination_path.suffix.lower()
-        if suffix not in ("", ".pdf"):
-            raise validation_error("destination_path must be a base file name or end with .pdf")
-        stem = destination_path.with_suffix("") if suffix == ".pdf" else destination_path
         project_file = self._require_active_project_file()
-        repo = JsonProjectRepository(project_file)
-        doc = repo.load()
         try:
-            spec_einzel, spec_paare = laufuebersicht_einzel_paare_export_specs(doc, layout_preset=layout_preset)
+            written_paths, total_bytes = export_gui_laufuebersicht_dual_pdfs(
+                project_file, destination_path, layout_preset=layout_preset
+            )
+        except InvalidDualPdfDestinationSuffixError as exc:
+            raise validation_error(str(exc)) from exc
         except ValueError as exc:
             raise validation_error(str(exc)) from exc
-        if spec_einzel is None and spec_paare is None:
-            raise validation_error("PDF-Export: keine Wertungskategorien in der Saison.")
-        out_einzel = stem.parent / f"{stem.name}_einzel.pdf"
-        out_paare = stem.parent / f"{stem.name}_paare.pdf"
-        stem.parent.mkdir(parents=True, exist_ok=True)
-        written: list[str] = []
-        total_bytes = 0
-        if spec_einzel is not None:
-            export_standings_to_path(project_file, spec_einzel, out_einzel)
-            written.append(str(out_einzel))
-            total_bytes += out_einzel.stat().st_size
-        if spec_paare is not None:
-            export_standings_to_path(project_file, spec_paare, out_paare)
-            written.append(str(out_paare))
-            total_bytes += out_paare.stat().st_size
+        except DualPdfExportError as exc:
+            raise validation_error(exc.message_de) from exc
         return {
-            "export_files": written,
+            "export_files": [str(p) for p in written_paths],
             "bytes_written": total_bytes,
         }
 

@@ -8,10 +8,12 @@ import sys
 from pathlib import Path
 
 from backend.app_paths import project_root_dir
-from backend.export.gui_pdf_spec import laufuebersicht_einzel_paare_export_specs
-from backend.export.registry import export_standings_to_path
+from backend.export.gui_dual_pdf_export import (
+    DualPdfExportError,
+    InvalidDualPdfDestinationSuffixError,
+    export_gui_laufuebersicht_dual_pdfs,
+)
 from backend.export.spec import normalize_pdf_layout_preset, pdf_layout_preset_catalog
-from backend.storage.repository import JsonProjectRepository
 
 
 def _default_season_path() -> Path:
@@ -82,34 +84,17 @@ def main(argv: list[str] | None = None) -> None:
     else:
         out_base = (season.parent / "pdftest_export").resolve()
 
-    suffix = out_base.suffix.lower()
-    if suffix not in ("", ".pdf"):
-        print("--output must be a base file name or end with .pdf", file=sys.stderr)
-        raise SystemExit(2)
-    stem = out_base.with_suffix("") if suffix == ".pdf" else out_base
-
-    repo = JsonProjectRepository(season)
-    doc = repo.load()
     try:
-        spec_einzel, spec_paare = laufuebersicht_einzel_paare_export_specs(doc, layout_preset=layout_preset)
+        written, _total = export_gui_laufuebersicht_dual_pdfs(season, out_base, layout_preset=layout_preset)
+    except InvalidDualPdfDestinationSuffixError:
+        print("--output must be a base file name or end with .pdf", file=sys.stderr)
+        raise SystemExit(2) from None
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         raise SystemExit(1) from exc
-
-    if spec_einzel is None and spec_paare is None:
-        print("PDF export: no standings categories in the season.", file=sys.stderr)
-        raise SystemExit(1)
-
-    stem.parent.mkdir(parents=True, exist_ok=True)
-    written: list[Path] = []
-    if spec_einzel is not None:
-        path_e = stem.parent / f"{stem.name}_einzel.pdf"
-        export_standings_to_path(season, spec_einzel, path_e)
-        written.append(path_e)
-    if spec_paare is not None:
-        path_p = stem.parent / f"{stem.name}_paare.pdf"
-        export_standings_to_path(season, spec_paare, path_p)
-        written.append(path_p)
+    except DualPdfExportError as exc:
+        print(exc.message_en, file=sys.stderr)
+        raise SystemExit(1) from exc
 
     preset_note = layout_preset or "default (standard)"
     print(json.dumps({"preset": preset_note, "files": [str(p) for p in written]}, ensure_ascii=False))

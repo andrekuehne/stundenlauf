@@ -15,6 +15,7 @@ from backend.domain.models import (
     RaceEvent,
     RaceSeriesCategory,
 )
+from backend.export.gui_dual_pdf_export import InvalidDualPdfDestinationSuffixError, export_gui_laufuebersicht_dual_pdfs
 from backend.export.gui_pdf_spec import laufuebersicht_einzel_paare_export_specs
 from backend.export.pdftest_cli import main as pdftest_main
 from backend.export.projection import build_export_sections
@@ -30,6 +31,7 @@ from backend.export.spec import (
 )
 from backend.ranking.engine import recompute_project_standings
 from backend.standings_display import category_footer_label, export_pdf_category_title
+from backend.storage.repository import JsonProjectRepository
 from backend.storage.schema_v2 import SCHEMA_VERSION_V2
 from backend.ui_api import queries
 
@@ -199,6 +201,52 @@ class TestExportSpec(unittest.TestCase):
         self.assertEqual(spec_a.pdf.orientation, spec_b.pdf.orientation)
         self.assertEqual(spec_a.pdf.margin_left_cm, spec_b.pdf.margin_left_cm)
 
+    def test_pdf_laufuebersicht_result_font_extra_pt_from_dict(self) -> None:
+        raw = {
+            "format": "pdf",
+            "categories": [_ck()],
+            "columns": ["laufuebersicht_board"],
+            "pdf": {"table_layout": "laufuebersicht", "laufuebersicht_result_font_extra_pt": 2},
+        }
+        spec = ExportSpec.from_dict(raw)
+        self.assertEqual(spec.pdf.laufuebersicht_result_font_extra_pt, 2)
+
+
+class TestGuiDualPdfExport(unittest.TestCase):
+    def test_rejects_bad_destination_suffix(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "session_project.json"
+            JsonProjectRepository(project_path).save(_minimal_doc_one_category())
+            with self.assertRaises(InvalidDualPdfDestinationSuffixError):
+                export_gui_laufuebersicht_dual_pdfs(project_path, Path(temp_dir) / "out.txt")
+
+    def test_writes_einzel_matches_bytes_and_path(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "session_project.json"
+            JsonProjectRepository(project_path).save(_minimal_doc_one_category())
+            out_base = Path(temp_dir) / "report"
+            written, total = export_gui_laufuebersicht_dual_pdfs(project_path, out_base)
+            self.assertEqual(len(written), 1)
+            self.assertEqual(written[0], Path(temp_dir) / "report_einzel.pdf")
+            self.assertEqual(total, written[0].stat().st_size)
+            self.assertEqual(written[0].read_bytes()[:4], b"%PDF")
+
+    def test_pdf_suffix_stripped_for_stem(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "session_project.json"
+            JsonProjectRepository(project_path).save(_minimal_doc_one_category())
+            written, _ = export_gui_laufuebersicht_dual_pdfs(project_path, Path(temp_dir) / "x.pdf")
+            self.assertEqual(written[0].name, "x_einzel.pdf")
+
 
 class TestNormalizePdfLayoutPreset(unittest.TestCase):
     def test_empty_and_default(self) -> None:
@@ -229,7 +277,6 @@ class TestPdfTestCli(unittest.TestCase):
         from backend.domain.enums import Division, Gender, RaceDuration
         from backend.domain.models import EntryResult, Person, ProjectDocument, RaceEntry, RaceEvent, RaceSeriesCategory
         from backend.ranking.engine import recompute_project_standings
-        from backend.storage.repository import JsonProjectRepository
         from backend.storage.schema_v2 import SCHEMA_VERSION_V2
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -262,16 +309,6 @@ class TestPdfTestCli(unittest.TestCase):
             out_einzel = Path(temp_dir) / "out_einzel.pdf"
             self.assertTrue(out_einzel.exists())
             self.assertEqual(out_einzel.read_bytes()[:4], b"%PDF")
-
-    def test_pdf_laufuebersicht_result_font_extra_pt_from_dict(self) -> None:
-        raw = {
-            "format": "pdf",
-            "categories": [_ck()],
-            "columns": ["laufuebersicht_board"],
-            "pdf": {"table_layout": "laufuebersicht", "laufuebersicht_result_font_extra_pt": 2},
-        }
-        spec = ExportSpec.from_dict(raw)
-        self.assertEqual(spec.pdf.laufuebersicht_result_font_extra_pt, 2)
 
 
 class TestCategoryFooterLabel(unittest.TestCase):

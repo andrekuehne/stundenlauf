@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-12 - Shared `export_gui_laufuebersicht_dual_pdfs` for GUI API and `pdftest`
+- Requirement/Milestone: [R5, R7; M5 / F20]
+- What shipped: Dual Laufübersicht PDF write path (stem normalization, mkdir, Einzel/Paare filenames, `export_standings_to_path`) lives in `backend/export/gui_dual_pdf_export.py` and is used by `UiApiService._export_standings_pdf` and `pdftest_cli`; tests cover the helper and fix a misplaced `TestExportSpec` method.
+- Evidence: `backend/export/gui_dual_pdf_export.py`, `backend/ui_api/service.py`, `backend/export/pdftest_cli.py`, `tests/test_f20_export.py`; `uv run pytest`
+- Impact: Future export orchestration changes stay single-edit; layout remains in `gui_pdf_spec` + renderer.
+- Follow-up: none
+
 ### 2026-04-12 - CLI `pdftest`: GUI-equivalent dual Laufübersicht PDF from session JSON
 - Requirement/Milestone: [R5, R7; M5 / F20]
 - What shipped: Console entry `pdftest` (`uv run pdftest`) builds the same **Einzel** / **Paare** Laufübersicht PDF pair as `export_standings_pdf`, defaulting to `example/stundenlauf-2025.stundenlauf-season/session_project.json` and writing `pdftest_export_{einzel,paare}.pdf` beside it. `normalize_pdf_layout_preset` aligns API/CLI/GUI preset handling (`default` / label substring). Docs: `docs/api/ui-api-v1.md`.
