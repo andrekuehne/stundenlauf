@@ -70,6 +70,8 @@
     standingsMergeMode: false,
     mergeSurvivor: null,
     mergeAbsorbed: null,
+    pdfExportLayoutPresets: null,
+    pdfExportLayoutPresetId: "default",
   };
 
   let requestCounter = 0;
@@ -731,11 +733,51 @@
     }
   }
 
+  const PDF_LAYOUT_PRESET_LS = "stundenlauf_pdf_layout_preset";
+
+  function syncPdfLayoutPresetFromStorage(validIds) {
+    if (!validIds || !validIds.size) {
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(PDF_LAYOUT_PRESET_LS);
+      if (raw) {
+        const id = String(raw).trim().toLowerCase();
+        if (validIds.has(id)) {
+          state.pdfExportLayoutPresetId = id;
+          return;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    if (!validIds.has(state.pdfExportLayoutPresetId)) {
+      state.pdfExportLayoutPresetId = validIds.has("default") ? "default" : Array.from(validIds)[0];
+    }
+  }
+
   function wireStandingsPdfExport() {
     const st = STR.standings;
     const buttons = standingsView.querySelectorAll("button[data-export-standings-pdf]");
     if (!buttons.length) {
       return;
+    }
+    for (const sel of standingsView.querySelectorAll(".pdf-layout-preset-select")) {
+      sel.value = state.pdfExportLayoutPresetId || "default";
+      sel.addEventListener("change", () => {
+        const v = String(sel.value || "").trim().toLowerCase();
+        state.pdfExportLayoutPresetId = v || "default";
+        try {
+          localStorage.setItem(PDF_LAYOUT_PRESET_LS, state.pdfExportLayoutPresetId);
+        } catch {
+          /* ignore */
+        }
+        for (const other of standingsView.querySelectorAll(".pdf-layout-preset-select")) {
+          if (other !== sel) {
+            other.value = state.pdfExportLayoutPresetId;
+          }
+        }
+      });
     }
     const onClick = async () => {
       const year = state.seriesYear;
@@ -749,7 +791,10 @@
       if (!destinationPath) {
         return;
       }
-      const exported = await api("export_standings_pdf", { destination_path: destinationPath });
+      const preset = String(state.pdfExportLayoutPresetId || "default").trim().toLowerCase();
+      const exportPayload =
+        preset && preset !== "default" ? { destination_path: destinationPath, layout_preset: preset } : { destination_path: destinationPath };
+      const exported = await api("export_standings_pdf", exportPayload);
       if (exported.status === "error") {
         setStatus(getApiErrorMessage(exported.error, st.exportPdfFailed), true);
         return;
@@ -766,6 +811,18 @@
     const preserveStandingsScroll = Boolean(options.preserveStandingsScroll);
     const st = STR.standings;
     const sid = st.identity;
+    if (!state.pdfExportLayoutPresets) {
+      const presetRes = await api("list_pdf_export_layout_presets", {});
+      if (presetRes.status === "ok" && presetRes.payload && Array.isArray(presetRes.payload.presets)) {
+        state.pdfExportLayoutPresets = presetRes.payload.presets;
+      }
+    }
+    const presetIds = new Set(
+      (state.pdfExportLayoutPresets || [])
+        .map((p) => String(p.id || "").trim().toLowerCase())
+        .filter(Boolean)
+    );
+    syncPdfLayoutPresetFromStorage(presetIds);
     const importedRaceInfo = buildImportedRaceInfo();
     const quickSelectModel = buildCategoryQuickSelectModel();
     const renderQuickGrid = (groupKey) =>
@@ -795,8 +852,7 @@
               <div class="category-grid category-grid--paare">${renderQuickGrid("paare")}</div>
             </div>
             <div class="sidebar-section">
-              <h3>${st.exportSectionTitle}</h3>
-              <button type="button" class="secondary sidebar-top-action" data-export-standings-pdf title="${st.exportPdfSaveHint}">${st.exportPdfButton}</button>
+              ${renderPdfExportSidebarBlock(st)}
             </div>
           </aside>
           <div class="standings-content">
@@ -945,8 +1001,7 @@
               <div class="category-grid category-grid--paare">${renderQuickGrid("paare")}</div>
             </div>
             <div class="sidebar-section">
-              <h3>${st.exportSectionTitle}</h3>
-              <button type="button" class="secondary sidebar-top-action" data-export-standings-pdf title="${st.exportPdfSaveHint}">${st.exportPdfButton}</button>
+              ${renderPdfExportSidebarBlock(st)}
             </div>
         </aside>
         <div class="standings-content">
@@ -1046,6 +1101,31 @@
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  function renderPdfExportSidebarBlock(st) {
+    const presets = state.pdfExportLayoutPresets;
+    const button = `<button type="button" class="secondary sidebar-top-action" data-export-standings-pdf title="${escapeHtml(st.exportPdfSaveHint)}">${st.exportPdfButton}</button>`;
+    if (!presets || !presets.length) {
+      return `<h3>${st.exportSectionTitle}</h3>${button}`;
+    }
+    const selId = state.pdfExportLayoutPresetId || "default";
+    const opts = presets
+      .map((p) => {
+        const id = escapeHtml(p.id || "");
+        const lab = escapeHtml(p.label_de || p.id || "");
+        const sel = p.id === selId ? " selected" : "";
+        return `<option value="${id}"${sel}>${lab}</option>`;
+      })
+      .join("");
+    const aria = escapeHtml(st.exportPdfLayoutAria);
+    const label = escapeHtml(st.exportPdfLayoutLabel);
+    return `<h3>${st.exportSectionTitle}</h3>
+      <div class="pdf-export-layout-row">
+        <span class="pdf-export-layout-label">${label}</span>
+        <select class="pdf-layout-preset-select" aria-label="${aria}">${opts}</select>
+      </div>
+      ${button}`;
   }
 
   function identityYobBounds() {

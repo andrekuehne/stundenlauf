@@ -645,6 +645,77 @@ class TestF08UiApi(unittest.TestCase):
             self.assertEqual(manifest["schema_version"], SCHEMA_VERSION_V2)
             self.assertEqual(manifest["sha256_session_project"], hashlib.sha256(session_bytes).hexdigest())
 
+    def test_list_pdf_export_layout_presets_returns_catalog(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "session_project.json"
+            _seed_project_for_year(project_path, 2026)
+            service = UiApiService(project_path)
+            res = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_pdf_presets",
+                    "method": "list_pdf_export_layout_presets",
+                    "payload": {},
+                }
+            )
+            self.assertEqual(res["status"], "ok")
+            presets = res["payload"]["presets"]
+            self.assertIsInstance(presets, list)
+            ids = {p["id"] for p in presets}
+            self.assertIn("default", ids)
+            self.assertIn("compact", ids)
+            self.assertTrue(all("label_de" in p for p in presets))
+
+    def test_export_standings_pdf_rejects_unknown_layout_preset(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "session_project.json"
+            _seed_project_for_year(project_path, 2026)
+            service = UiApiService(project_path)
+            exported = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_export_pdf_bad_preset",
+                    "method": "export_standings_pdf",
+                    "payload": {"destination_path": str(Path(temp_dir) / "out"), "layout_preset": "not_a_real_preset"},
+                }
+            )
+            self.assertEqual(exported["status"], "error")
+            self.assertEqual(exported["error"]["code"], "VALIDATION_ERROR")
+
+    def test_export_standings_pdf_accepts_default_layout_preset(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "session_project.json"
+            _seed_project_for_year(project_path, 2026)
+            service = UiApiService(project_path)
+            out_base = Path(temp_dir) / "wertung"
+            exported = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_export_pdf_default_preset",
+                    "method": "export_standings_pdf",
+                    "payload": {"destination_path": str(out_base), "layout_preset": "default"},
+                }
+            )
+            self.assertEqual(exported["status"], "ok")
+            self.assertTrue((Path(temp_dir) / "wertung_einzel.pdf").exists())
+
+    def test_export_standings_pdf_accepts_label_substring_layout_preset(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "session_project.json"
+            _seed_project_for_year(project_path, 2026)
+            service = UiApiService(project_path)
+            out_base = Path(temp_dir) / "wertung"
+            exported = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_export_pdf_label_preset",
+                    "method": "export_standings_pdf",
+                    "payload": {"destination_path": str(out_base), "layout_preset": "kompakt"},
+                }
+            )
+            self.assertEqual(exported["status"], "ok")
+            self.assertTrue((Path(temp_dir) / "wertung_einzel.pdf").exists())
+
     def test_export_standings_pdf_writes_pdf(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project_path = Path(temp_dir) / "session_project.json"

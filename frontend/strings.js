@@ -158,6 +158,8 @@
       sidebarSingles: "Einzel",
       sidebarCouples: "Paare",
       exportSectionTitle: "Export",
+      exportPdfLayoutLabel: "PDF-Layout",
+      exportPdfLayoutAria: "Layout für den PDF-Export wählen",
       exportPdfButton: "Wertungen als PDF speichern",
       exportPdfSaveHint:
         "Basisname ohne Endung wählen (Dateityp „Alle Dateien“). " +

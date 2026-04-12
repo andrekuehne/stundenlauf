@@ -17,6 +17,7 @@ dependencies = [
 [project.scripts]
 gui = "main:stundenlauf_gui"
 build_windows = "win_bundle.build:main"
+pdftest = "backend.export.pdftest_cli:main"
 
 [tool.uv]
 package = true

@@ -17,6 +17,41 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-12 - Shared `export_gui_laufuebersicht_dual_pdfs` for GUI API and `pdftest`
+- Requirement/Milestone: [R5, R7; M5 / F20]
+- What shipped: Dual Laufübersicht PDF write path (stem normalization, mkdir, Einzel/Paare filenames, `export_standings_to_path`) lives in `backend/export/gui_dual_pdf_export.py` and is used by `UiApiService._export_standings_pdf` and `pdftest_cli`; tests cover the helper and fix a misplaced `TestExportSpec` method.
+- Evidence: `backend/export/gui_dual_pdf_export.py`, `backend/ui_api/service.py`, `backend/export/pdftest_cli.py`, `tests/test_f20_export.py`; `uv run pytest`
+- Impact: Future export orchestration changes stay single-edit; layout remains in `gui_pdf_spec` + renderer.
+- Follow-up: none
+
+### 2026-04-12 - CLI `pdftest`: GUI-equivalent dual Laufübersicht PDF from session JSON
+- Requirement/Milestone: [R5, R7; M5 / F20]
+- What shipped: Console entry `pdftest` (`uv run pdftest`) builds the same **Einzel** / **Paare** Laufübersicht PDF pair as `export_standings_pdf`, defaulting to `example/stundenlauf-2025.stundenlauf-season/session_project.json` and writing `pdftest_export_{einzel,paare}.pdf` beside it. `normalize_pdf_layout_preset` aligns API/CLI/GUI preset handling (`default` / label substring). Docs: `docs/api/ui-api-v1.md`.
+- Evidence: `backend/export/pdftest_cli.py`, `backend/export/spec.py`, `backend/export/gui_pdf_spec.py`, `backend/ui_api/service.py`, `pyproject.toml`, `tests/test_f20_export.py`, `tests/test_f08_ui_api.py`; `uv run pytest`
+- Impact: Developers can regression-check PDF output from fixtures without launching the desktop shell.
+- Follow-up: none
+
+### 2026-04-12 - Compact PDF preset: portrait, minimal margins, denser table rows
+- Requirement/Milestone: [R5, R7; M5 / F20]
+- What shipped: `layout_preset: compact` now targets **minimum page count**: A4 **portrait**, ~0.45 cm page margins, small section/cover/footer typography, **5 pt** table type with **`table_plain_leading_extra_pt` 1** so line height clears horizontal rules, **`lauf_result_leading_extra_pt` 0**, tight cell padding, **narrower** km/Pkt./Punkte/km totals so **Name & Verein** flex wider, reduced `table_width_extra_margin_cm`, **lighter Laufübersicht double rules** (`double_rule_weight_pt` / `double_rule_gap_pt`), and configurable **`table_cell_*_padding_pt`** on all tables. GUI Laufübersicht uses **portrait when compact** is selected (default export stays landscape).
+- Evidence: `backend/export/spec.py` (`PDF_LAYOUT_PRESETS["compact"]`, new padding fields on `PdfStyleSpec`), `backend/export/pdf_layout_tokens.py`, `backend/export/pdf_renderer.py`, `backend/export/gui_pdf_spec.py`, `docs/api/ui-api-v1.md`, `tests/test_f20_export.py`; `uv run pytest`
+- Impact: Organizers who pick **Kompakt** get fewer printed pages at the cost of readability.
+- Follow-up: none
+
+### 2026-04-12 - PDF export: centralized layout tokens and named layout presets
+- Requirement/Milestone: [R5, R7; M5 / F20]
+- What shipped: Visual PDF parameters (margins, section/cover typography, logo size, table line weights, Laufübersicht colors, column width scale, zebra/podium RGB) live on `PdfStyleSpec` and resolve through `backend/export/pdf_layout_tokens.py` for `pdf_renderer`. Export JSON may set `pdf.layout_preset` (`default`, `compact`, …) merged with per-export overrides; `laufuebersicht_result_font_extra_pt` now scales Laufübersicht body/result text.
+- Evidence: `backend/export/pdf_layout_tokens.py`, `backend/export/spec.py` (`PDF_LAYOUT_PRESETS`), `backend/export/pdf_renderer.py`, `tests/test_f20_export.py`; `uv run pytest`
+- Impact: Organizers can add or switch print styles without touching projection or table data; defaults match the previous hard-coded look.
+- Follow-up: none
+
+### 2026-04-12 - Desktop GUI: PDF layout preset for Laufübersicht export
+- Requirement/Milestone: [R5, R8; M5 / F20]
+- What shipped: **Aktuelle Wertung** sidebar **Export** includes a **PDF-Layout** dropdown (German labels from `pdf_layout_preset_catalog`); choice is persisted in `localStorage` and passed as `layout_preset` to `export_standings_pdf`. New API `list_pdf_export_layout_presets` returns the catalog; `gui_pdf_spec` threads the preset into both Einzel/Paare specs.
+- Evidence: `backend/export/spec.py` (`pdf_layout_preset_catalog`, `PDF_LAYOUT_PRESET_LABELS_DE`), `backend/export/gui_pdf_spec.py`, `backend/ui_api/service.py`, `frontend/app.js`, `frontend/strings.js`, `frontend/styles.css`, `docs/api/ui-api-v1.md`, `tests/test_f08_ui_api.py`; `uv run pytest`
+- Impact: Organizers pick a print style in-app without editing JSON or CLI.
+- Follow-up: Optional advanced panel for raw layout fields if needed later.
+
 ### 2026-04-11 - GUI Laufübersicht: dual PDF (Einzel/Paare), continuous numbering, save-dialog filters
 - Requirement/Milestone: [R5, R7; M5]
 - What shipped: `export_standings_pdf` writes `{base}_einzel.pdf` and `{base}_paare.pdf` from a user-chosen base path; Paare section titles continue the Einzel numbering; year + Hinweis appear on both; first category table follows the Hinweis on the same page (no forced page break after the cover). `pick_save_file` accepts `dialog_kind` (`season_zip` vs `pdf`) so the season export keeps a `.zip` filter and the PDF flow uses PDF / all-files filters. API returns `export_files` plus total `bytes_written`.

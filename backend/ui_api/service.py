@@ -6,8 +6,12 @@ from pathlib import Path
 from typing import Any
 
 from backend.app_paths import default_workspace_dir
-from backend.export.gui_pdf_spec import laufuebersicht_einzel_paare_export_specs
-from backend.export.registry import export_standings_to_path
+from backend.export.gui_dual_pdf_export import (
+    DualPdfExportError,
+    InvalidDualPdfDestinationSuffixError,
+    export_gui_laufuebersicht_dual_pdfs,
+)
+from backend.export.spec import normalize_pdf_layout_preset, pdf_layout_preset_catalog
 from backend.matching.config import MatchingConfig
 from backend.storage.repository import JsonProjectRepository
 from backend.ui_api import commands, queries, workspace
@@ -49,6 +53,7 @@ class UiApiService:
             "reset_series_year": lambda payload: workspace.reset_series_year(self.workspace_dir, payload),
             "export_series_year": lambda payload: workspace.export_series_year(self.workspace_dir, payload),
             "export_standings_pdf": lambda payload: self._export_standings_pdf(payload),
+            "list_pdf_export_layout_presets": lambda payload: self._list_pdf_export_layout_presets(payload),
             "import_series_year": lambda payload: self._import_series_year(payload),
             "get_matching_config": lambda payload: self._get_matching_config(payload),
             "set_matching_config": lambda payload: self._set_matching_config(payload),
@@ -91,39 +96,35 @@ class UiApiService:
             raise ValueError(f"Unknown method: {req.method}")
         return handler(req.payload)
 
+    def _list_pdf_export_layout_presets(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {"presets": pdf_layout_preset_catalog()}
+
     def _export_standings_pdf(self, payload: dict[str, Any]) -> dict[str, Any]:
         path_raw = str(payload.get("destination_path", "")).strip()
         if not path_raw:
             raise validation_error("destination_path is required")
-        destination_path = Path(path_raw)
-        suffix = destination_path.suffix.lower()
-        if suffix not in ("", ".pdf"):
-            raise validation_error("destination_path must be a base file name or end with .pdf")
-        stem = destination_path.with_suffix("") if suffix == ".pdf" else destination_path
-        project_file = self._require_active_project_file()
-        repo = JsonProjectRepository(project_file)
-        doc = repo.load()
+        layout_raw = payload.get("layout_preset")
+        if layout_raw is not None and not isinstance(layout_raw, str):
+            raise validation_error("layout_preset must be a string or null")
+        preset_raw = None if layout_raw is None else str(layout_raw).strip() or None
         try:
-            spec_einzel, spec_paare = laufuebersicht_einzel_paare_export_specs(doc)
+            layout_preset = normalize_pdf_layout_preset(preset_raw)
         except ValueError as exc:
             raise validation_error(str(exc)) from exc
-        if spec_einzel is None and spec_paare is None:
-            raise validation_error("PDF-Export: keine Wertungskategorien in der Saison.")
-        out_einzel = stem.parent / f"{stem.name}_einzel.pdf"
-        out_paare = stem.parent / f"{stem.name}_paare.pdf"
-        stem.parent.mkdir(parents=True, exist_ok=True)
-        written: list[str] = []
-        total_bytes = 0
-        if spec_einzel is not None:
-            export_standings_to_path(project_file, spec_einzel, out_einzel)
-            written.append(str(out_einzel))
-            total_bytes += out_einzel.stat().st_size
-        if spec_paare is not None:
-            export_standings_to_path(project_file, spec_paare, out_paare)
-            written.append(str(out_paare))
-            total_bytes += out_paare.stat().st_size
+        destination_path = Path(path_raw)
+        project_file = self._require_active_project_file()
+        try:
+            written_paths, total_bytes = export_gui_laufuebersicht_dual_pdfs(
+                project_file, destination_path, layout_preset=layout_preset
+            )
+        except InvalidDualPdfDestinationSuffixError as exc:
+            raise validation_error(str(exc)) from exc
+        except ValueError as exc:
+            raise validation_error(str(exc)) from exc
+        except DualPdfExportError as exc:
+            raise validation_error(exc.message_de) from exc
         return {
-            "export_files": written,
+            "export_files": [str(p) for p in written_paths],
             "bytes_written": total_bytes,
         }
 

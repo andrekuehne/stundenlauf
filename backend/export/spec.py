@@ -156,6 +156,117 @@ def split_category_keys_einzel_paare(category_keys: Iterable[str]) -> tuple[tupl
     return einzel, paare
 
 
+# Named PDF layout presets (merged under per-export ``pdf`` keys; export keys win). Use ``layout_preset`` in the pdf object.
+PDF_LAYOUT_PRESETS: dict[str, dict[str, Any]] = {
+    "default": {},
+    # Example: tighter page margins and slightly larger table type (data columns unchanged).
+    "compact": {
+        "orientation": "portrait",
+        "margin_left_cm": 0.45,
+        "margin_right_cm": 0.45,
+        "margin_top_cm": 0.45,
+        "margin_bottom_cm": 0.65,
+        "footer_font_size_pt": 5.5,
+        "footer_y_cm": 0.55,
+        "section_title_font_size_pt": 9.0,
+        "section_title_space_after_pt": 1.5,
+        "section_subtitle_font_size_pt": 6.5,
+        "section_subtitle_space_after_pt": 3.0,
+        "cover_year_font_size_pt": 16.0,
+        "cover_year_leading_pt": 18.0,
+        "cover_year_space_after_pt": 6.0,
+        "cover_notice_font_size_pt": 6.5,
+        "cover_notice_leading_pt": 8.5,
+        "cover_spacer_after_cm": 0.2,
+        "table_spacer_after_cm": 0.25,
+        "logo_draw_height_cm": 1.5,
+        "logo_spacer_after_cm": 0.12,
+        "table_font_size": 5,
+        "table_header_font_size": 5,
+        "lauf_result_leading_extra_pt": 0,
+        # Slightly smaller type + leading > fontSize so ascenders/descenders clear horizontal rules.
+        "table_plain_leading_extra_pt": 1,
+        "table_cell_horizontal_padding_pt": 2.0,
+        "table_cell_vertical_padding_pt": 0.45,
+        "table_width_extra_margin_cm": 0.8,
+        "narrow_platz_cm": 0.72,
+        "narrow_punkte_gesamt_cm": 0.82,
+        "narrow_distanz_gesamt_cm": 0.88,
+        "narrow_laufuebersicht_km_pkt_cm": 0.88,
+        # Thinner double rules (header/body + vertical before Gesamt) to match small type.
+        "double_rule_weight_pt": 0.45,
+        "double_rule_gap_pt": 0.5,
+    },
+}
+
+# German labels for GUI / API catalog (keys must match ``PDF_LAYOUT_PRESETS``).
+PDF_LAYOUT_PRESET_LABELS_DE: dict[str, str] = {
+    "default": "Standard",
+    "compact": "Kompakt (Hochformat, wenig Weißraum, kleine Schrift)",
+}
+
+
+def pdf_layout_preset_catalog() -> list[dict[str, str]]:
+    """Stable-ordered options for desktop PDF export (id + German label)."""
+    preferred = ("default", "compact")
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for k in preferred:
+        if k in PDF_LAYOUT_PRESETS:
+            ordered.append(k)
+            seen.add(k)
+    for k in sorted(PDF_LAYOUT_PRESETS):
+        if k not in seen:
+            ordered.append(k)
+    return [{"id": key, "label_de": PDF_LAYOUT_PRESET_LABELS_DE.get(key, key)} for key in ordered]
+
+
+def normalize_pdf_layout_preset(raw: str | None) -> str | None:
+    """Resolve a user-facing preset string to a ``PDF_LAYOUT_PRESETS`` key or ``None`` (standard layout).
+
+    Matches desktop GUI behavior: ``default`` / empty / whitespace only omits ``layout_preset`` in the export
+    spec. Accepts preset ids (case-insensitive) or a substring of a German catalog label (case-insensitive).
+    """
+
+    if raw is None:
+        return None
+    key = str(raw).strip().lower()
+    if not key or key in ("default", "standard"):
+        return None
+    if key in PDF_LAYOUT_PRESETS:
+        return key
+    for preset_id, label_de in PDF_LAYOUT_PRESET_LABELS_DE.items():
+        if key in label_de.lower():
+            return preset_id
+    known = ", ".join(sorted(PDF_LAYOUT_PRESETS))
+    raise ValueError(f"Unknown PDF layout preset {raw!r}; use one of: {known} (see also --list-presets).")
+
+
+def _pdf_opt_float(raw: dict[str, Any], key: str, default: float) -> float:
+    if key not in raw:
+        return default
+    return float(raw[key])
+
+
+def _pdf_opt_int(raw: dict[str, Any], key: str, default: int) -> int:
+    if key not in raw:
+        return default
+    return int(raw[key])
+
+
+def _pdf_opt_rgb(raw: dict[str, Any], key: str, default: tuple[int, int, int]) -> tuple[int, int, int]:
+    if key not in raw:
+        return default
+    v = raw[key]
+    if not isinstance(v, (list, tuple)) or len(v) != 3:
+        raise ValueError(f"pdf.{key} must be a list of three integers [R, G, B]")
+    r, g, b = (int(v[0]), int(v[1]), int(v[2]))
+    for x in (r, g, b):
+        if x < 0 or x > 255:
+            raise ValueError(f"pdf.{key} channel values must be 0..255")
+    return (r, g, b)
+
+
 # Default main organizer line in PDF footers (overridable via export spec ``pdf.organizer_footer``).
 DEFAULT_PDF_ORGANIZER_FOOTER = "HSG Uni Greifswald Triathlon Laufgruppe"
 
@@ -198,49 +309,106 @@ class PdfStyleSpec:
     laufuebersicht_section_number_start: int = 1
     # Override cover notice body; empty string uses ``DEFAULT_LAUFUEBERSICHT_NOTICE``.
     laufuebersicht_notice: str = ""
+    # --- Layout / visual tokens (optional overrides; defaults match prior pdf_renderer constants) ---
+    margin_left_cm: float = 1.5
+    margin_right_cm: float = 1.5
+    margin_top_cm: float = 1.5
+    margin_bottom_cm: float = 1.8
+    footer_font_size_pt: float = 8.0
+    footer_y_cm: float = 1.0
+    section_title_font_size_pt: float = 14.0
+    section_title_space_after_pt: float = 6.0
+    section_subtitle_font_size_pt: float = 10.0
+    section_subtitle_space_after_pt: float = 12.0
+    cover_year_font_size_pt: float = 26.0
+    cover_year_leading_pt: float = 30.0
+    cover_year_space_after_pt: float = 14.0
+    cover_notice_font_size_pt: float = 10.0
+    cover_notice_leading_pt: float = 13.0
+    cover_spacer_after_cm: float = 0.35
+    table_spacer_after_cm: float = 0.6
+    logo_draw_height_cm: float = 2.0
+    logo_spacer_after_cm: float = 0.2
+    line_thin_pt: float = 0.12
+    line_normal_pt: float = 0.25
+    line_thick_pt: float = 0.75
+    double_rule_weight_pt: float = 0.85
+    double_rule_gap_pt: float = 1.25
+    lauf_sub_header_delta_pt: int = 2
+    lauf_sub_header_min_pt: int = 5
+    lauf_result_leading_extra_pt: int = 2
+    color_line_grey_hex: str = "#808080"
+    color_header_green_hex: str = "#E8F5E9"
+    color_header_run_red_hex: str = "#C62828"
+    color_cover_year_blue_hex: str = "#1565C0"
+    color_band_grey_hex: str = "#f5f5f5"
+    color_zebra_even_rgb: tuple[int, int, int] = (255, 255, 255)
+    color_zebra_odd_rgb: tuple[int, int, int] = (245, 245, 245)
+    color_podium_tint_rgb: tuple[int, int, int] = (200, 220, 255)
+    narrow_platz_cm: float = 0.95
+    narrow_punkte_gesamt_cm: float = 1.15
+    narrow_distanz_gesamt_cm: float = 1.35
+    narrow_laufuebersicht_km_pkt_cm: float = 1.25
+    table_width_extra_margin_cm: float = 3.0
+    # ReportLab default cell padding is 6 pt horizontal / 3 pt vertical; lower = denser rows.
+    table_cell_horizontal_padding_pt: float = 6.0
+    table_cell_vertical_padding_pt: float = 3.0
+    # Extra leading (pt) for plain string table cells; Laufübersicht km/Pkt Paragraphs add this too.
+    # Default 1 matches prior hard-coded hdr/body leading = fontSize + 1.
+    table_plain_leading_extra_pt: int = 1
 
     @staticmethod
     def from_dict(raw: dict[str, Any]) -> PdfStyleSpec:
-        ps = str(raw.get("page_size", "A4")).strip().upper()
+        raw_d = dict(raw)
+        preset_key = str(raw_d.pop("layout_preset", "") or "").strip().lower()
+        base_preset: dict[str, Any] = {}
+        if preset_key:
+            if preset_key not in PDF_LAYOUT_PRESETS:
+                known = ", ".join(sorted(PDF_LAYOUT_PRESETS))
+                raise ValueError(f"pdf.layout_preset must be one of: {known}; got {preset_key!r}")
+            base_preset = dict(PDF_LAYOUT_PRESETS[preset_key])
+        merged: dict[str, Any] = {**base_preset, **raw_d}
+
+        ps = str(merged.get("page_size", "A4")).strip().upper()
         if ps not in ("A4", "A3"):
             raise ValueError(f"pdf.page_size must be A4 or A3, got {ps!r}")
-        ori = str(raw.get("orientation", "landscape")).strip().lower()
+        ori = str(merged.get("orientation", "landscape")).strip().lower()
         if ori not in ("portrait", "landscape"):
             raise ValueError(f"pdf.orientation invalid: {ori!r}")
-        logo = raw.get("logo_path")
-        layout = str(raw.get("table_layout", "flat")).strip().lower()
+        logo = merged.get("logo_path")
+        layout = str(merged.get("table_layout", "flat")).strip().lower()
         if layout not in ("flat", "laufuebersicht"):
             raise ValueError(f"pdf.table_layout must be 'flat' or 'laufuebersicht', got {layout!r}")
-        tfs = raw.get("table_font_size")
-        thfs = raw.get("table_header_font_size")
-        res_extra = raw.get("laufuebersicht_result_font_extra_pt", 0)
-        page_break_cats = bool(raw.get("page_break_before_each_category", False))
-        show_lauf_cover = bool(raw.get("laufuebersicht_show_cover", True))
-        lauf_sec_start = int(raw.get("laufuebersicht_section_number_start", 1))
+        tfs = merged.get("table_font_size")
+        thfs = merged.get("table_header_font_size")
+        res_extra = merged.get("laufuebersicht_result_font_extra_pt", 0)
+        page_break_cats = bool(merged.get("page_break_before_each_category", False))
+        show_lauf_cover = bool(merged.get("laufuebersicht_show_cover", True))
+        lauf_sec_start = int(merged.get("laufuebersicht_section_number_start", 1))
         if lauf_sec_start < 1:
             raise ValueError("pdf.laufuebersicht_section_number_start must be >= 1")
-        lauf_notice = raw.get("laufuebersicht_notice")
+        lauf_notice = merged.get("laufuebersicht_notice")
         lauf_notice_s = str(lauf_notice).strip() if lauf_notice is not None else ""
-        if "organizer_footer" in raw:
-            ov = raw["organizer_footer"]
+        if "organizer_footer" in merged:
+            ov = merged["organizer_footer"]
             organizer_footer = str(ov).strip() if ov is not None else ""
         else:
             organizer_footer = DEFAULT_PDF_ORGANIZER_FOOTER
         return PdfStyleSpec(
             page_size=cast(Any, ps),
             orientation=cast(Any, ori),
-            title=str(raw.get("title", "") or ""),
-            subtitle=str(raw.get("subtitle", "") or ""),
-            show_ruleset_footer=bool(raw.get("show_ruleset_footer", False)),
-            show_category_footer=bool(raw.get("show_category_footer", True)),
-            show_export_timestamp_footer=bool(raw.get("show_export_timestamp_footer", True)),
+            title=str(merged.get("title", "") or ""),
+            subtitle=str(merged.get("subtitle", "") or ""),
+            show_ruleset_footer=bool(merged.get("show_ruleset_footer", False)),
+            show_category_footer=bool(merged.get("show_category_footer", True)),
+            show_export_timestamp_footer=bool(merged.get("show_export_timestamp_footer", True)),
             organizer_footer=organizer_footer,
-            show_organizer_footer=bool(raw.get("show_organizer_footer", True)),
-            show_season_footer=bool(raw.get("show_season_footer", True)),
-            repeat_header=bool(raw.get("repeat_header", True)),
+            show_organizer_footer=bool(merged.get("show_organizer_footer", True)),
+            show_season_footer=bool(merged.get("show_season_footer", True)),
+            repeat_header=bool(merged.get("repeat_header", True)),
             logo_path=str(logo) if logo else None,
-            max_columns=int(raw.get("max_columns", 48)),
-            max_rows_per_category=int(raw.get("max_rows_per_category", 5000)),
+            max_columns=int(merged.get("max_columns", 48)),
+            max_rows_per_category=int(merged.get("max_rows_per_category", 5000)),
             table_layout=cast(TableLayout, layout),
             table_font_size=int(tfs) if tfs is not None else None,
             table_header_font_size=int(thfs) if thfs is not None else None,
@@ -249,6 +417,49 @@ class PdfStyleSpec:
             laufuebersicht_show_cover=show_lauf_cover,
             laufuebersicht_section_number_start=lauf_sec_start,
             laufuebersicht_notice=lauf_notice_s,
+            margin_left_cm=_pdf_opt_float(merged, "margin_left_cm", 1.5),
+            margin_right_cm=_pdf_opt_float(merged, "margin_right_cm", 1.5),
+            margin_top_cm=_pdf_opt_float(merged, "margin_top_cm", 1.5),
+            margin_bottom_cm=_pdf_opt_float(merged, "margin_bottom_cm", 1.8),
+            footer_font_size_pt=_pdf_opt_float(merged, "footer_font_size_pt", 8.0),
+            footer_y_cm=_pdf_opt_float(merged, "footer_y_cm", 1.0),
+            section_title_font_size_pt=_pdf_opt_float(merged, "section_title_font_size_pt", 14.0),
+            section_title_space_after_pt=_pdf_opt_float(merged, "section_title_space_after_pt", 6.0),
+            section_subtitle_font_size_pt=_pdf_opt_float(merged, "section_subtitle_font_size_pt", 10.0),
+            section_subtitle_space_after_pt=_pdf_opt_float(merged, "section_subtitle_space_after_pt", 12.0),
+            cover_year_font_size_pt=_pdf_opt_float(merged, "cover_year_font_size_pt", 26.0),
+            cover_year_leading_pt=_pdf_opt_float(merged, "cover_year_leading_pt", 30.0),
+            cover_year_space_after_pt=_pdf_opt_float(merged, "cover_year_space_after_pt", 14.0),
+            cover_notice_font_size_pt=_pdf_opt_float(merged, "cover_notice_font_size_pt", 10.0),
+            cover_notice_leading_pt=_pdf_opt_float(merged, "cover_notice_leading_pt", 13.0),
+            cover_spacer_after_cm=_pdf_opt_float(merged, "cover_spacer_after_cm", 0.35),
+            table_spacer_after_cm=_pdf_opt_float(merged, "table_spacer_after_cm", 0.6),
+            logo_draw_height_cm=_pdf_opt_float(merged, "logo_draw_height_cm", 2.0),
+            logo_spacer_after_cm=_pdf_opt_float(merged, "logo_spacer_after_cm", 0.2),
+            line_thin_pt=_pdf_opt_float(merged, "line_thin_pt", 0.12),
+            line_normal_pt=_pdf_opt_float(merged, "line_normal_pt", 0.25),
+            line_thick_pt=_pdf_opt_float(merged, "line_thick_pt", 0.75),
+            double_rule_weight_pt=_pdf_opt_float(merged, "double_rule_weight_pt", 0.85),
+            double_rule_gap_pt=_pdf_opt_float(merged, "double_rule_gap_pt", 1.25),
+            lauf_sub_header_delta_pt=_pdf_opt_int(merged, "lauf_sub_header_delta_pt", 2),
+            lauf_sub_header_min_pt=_pdf_opt_int(merged, "lauf_sub_header_min_pt", 5),
+            lauf_result_leading_extra_pt=_pdf_opt_int(merged, "lauf_result_leading_extra_pt", 2),
+            color_line_grey_hex=str(merged.get("color_line_grey_hex", "#808080") or "#808080").strip(),
+            color_header_green_hex=str(merged.get("color_header_green_hex", "#E8F5E9") or "#E8F5E9").strip(),
+            color_header_run_red_hex=str(merged.get("color_header_run_red_hex", "#C62828") or "#C62828").strip(),
+            color_cover_year_blue_hex=str(merged.get("color_cover_year_blue_hex", "#1565C0") or "#1565C0").strip(),
+            color_band_grey_hex=str(merged.get("color_band_grey_hex", "#f5f5f5") or "#f5f5f5").strip(),
+            color_zebra_even_rgb=_pdf_opt_rgb(merged, "color_zebra_even_rgb", (255, 255, 255)),
+            color_zebra_odd_rgb=_pdf_opt_rgb(merged, "color_zebra_odd_rgb", (245, 245, 245)),
+            color_podium_tint_rgb=_pdf_opt_rgb(merged, "color_podium_tint_rgb", (200, 220, 255)),
+            narrow_platz_cm=_pdf_opt_float(merged, "narrow_platz_cm", 0.95),
+            narrow_punkte_gesamt_cm=_pdf_opt_float(merged, "narrow_punkte_gesamt_cm", 1.15),
+            narrow_distanz_gesamt_cm=_pdf_opt_float(merged, "narrow_distanz_gesamt_cm", 1.35),
+            narrow_laufuebersicht_km_pkt_cm=_pdf_opt_float(merged, "narrow_laufuebersicht_km_pkt_cm", 1.25),
+            table_width_extra_margin_cm=_pdf_opt_float(merged, "table_width_extra_margin_cm", 3.0),
+            table_cell_horizontal_padding_pt=_pdf_opt_float(merged, "table_cell_horizontal_padding_pt", 6.0),
+            table_cell_vertical_padding_pt=_pdf_opt_float(merged, "table_cell_vertical_padding_pt", 3.0),
+            table_plain_leading_extra_pt=_pdf_opt_int(merged, "table_plain_leading_extra_pt", 1),
         )
 
     def resolved_laufuebersicht_notice(self) -> str:

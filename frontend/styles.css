@@ -385,6 +385,29 @@ th {
   margin: 6px 0;
 }
 
+.pdf-export-layout-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.pdf-export-layout-label {
+  font-size: var(--font-small);
+  color: var(--text-muted, #555);
+}
+
+.pdf-layout-preset-select {
+  width: 100%;
+  max-width: 100%;
+  font-size: var(--font-small);
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+}
+
 .category-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
