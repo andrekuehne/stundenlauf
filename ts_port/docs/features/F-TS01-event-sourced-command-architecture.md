@@ -1,9 +1,9 @@
-# F-TS01: Event-Sourced Command Architecture
+# F-TS01: Event-Sourced Architecture
 
 ## Overview
 
 - Feature ID: F-TS01
-- Feature name: Event-sourced command architecture for race/team/season data
+- Feature name: Event-sourced architecture for race/team/season data
 - Owner: —
 - Status: Planned
 - Related requirement(s): R1, R2, R3, R5, R7
@@ -18,176 +18,164 @@ The Python version stores the full materialized state (`ProjectDocument`) as a s
 2. Couples storage format tightly to the domain model – any schema change requires a migration.
 3. Treats singles (`Person` + `participant_uid`) and couples (`Couple` + `team_uid`) as structurally different, causing branching logic everywhere.
 
-The TS port replaces this with an **event-sourced / command-sourced** architecture where:
+The TS port replaces this with an **event-sourced** architecture where:
 
-- The **command log** (append-only, ordered) is the single source of truth.
-- The **current state** is a deterministic projection (fold) over all commands.
-- **Teams** are the universal participant entity (size 1 = solo, size 2 = couple), eliminating the Person-vs-Couple split.
-- Identity corrections, rollbacks, and all other mutations are just commands in the same log – no separate audit table.
-- **Matching is external to the data model.** The matching engine (fuzzy scoring, candidate ranking, auto-link thresholds, strict mode, replay of past decisions) is a workflow that runs *before* commands are emitted. Its output is simply "assign entry X to existing team T" or "create new team T and assign entry X to it." Both outcomes are expressed using the same `race.register` and `team.register` commands.
+- The **event log** (append-only, sequenced) is the single source of truth.
+- The **current state** is a deterministic projection (fold) over all events.
+- **Persons** are first-class identities. **Teams** reference persons and are the universal participant entity (size 1 = solo, size 2 = couple), eliminating the Person-vs-Couple split.
+- Identity corrections, rollbacks, and all other mutations are just events in the same log – no separate audit table.
+- **Matching is external to the data model.** The matching engine (fuzzy scoring, candidate ranking, auto-link thresholds, strict mode, replay of past decisions) is a workflow that runs *before* events are emitted. Its output is simply "assign entry X to existing team T" or "create new team T and assign entry X to it." Both outcomes are expressed using the same `race.registered` and `team.registered` events.
 
 ## Scope
 
 ### In Scope
 
-- Define the minimal set of **command types** that can appear in the log.
-- Define the **domain value types** (Team, Person, RaceEvent, Entry, Category, etc.) that the projection produces.
-- Define the **projection function** that folds commands into current state.
-- Define the **storage format** for the command log (JSON, IndexedDB schema).
+- Define the minimal set of **event types** that can appear in the log.
+- Define the **domain value types** (Person, Team, RaceEvent, Entry, Category, etc.) that the projection produces.
+- Define the **projection function** that folds events into current state.
+- Define the **storage format** for the event log (JSON, IndexedDB schema).
 - Define **snapshot** strategy for fast startup (optional cache, never authoritative).
-- Define validation rules per command type.
+- Define validation rules per event type.
 - Establish the boundary: matching logic is **outside** this data model.
+- Define the separation between **workspace-level operations** (season lifecycle) and **season-domain events** (the event log).
 
 ### Out of Scope
 
 - UI framework choice (F-TS02).
 - Excel parsing (separate feature).
-- Matching engine internals (fuzzy scoring, candidate ranking, thresholds, replay heuristics). Matching is a separate workflow module that *produces* commands; it is not part of the command/event model itself.
+- Matching engine internals (fuzzy scoring, candidate ranking, thresholds, replay heuristics). Matching is a separate workflow module that *produces* events; it is not part of the event model itself.
 - PDF/CSV export.
 - Deployment and PWA.
 
 ## Acceptance Criteria
 
-- [ ] All Python-version state mutations are expressible as commands in the log.
-- [ ] A fresh projection from an empty log through any valid command sequence produces the same logical state as the Python version would.
-- [ ] The command log format is forward-compatible: new command types can be added without breaking replay of old logs.
+- [ ] All Python-version state mutations are expressible as events in the log.
+- [ ] A fresh projection from an empty log through any valid event sequence produces the same logical state as the Python version would.
+- [ ] The event log uses a `schema_version`; replay on an unrecognized event type or schema version fails loudly rather than silently skipping.
 - [ ] Solo participants and couples are both represented as Teams with validated member counts.
-- [ ] Standings are a pure derived view (re-computable from commands), never stored as source of truth.
-- [ ] The command log is serializable to/from JSON for file export/import.
+- [ ] Persons are first-class identities: correcting a person updates all teams that reference them.
+- [ ] Standings are a pure derived view (re-computable from events), never stored as source of truth.
+- [ ] The event log is serializable to/from JSON for file export/import.
+- [ ] Season lifecycle operations (create, delete, reset, import) are workspace-level, not events within a season's own log.
 
 ---
 
 ## Technical Plan
 
-### 1. Unified Team Model
+### 1. Person and Team Model
 
-Replace the Python `Person` / `Couple` split with a single `Team` concept:
+Replace the Python `Person` / `Couple` split with two first-class concepts: **PersonIdentity** (individual human) and **Team** (participation unit referencing persons).
 
 ```
-Person {
-  person_id: string       // uuid
-  display_name: string    // as entered
-  given_name: string      // parsed canonical
-  family_name: string     // parsed canonical
+PersonIdentity {
+  person_id: string           // uuid
+  given_name: string          // parsed canonical
+  family_name: string         // parsed canonical
   yob: number
   gender: "M" | "F" | "X"
-  club: string | null
-  club_normalized: string
+  club: string | null         // current club affiliation (can change)
+  club_normalized: string     // normalized for matching/display
 }
 
 Team {
-  team_id: string         // uuid
-  members: Person[]       // length 1 = solo, length 2 = couple
+  team_id: string             // uuid
+  member_person_ids: string[] // references to PersonIdentity; length 1 = solo, length 2 = couple
+  team_kind: "solo" | "couple"
 }
 ```
 
-- Division rules validate team size: `men`/`women` divisions require `members.length === 1`; `couples_*` divisions require `members.length === 2`.
+- Division rules validate team size: `men`/`women` divisions require solo teams; `couples_*` divisions require couple teams.
 - Entries always reference `team_id`. There is no `participant_uid` vs `team_uid` branching.
 - Member order within a couple team is canonical (stored in order, but matching is order-insensitive).
+- Correcting a person's canonical data (`person.corrected`) updates one place; the change is visible through all teams that reference that person.
+- Cross-category or cross-season person linking is **not** in scope for now but is structurally possible because persons are independent of teams.
 
-### 2. Command Types
+### 2. Event Types
 
-Every state change is represented as exactly one command. Commands are **immutable facts** appended to the log. Each command has:
+Every state change is represented as exactly one event. Events are **committed, immutable facts** appended to the log. Each event has:
 
 ```
-CommandEnvelope {
-  command_id: string      // uuid, globally unique
-  timestamp: string       // ISO 8601
-  type: string            // discriminator
-  payload: { ... }        // type-specific
-  metadata?: {            // optional provenance
-    source_file?: string
-    source_sha256?: string
-    parser_version?: string
+EventEnvelope {
+  event_id: string            // uuid, globally unique
+  seq: number                 // monotonic append-order sequence number (authoritative replay order)
+  recorded_at: string         // ISO 8601 (informational, not used for ordering)
+  type: string                // discriminator
+  schema_version: number      // version of this event type's payload schema
+  payload: { ... }            // type-specific
+  metadata: {
+    app_version: string       // version of the app that produced this event
+    import_batch_id?: string  // links to an ImportBatchRecorded event, when applicable
   }
 }
 ```
 
-#### Design Principle: Matching Is Not a Command
+**Replay order** is determined exclusively by `seq`, never by `recorded_at`. Timestamps are human-readable provenance metadata.
+
+**Unknown event types or schema versions** cause replay to **fail** with an explicit error. There is no silent skipping. Forward compatibility (old logs on new code) works naturally because new code understands all old event types. Backward compatibility (new event types on old code) is handled by requiring the user to update the app.
+
+#### Design Principle: Matching Is Not an Event
 
 The Python version has a `matching_decisions` table with 7 kinds of decision (auto, manual_link, manual_reject, replay, identity_correction, identity_merge, ...). This complexity exists because the Python model mixes *what happened to the data* with *how the matching engine arrived at that decision*.
 
-In the TS port, matching is **purely external to the command log**. The matching engine is a workflow that:
-1. Reads the current projected state (existing teams) and the raw incoming Excel rows.
+In the TS port, matching is **purely external to the event log**. The matching engine is a workflow that:
+1. Reads the current projected state (existing persons and teams) and the raw incoming Excel rows.
 2. Decides, for each row: "this is existing team T" or "this needs a new team."
-3. Emits plain `race.register` and `team.register` commands as output.
+3. Emits plain `race.registered` and `team.registered` / `person.registered` events as output.
 
-The *how* (fuzzy scores, candidate lists, auto-link thresholds, strict mode, replay of fingerprint decisions) is the matching engine's internal concern. It may store its own working state (candidate rankings, rejection preferences, replay hints) outside the command log — in a UI preferences store or ephemerally in memory. None of that is season data.
+The *how* (fuzzy scores, candidate lists, auto-link thresholds, strict mode, replay of fingerprint decisions) is the matching engine's internal concern. It may store its own working state (candidate rankings, rejection preferences, replay hints) outside the event log — in a UI preferences store or ephemerally in memory. None of that is season data.
 
 **What about the review queue?** In the Python version, some entries land in a "review" state after import — provisionally linked to a best-guess candidate, awaiting user confirmation. Two clean approaches:
 
-- **Eager resolution (preferred):** The import workflow does not emit `race.register` until every entry is fully resolved. Parsing + matching + user review is a staging process. Only once the user has confirmed all assignments does the atomic `race.register` command go into the log with every entry carrying a definitive `team_id`. This means the command log never contains half-resolved state.
-- **Deferred resolution (fallback):** Emit `race.register` with `team_id: null` on unresolved entries, then use a single `entry.assign_team` command when the user resolves them. Still just one extra command type, not seven.
+- **Eager resolution (preferred):** The import workflow does not emit `race.registered` until every entry is fully resolved. Parsing + matching + user review is a staging process. Only once the user has confirmed all assignments does the atomic `race.registered` event go into the log with every entry carrying a definitive `team_id`. This means the event log never contains half-resolved state.
+- **Deferred resolution (fallback):** Emit `race.registered` with `team_id: null` on unresolved entries, then use a single `entry.reassigned` event when the user resolves them. Still just one extra event type, not seven.
 
-We will proceed with **eager resolution** as the default approach. The review queue lives in the UI/workflow layer, not the event log.
+We will proceed with **eager resolution** as the default approach. The review queue lives in the UI/workflow layer, not the event log. Pairing this with `entry.reassigned` (see below) means a bad match can be corrected after the fact without full rollback.
 
-Below is the complete command catalog — intentionally minimal.
+Below is the complete event catalog.
 
 ---
 
-#### Season Lifecycle Commands
+#### Import Batch Events
 
-| Command Type | Purpose | Python Equivalent |
+| Event Type | Purpose | Python Equivalent |
 |---|---|---|
-| `season.create` | Initialize a new season year | `create_series_year` |
-| `season.reset` | Clear all data for a season, keeping the year slot | `reset_series_year` |
-| `season.delete` | Remove a season entirely | `delete_series_year` |
-| `season.import` | Restore a season from an exported archive | `import_series_year` |
+| `import_batch.recorded` | Record provenance for a file import operation | Implicit in `import_excel_into_project` |
+| `import_batch.rolled_back` | Roll back all events from an import batch | `rollback_source_batch` |
 
-**`season.create`**
+**`import_batch.recorded`** — emitted once per file import, before the person/team/race events it produces.
+
 ```
 {
-  series_year: number
-  project_id: string      // uuid for the new season
+  import_batch_id: string     // uuid, referenced by subsequent events in the batch
+  source_file: string         // original filename
+  source_sha256: string       // content hash for deduplication
+  parser_version: string      // version of the parser used
 }
 ```
 
-**`season.reset`**
+**`import_batch.rolled_back`**
 ```
 {
-  series_year: number
-  confirmation_year: number  // must match series_year
-}
-```
-
-**`season.delete`**
-```
-{
-  series_year: number
-  confirmation_year: number
-}
-```
-
-**`season.import`**
-```
-{
-  series_year: number
-  imported_commands: CommandEnvelope[]  // the full command log from the archive
-  conflict_resolution: "replace" | "new_year"
-  target_year?: number                 // if new_year
+  import_batch_id: string
+  reason: string
 }
 ```
 
 ---
 
-#### Team & Identity Commands
+#### Person & Team Identity Events
 
-| Command Type | Purpose | Python Equivalent |
+| Event Type | Purpose | Python Equivalent |
 |---|---|---|
-| `team.register` | Create a new team identity (solo or couple) | Implicit in `process_singles_section` / `process_couples_section` (new_identity path); also `apply_match_decision(create_new_identity)` |
-| `team.update_member` | Correct a team member's canonical identity | `update_participant_identity` |
-| `team.merge` | Merge two duplicate team identities into one | `merge_standings_entities` |
+| `person.registered` | Register a new person identity | Implicit in new-identity path during import |
+| `person.corrected` | Correct canonical fields on a person | `update_participant_identity` |
+| `team.registered` | Create a new team referencing persons | Implicit in `process_singles_section` / `process_couples_section` |
+| `team.merged` | Alias two duplicate teams within a category | `merge_standings_entities` |
 
-**`team.register`**
+**`person.registered`**
 ```
 {
-  team_id: string
-  members: PersonInput[]    // 1 or 2 members
-}
-
-PersonInput {
   person_id: string
-  display_name: string
   given_name: string
   family_name: string
   yob: number
@@ -197,92 +185,94 @@ PersonInput {
 }
 ```
 
-**`team.update_member`**
+**`person.corrected`**
 ```
 {
-  team_id: string
   person_id: string
-  member_slot: "sole" | "a" | "b"   // which member position
   updated_fields: {
-    display_name?: string
     given_name?: string
     family_name?: string
     yob?: number
     club?: string | null
     club_normalized?: string
   }
-  series_year: number                // scope for audit
   rationale: string
 }
 ```
 
-**`team.merge`**
+**`team.registered`**
+```
+{
+  team_id: string
+  member_person_ids: string[]   // 1 or 2 person_ids (must already be registered)
+  team_kind: "solo" | "couple"
+}
+```
+
+**`team.merged`** — category-scoped alias: all entries in the given category pointing to `absorbed_team_id` are re-pointed to `survivor_team_id`. This is **not** a global identity merge; it resolves duplicates within one category's standings. The absorbed team's historical identity is preserved in the log.
+
 ```
 {
   survivor_team_id: string
   absorbed_team_id: string
-  category_key: string
-  series_year: number
+  category: RaceCategory
   rationale: string
 }
 ```
 
 ---
 
-#### Race Event Commands
+#### Race Event Events
 
-| Command Type | Purpose | Python Equivalent |
+| Event Type | Purpose | Python Equivalent |
 |---|---|---|
-| `race.register` | Register a fully-resolved race event with its entries | `import_excel_into_project` (after matching resolves all entries) |
-| `race.rollback` | Soft-delete a race event | `rollback_race` |
-| `race.rollback_batch` | Soft-delete all race events from a source file | `rollback_source_batch` |
+| `race.registered` | Register a fully-resolved race event with its entries | `import_excel_into_project` (after matching resolves all entries) |
+| `race.rolled_back` | Soft-delete a race event | `rollback_race` |
+| `race.metadata_corrected` | Fix race date, race number, or category | — (new) |
 
-**`race.register`** — the central import command. Entries arrive **fully resolved**: every entry carries its `team_id`. The matching engine has already done its work before this command is emitted. Each entry also preserves the **raw incoming data** from the source file for auditability.
+**`race.registered`** — the central import event. Entries arrive **fully resolved**: every entry carries its `team_id`. The matching engine has already done its work before this event is emitted. Each entry preserves the **raw incoming data** from the source file for auditability.
 
 ```
 {
   race_event_id: string
-  series_year: number
-  category: {
-    year: number
-    duration: "half_hour" | "hour"
-    division: "men" | "women" | "couples_men" | "couples_women" | "couples_mixed"
-  }
+  import_batch_id: string     // links to the import_batch.recorded event
+  category: RaceCategory
   race_no: number
-  race_date: string
-  source_file: string
-  source_sha256: string
+  race_date: string           // ISO 8601 date
   entries: RaceEntryInput[]
 }
 
 RaceEntryInput {
   entry_id: string
   startnr: string
-  team_id: string           // always resolved — the whole point
-  distance_km: number
-  points: number
-  incoming: IncomingRowData  // raw source data, preserved for audit
-  resolution: ResolutionInfo // how the matching engine arrived at this team_id
+  team_id: string             // always resolved — the whole point
+  distance_m: number          // integer meters (avoids floating-point issues)
+  points: number              // organizer-assigned fact, not derived
+  incoming: IncomingRowData   // raw source data, preserved for audit
+  resolution: ResolutionInfo  // how the matching engine arrived at this team_id
 }
 
 IncomingRowData {
-  display_name: string      // as typed in Excel: "Müller, Max" or "A / B"
-  yob: number | null        // solo; null for couples
-  yob_text: string | null   // couples: "1985 / 1990"; null for solo
-  club: string | null       // raw club string
+  display_name: string        // as typed in Excel: "Müller, Max" or "A / B"
+  yob: number | null          // solo; null for couples
+  yob_text: string | null     // couples: "1985 / 1990"; null for solo
+  club: string | null         // raw club string
   kind: "solo" | "team"
+  sheet_name: string          // source worksheet name
+  section_name: string        // parsed section header (e.g. "Herren 60min")
+  row_index: number           // 0-based row index in the sheet
 }
 
 ResolutionInfo {
   method: "auto" | "manual" | "new_identity"
-  confidence: number | null  // matching score, null for new_identity / manual without score
-  candidate_count: number    // how many candidates were considered
+  confidence: number | null   // matching score, null for new_identity / manual without score
+  candidate_count: number     // how many candidates were considered
 }
 ```
 
 Each entry carries two diagnostic fields alongside the resolved `team_id`:
 
-- **`incoming`** — what the Excel row said (raw evidence). Enables "why is this result here?" audits and future re-matching without the original file.
+- **`incoming`** — what the Excel row said (raw evidence). Enables "why is this result here?" audits and future re-matching without the original file. Includes source location (`sheet_name`, `section_name`, `row_index`) for tracing import bugs.
 - **`resolution`** — how the matching engine resolved it (diagnostic trace). Three methods:
   - `auto`: the engine auto-linked at the given confidence level.
   - `manual`: the user picked this team from a candidate list.
@@ -292,7 +282,7 @@ Each entry carries two diagnostic fields alongside the resolved `team_id`:
 
 This is deliberately minimal — enough to debug "why was this matched wrong?" without replicating the full candidate ranking. The matching engine's internal state (full candidate list, per-feature scores, rejection history) remains ephemeral.
 
-**`race.rollback`**
+**`race.rolled_back`**
 ```
 {
   race_event_id: string
@@ -300,118 +290,191 @@ This is deliberately minimal — enough to debug "why was this matched wrong?" w
 }
 ```
 
-**`race.rollback_batch`**
+**`race.metadata_corrected`**
 ```
 {
-  source_sha256: string
-  reason: string
+  race_event_id: string
+  updated_fields: {
+    race_date?: string
+    race_no?: number
+    category?: RaceCategory
+  }
+  rationale: string
 }
 ```
 
 ---
 
-#### Ranking / Eligibility Commands
+#### Entry Correction Events
 
-| Command Type | Purpose | Python Equivalent |
+| Event Type | Purpose | Python Equivalent |
 |---|---|---|
-| `ranking.set_eligibility` | Mark a team as außer Wertung (ineligible) or re-eligible in a category | `set_ranking_eligibility` |
-| `ranking.clear_exclusions` | Reset all exclusions (done automatically after import in Python) | Implicit in `import_excel_into_project` |
+| `entry.reassigned` | Move an entry to a different team | — (new; previously required full rollback) |
+| `entry.corrected` | Fix distance, points, or startnr on a single entry | — (new; previously required full rollback) |
 
-**`ranking.set_eligibility`**
+**`entry.reassigned`** — fixes a bad match after the fact without rolling back the entire race.
+
 ```
 {
-  category_key: string
-  team_id: string
-  excluded: boolean        // true = außer Wertung
+  entry_id: string
+  race_event_id: string
+  from_team_id: string
+  to_team_id: string
+  rationale: string
 }
 ```
 
-**`ranking.clear_exclusions`**
+**`entry.corrected`**
 ```
 {
-  series_year: number
+  entry_id: string
+  race_event_id: string
+  updated_fields: {
+    distance_m?: number
+    points?: number
+    startnr?: string
+  }
+  rationale: string
 }
 ```
 
 ---
 
-### 3. What the Matching Engine Does (Outside the Command Log)
+#### Ranking / Eligibility Events
+
+| Event Type | Purpose | Python Equivalent |
+|---|---|---|
+| `ranking.eligibility_set` | Mark a team as außer Wertung (ineligible) or re-eligible in a category | `set_ranking_eligibility` |
+
+**`ranking.eligibility_set`**
+```
+{
+  category: RaceCategory
+  team_id: string
+  eligible: boolean           // false = außer Wertung
+}
+```
+
+**Clearing exclusions after import:** In the Python app, all exclusions are cleared on successful import. Rather than a separate "clear all" event (which is a destructive global action), this is modeled as: for each previously-excluded `(category, team)`, the import batch emits an explicit `ranking.eligibility_set { eligible: true }` event. This makes each state change visible in the log and avoids a blanket reset.
+
+---
+
+### 3. Season Identity and Workspace Operations
+
+A **season** represents a race series — typically spanning one calendar year, but the model does not enforce this. Seasons are identified by a `season_id` (uuid) and carry a human-readable label (which may include a year, e.g. "Stundenlauf 2025", but is not structurally tied to one).
+
+Season lifecycle operations are **workspace-level**, not events in a season's own event log. The workspace maintains a registry of seasons:
+
+```
+SeasonDescriptor {
+  season_id: string           // uuid
+  label: string               // human-readable, e.g. "Stundenlauf 2025"
+  created_at: string          // ISO 8601
+}
+```
+
+Workspace operations (not stored in the season event stream):
+
+| Operation | Purpose | Python Equivalent |
+|---|---|---|
+| Create season | Initialize a new season with an empty event log | `create_series_year` |
+| Delete season | Remove a season and its event log | `delete_series_year` |
+| Reset season | Clear all events for a season, keeping the season slot | `reset_series_year` |
+| Import season | Restore a season from an exported archive | `import_series_year` |
+
+These are imperative operations handled by the workspace/repository layer. They create, replace, or destroy event streams but are not themselves events within a stream. Import reads an archive, validates it, and creates or replaces the target season's event log.
+
+### 4. What the Matching Engine Does (Outside the Event Log)
 
 The matching engine is a **workflow module**, not part of the event-sourced core. It:
 
 1. Takes raw parsed Excel rows and the current `SeasonState` as input.
 2. For each row, decides: link to existing team T, or create new team.
-3. Outputs a list of `team.register` commands (for new teams) and a single `race.register` command (with all entries carrying their resolved `team_id`).
-4. Optionally appends `ranking.clear_exclusions`.
+3. Outputs a batch of events: `import_batch.recorded`, `person.registered` (for new persons), `team.registered` (for new teams), `race.registered` (with all entries carrying their resolved `team_id`), and `ranking.eligibility_set` events to clear prior exclusions.
 
 The matching engine may maintain its own working state for features like:
-- **Replay hints:** "fingerprint F was previously linked to team T" — derived by scanning the command log for past `race.register` entries, not stored as separate commands.
+- **Replay hints:** "fingerprint F was previously linked to team T" — derived by scanning the event log for past `race.registered` entries, not stored as separate events.
 - **Rejection preferences:** "don't auto-link fingerprint F to team T" — UI preference, not season data.
 - **Candidate scoring / confidence:** computed on the fly, surfaced in the review UI, never persisted in the log.
 
-This keeps the command log minimal and focused on *what happened to the season data*, while the matching engine's heuristics can evolve independently.
+This keeps the event log minimal and focused on *what happened to the season data*, while the matching engine's heuristics can evolve independently.
 
-### 4. Import Workflow → Command Batch
+### 5. Import Workflow → Event Batch
 
 In the Python version, a single `import_excel_into_project` call does parsing, matching, event creation, decision logging, standings recompute, and exclusion clearing in one transaction.
 
 In the TS port, **importing a file** is a multi-step workflow:
 
 1. **Parse:** Read Excel/CSV → raw row data.
-2. **Match:** For each row, the matching engine resolves to an existing or new team. If some rows need review, the UI presents a review queue. This all happens *before* any commands are emitted.
-3. **Emit:** Once every entry is resolved, emit commands atomically:
+2. **Match:** For each row, the matching engine resolves to an existing or new team. If some rows need review, the UI presents a review queue. This all happens *before* any events are emitted.
+3. **Emit:** Once every entry is resolved, emit events atomically:
 
 ```
 [
-  team.register { ... }           // 0 or more, for newly created teams
-  race.register { ... entries }   // 1 per parsed section, all entries resolved
-  ranking.clear_exclusions { ... }
+  import_batch.recorded { ... }           // 1, batch provenance
+  person.registered { ... }              // 0+, for newly identified persons
+  team.registered { ... }               // 0+, for newly created teams
+  race.registered { ... entries }        // 1 per parsed section, all entries resolved
+  ranking.eligibility_set { eligible: true, ... }  // 0+, clearing prior exclusions
 ]
 ```
 
-The batch is appended to the command log in a single IndexedDB transaction.
+The batch is appended to the event log in a single IndexedDB transaction. Validation runs against projected state plus earlier events in the same batch (e.g. a `race.registered` event can reference a `team_id` from a `team.registered` event earlier in the same batch).
 
-### 5. Derived / Projected State
+**Idempotency:** The `import_batch_id` prevents accidental duplicate application. If a batch with the same ID is already in the log, the write is rejected.
 
-The projection (fold) over the command log produces:
+### 6. Derived / Projected State
+
+The projection (fold) over the event log produces:
 
 ```
 SeasonState {
-  series_year: number
-  project_id: string
+  season_id: string
 
-  // Entity registries (built from team.register, team.update_member, team.merge)
+  // Person registry (built from person.registered, person.corrected)
+  persons: Map<person_id, PersonIdentity>
+
+  // Team registry (built from team.registered, team.merged)
   teams: Map<team_id, Team>
 
-  // Race events (built from race.register, race.rollback*)
-  events: Map<race_event_id, RaceEvent>
-  // Each RaceEvent has state: "active" | "rolled_back"
-  // Each entry has a team_id (always populated)
+  // Import batches (built from import_batch.recorded, import_batch.rolled_back)
+  import_batches: Map<import_batch_id, ImportBatch>
 
-  // Ranking exclusions (built from ranking.* commands)
+  // Race events (built from race.registered, race.rolled_back, race.metadata_corrected)
+  race_events: Map<race_event_id, RaceEvent>
+  // Each RaceEvent has state: "active" | "rolled_back"
+
+  // Entry overrides (built from entry.reassigned, entry.corrected)
+  // Applied on top of the entries in race_events during projection
+
+  // Ranking exclusions (built from ranking.eligibility_set)
   exclusions: Map<category_key, Set<team_id>>
+
+  // Team merge alias map (built from team.merged)
+  // Maps absorbed_team_id → survivor_team_id per category
+  merge_aliases: Map<category_key, Map<team_id, team_id>>
 }
 ```
 
-That's it. No matching state, no review queue, no fingerprint index in the projected state. Those are concerns of the matching workflow layer.
+No matching state, no review queue, no fingerprint index in the projected state. Those are concerns of the matching workflow layer.
 
-**Standings** are NOT part of the projected state. They are computed on-demand from `SeasonState` using the ranking engine (same v1_legacy_top4 rules). This eliminates the need to store `StandingsSnapshot` and keeps the command log lean.
+**Standings** are NOT part of the projected state. They are computed on-demand from `SeasonState` using the ranking engine (same v1_legacy_top4 rules). This eliminates the need to store `StandingsSnapshot` and keeps the event log lean.
 
 **Participation** is implicit: if a team has no entry in a given `race_event_id`, they didn't participate in that race. No explicit "did not participate" records are needed.
 
-### 6. Storage Format
+### 7. Storage Format
 
-The command log for each season year is stored as:
+The event log for each season is stored as:
 
 ```json
 {
-  "format": "stundenlauf-ts-commandlog",
+  "format": "stundenlauf-ts-eventlog",
   "format_version": 1,
-  "series_year": 2025,
-  "project_id": "proj_abc123",
-  "commands": [
-    { "command_id": "...", "timestamp": "...", "type": "team.register", "payload": { ... } },
-    { "command_id": "...", "timestamp": "...", "type": "race.register", "payload": { ... } },
+  "season_id": "season_abc123",
+  "label": "Stundenlauf 2025",
+  "events": [
+    { "event_id": "...", "seq": 0, "recorded_at": "...", "type": "person.registered", "schema_version": 1, "payload": { ... }, "metadata": { ... } },
+    { "event_id": "...", "seq": 1, "recorded_at": "...", "type": "team.registered", "schema_version": 1, "payload": { ... }, "metadata": { ... } },
     ...
   ]
 }
@@ -424,52 +487,59 @@ Snapshots (optional, for fast startup):
 {
   "format": "stundenlauf-ts-snapshot",
   "format_version": 1,
-  "series_year": 2025,
-  "project_id": "proj_abc123",
-  "snapshot_after_command_id": "cmd_xyz",
-  "state": { ... }  // serialized SeasonState
+  "season_id": "season_abc123",
+  "snapshot_after_seq": 42,
+  "state": { ... }
 }
 ```
 
-### 7. Projection Implementation
+### 8. Projection Implementation
 
 ```typescript
-function projectState(commands: CommandEnvelope[]): SeasonState {
+function projectState(events: EventEnvelope[]): SeasonState {
   let state = emptySeasonState();
-  for (const cmd of commands) {
-    state = applyCommand(state, cmd);
+  for (const event of events) {
+    state = applyEvent(state, event);
   }
   return state;
 }
 
-function applyCommand(state: SeasonState, cmd: CommandEnvelope): SeasonState {
-  switch (cmd.type) {
-    case "season.create":       return applySeasonCreate(state, cmd.payload);
-    case "season.reset":        return applySeasonReset(state, cmd.payload);
-    case "team.register":       return applyTeamRegister(state, cmd.payload);
-    case "team.update_member":  return applyTeamUpdateMember(state, cmd.payload);
-    case "team.merge":          return applyTeamMerge(state, cmd.payload);
-    case "race.register":       return applyRaceRegister(state, cmd.payload);
-    case "race.rollback":       return applyRaceRollback(state, cmd.payload);
-    case "race.rollback_batch": return applyRaceRollbackBatch(state, cmd.payload);
-    case "ranking.set_eligibility":  return applySetEligibility(state, cmd.payload);
-    case "ranking.clear_exclusions": return applyClearExclusions(state, cmd.payload);
-    default: return state; // forward-compatible: unknown command types are no-ops
+function applyEvent(state: SeasonState, event: EventEnvelope): SeasonState {
+  switch (event.type) {
+    case "import_batch.recorded":      return applyImportBatchRecorded(state, event.payload);
+    case "import_batch.rolled_back":   return applyImportBatchRolledBack(state, event.payload);
+    case "person.registered":          return applyPersonRegistered(state, event.payload);
+    case "person.corrected":           return applyPersonCorrected(state, event.payload);
+    case "team.registered":            return applyTeamRegistered(state, event.payload);
+    case "team.merged":                return applyTeamMerged(state, event.payload);
+    case "race.registered":            return applyRaceRegistered(state, event.payload);
+    case "race.rolled_back":           return applyRaceRolledBack(state, event.payload);
+    case "race.metadata_corrected":    return applyRaceMetadataCorrected(state, event.payload);
+    case "entry.reassigned":           return applyEntryReassigned(state, event.payload);
+    case "entry.corrected":            return applyEntryCorrected(state, event.payload);
+    case "ranking.eligibility_set":    return applyEligibilitySet(state, event.payload);
+    default:
+      throw new UnknownEventTypeError(event.type, event.schema_version);
   }
 }
 ```
 
 The projection is **pure** (no side effects, no I/O). This makes it trivially testable and deterministic.
 
-### 8. Validation
+### 9. Validation
 
-Each command is validated before being appended to the log:
+Each event is validated before being appended to the log. Validation runs against the projected state produced by all prior events (including earlier events in the same batch):
 
-- `race.register`: no duplicate `race_event_id`; no active event with same category + race_no; no active event with same `source_sha256`; every entry's `team_id` must reference a registered team.
-- `team.register`: no duplicate `team_id`.
-- `team.merge`: both teams exist; no overlapping race participation in the same category.
-- `ranking.set_eligibility`: team must have entries in the category.
-- `season.reset`: `confirmation_year === series_year`.
+- `person.registered`: no duplicate `person_id`.
+- `team.registered`: no duplicate `team_id`; all `member_person_ids` must reference registered persons; member count matches `team_kind`.
+- `race.registered`: no duplicate `race_event_id`; no active event with same category + race_no; no already-applied batch with same `import_batch_id`; every entry's `team_id` must reference a registered team.
+- `team.merged`: both teams exist; no overlapping race participation in the same category.
+- `entry.reassigned`: entry exists in an active race; `from_team_id` matches current assignment; `to_team_id` references a registered team.
+- `entry.corrected`: entry exists in an active race.
+- `race.metadata_corrected`: race event exists and is active.
+- `ranking.eligibility_set`: team must have entries in the given category.
+- `import_batch.recorded`: no duplicate `import_batch_id`.
+- `import_batch.rolled_back`: batch exists and has not already been rolled back.
 
 ---
 
@@ -484,13 +554,17 @@ Each command is validated before being appended to the log:
 
 ### TS port differences
 
-- The command log IS the source of truth. There is no separate "current state" file.
+- The event log IS the source of truth. There is no separate "current state" file.
+- `PersonIdentity` is a first-class entity with its own registry. `Team` references persons by `person_id` instead of embedding them.
 - `Team` replaces both `Person` (solo) and `Couple` (pair). Entries always reference `team_id`.
-- **Matching is external to the data model.** The 7-kind `matching_decisions` table disappears entirely. The matching engine produces plain `team.register` and `race.register` commands. Audit provenance (scores, candidates) can optionally ride in `metadata` on the command envelope, but it's not domain state.
+- **Matching is external to the data model.** The 7-kind `matching_decisions` table disappears entirely. The matching engine produces plain `person.registered`, `team.registered` and `race.registered` events. Audit provenance (scores, candidates) rides in `ResolutionInfo` on entries, but is not domain state.
 - Standings are never stored; they are computed on demand from projected state.
-- `ranking_exclusions` are commands, not a field on the document.
-- Rollbacks are commands that mark events as rolled back; the original `race.register` command stays in the log forever.
-- The review queue is a UI workflow concern, not stored in the command log. Entries are never half-resolved in the log.
+- Ranking exclusions are events, not a field on the document.
+- Rollbacks are events that mark races as rolled back; the original `race.registered` event stays in the log forever.
+- The review queue is a UI workflow concern, not stored in the event log. Entries are never half-resolved in the log.
+- Season lifecycle is a workspace concern, not part of the season event stream.
+- Seasons are identified by uuid + label, not tied to a single calendar year.
+- Entry-level corrections (`entry.reassigned`, `entry.corrected`) allow targeted fixes without full rollback.
 
 ### Reusable logic
 
@@ -503,7 +577,7 @@ Each command is validated before being appended to the log:
 
 ## Datasets (Value Types Reference)
 
-For completeness, here are the core value types carried inside commands and produced by projection:
+For completeness, here are the core value types carried inside events and produced by projection:
 
 ### Enums
 
@@ -512,14 +586,14 @@ type Gender = "M" | "F" | "X";
 type RaceDuration = "half_hour" | "hour";
 type Division = "men" | "women" | "couples_men" | "couples_women" | "couples_mixed";
 type RaceEventState = "active" | "rolled_back";
+type TeamKind = "solo" | "couple";
 ```
 
-### Person (value object, always nested in Team)
+### PersonIdentity (first-class entity)
 
 ```typescript
-interface Person {
+interface PersonIdentity {
   person_id: string;
-  display_name: string;
   given_name: string;
   family_name: string;
   yob: number;
@@ -529,12 +603,13 @@ interface Person {
 }
 ```
 
-### Team (universal participant entity)
+### Team (universal participant entity, references persons)
 
 ```typescript
 interface Team {
   team_id: string;
-  members: Person[];  // 1 = solo, 2 = couple
+  member_person_ids: string[];  // 1 = solo, 2 = couple
+  team_kind: TeamKind;
 }
 ```
 
@@ -542,9 +617,25 @@ interface Team {
 
 ```typescript
 interface RaceCategory {
-  year: number;
   duration: RaceDuration;
   division: Division;
+}
+```
+
+### ImportBatch (projected state)
+
+```typescript
+interface ImportBatch {
+  import_batch_id: string;
+  source_file: string;
+  source_sha256: string;
+  parser_version: string;
+  state: "active" | "rolled_back";
+  rollback?: {
+    event_id: string;
+    rolled_back_at: string;
+    reason: string;
+  };
 }
 ```
 
@@ -553,16 +644,15 @@ interface RaceCategory {
 ```typescript
 interface RaceEvent {
   race_event_id: string;
+  import_batch_id: string;
   category: RaceCategory;
   race_no: number;
   race_date: string;
   state: RaceEventState;
-  source_file: string;
-  source_sha256: string;
   imported_at: string;
   entries: RaceEntry[];
   rollback?: {
-    command_id: string;
+    event_id: string;
     rolled_back_at: string;
     reason: string;
   };
@@ -576,8 +666,8 @@ interface RaceEntry {
   entry_id: string;
   startnr: string;
   team_id: string;
-  distance_km: number;
-  points: number;
+  distance_m: number;          // integer meters
+  points: number;              // organizer-assigned source fact
   incoming: IncomingRowData;
   resolution: ResolutionInfo;
 }
@@ -588,6 +678,9 @@ interface IncomingRowData {
   yob_text: string | null;
   club: string | null;
   kind: "solo" | "team";
+  sheet_name: string;
+  section_name: string;
+  row_index: number;
 }
 
 interface ResolutionInfo {
@@ -598,40 +691,46 @@ interface ResolutionInfo {
 ```
 
 Three levels of information on every entry:
-- `team_id` + `distance_km` + `points` — the fact (who ran, what they achieved).
-- `incoming` — the evidence (what the source file said).
+- `team_id` + `distance_m` + `points` — the fact (who ran, what they achieved).
+- `incoming` — the evidence (what the source file said, including source location).
 - `resolution` — the diagnostic (how the assignment was made).
 
 ---
 
 ## Risks and Assumptions
 
-- **Assumption:** Replay performance is acceptable for typical season sizes (≤10 races × ≤200 entries each = ≤2000 entries). With the simplified model (one `team.register` per new identity + one `race.register` per section), a full season is ~100–500 commands — trivially fast to replay.
-- **Assumption:** Browser IndexedDB can hold the full command log for multiple seasons without hitting storage limits.
-- **Risk:** Event schema evolution – if a command payload shape changes, old logs must still replay correctly.
-  - Mitigation: Versioned command schemas; projection applies sensible defaults for missing fields; new command types are simply ignored by old projections (forward-compatible by default).
+- **Assumption:** Replay performance is acceptable for typical season sizes (≤10 races × ≤200 entries each = ≤2000 entries). With the simplified model (person/team registrations + race events), a full season is ~200–800 events — trivially fast to replay.
+- **Assumption:** Browser IndexedDB can hold the full event log for multiple seasons without hitting storage limits.
+- **Risk:** Event schema evolution – if an event payload shape changes, old logs must still replay correctly.
+  - Mitigation: `schema_version` on each event envelope; upcasters transform old payload shapes to current; replay fails on unrecognized versions rather than silently degrading.
 - **Risk:** Atomic batch writes in IndexedDB may fail partially.
   - Mitigation: Use IndexedDB transactions to ensure batch atomicity.
+- **Risk:** Season not tied to a year could confuse users accustomed to the Python version's year-based model.
+  - Mitigation: Default label includes the year; UI surfaces the label prominently. The change is structural, not UX-breaking.
 
 ## Implementation Steps
 
-1. Define TypeScript types for all command payloads, enums, and value objects.
-2. Implement `CommandEnvelope` serialization/deserialization.
-3. Implement `projectState` / `applyCommand` for each command type.
-4. Implement validation functions per command type.
+1. Define TypeScript types for all event payloads, enums, and value objects.
+2. Implement `EventEnvelope` serialization/deserialization with `schema_version` validation.
+3. Implement `projectState` / `applyEvent` for each event type.
+4. Implement validation functions per event type (including intra-batch validation).
 5. Implement `SeasonState` type and empty initializer.
-6. Implement IndexedDB storage adapter for command logs.
-7. Implement JSON import/export of command logs.
-8. Write comprehensive tests: replay scenarios, validation, round-trip serialization.
-9. Implement snapshot creation and restore (optimization, lower priority).
+6. Implement workspace-level season registry (create, delete, reset, import).
+7. Implement IndexedDB storage adapter for event logs.
+8. Implement JSON import/export of event logs.
+9. Write comprehensive tests: replay scenarios, validation, round-trip serialization, unknown-event-type rejection.
+10. Implement snapshot creation and restore (optimization, lower priority).
 
 ## Test Plan
 
-- **Unit:** Each `applyCommand` handler tested in isolation with minimal state.
-- **Integration:** Multi-command replay sequences that mirror real import workflows (register teams, register race, match entries, then query projected state).
+- **Unit:** Each `applyEvent` handler tested in isolation with minimal state.
+- **Integration:** Multi-event replay sequences that mirror real import workflows (register persons, register teams, register race, then query projected state).
 - **Fixture-based:** Port key Python test scenarios to verify behavioral parity (same inputs → same projected state as Python `ProjectDocument`).
-- **Round-trip:** Serialize command log to JSON, deserialize, replay, verify identical projected state.
-- **Validation:** Verify that invalid commands are rejected (duplicate IDs, missing references, constraint violations).
+- **Round-trip:** Serialize event log to JSON, deserialize, replay, verify identical projected state.
+- **Validation:** Verify that invalid events are rejected (duplicate IDs, missing references, constraint violations).
+- **Error cases:** Verify that unknown event types and unsupported schema versions cause explicit replay failures.
+- **Batch semantics:** Verify that events within a batch can reference entities created earlier in the same batch.
+- **Correction events:** Verify that `entry.reassigned`, `entry.corrected`, `person.corrected`, and `race.metadata_corrected` produce the expected projected state.
 
 ## Definition of Done
 
@@ -655,3 +754,23 @@ Three levels of information on every entry:
   - `backend/storage/repository.py` – persistence layer (atomic JSON writes)
   - `backend/ui_api/workspace.py` – season lifecycle (create, delete, reset, export, import)
   - `backend/matching/workflow.py` – matching engine (external to this feature, but useful reference for the future matching feature)
+
+## Review Acknowledgments
+
+This plan incorporates feedback from an external architecture review. Key changes from the original draft:
+
+1. **Persons separated from teams** — `PersonIdentity` is a first-class entity; teams reference persons by ID instead of embedding them.
+2. **Event terminology** — the persisted log contains committed domain events, not commands. Naming reflects this throughout.
+3. **Strict unknown-event handling** — replay fails on unrecognized event types or schema versions instead of silently skipping.
+4. **Explicit import batch** — `import_batch.recorded` provides stable grouping for provenance, rollback, and idempotency.
+5. **Entry-level corrections** — `entry.reassigned` and `entry.corrected` allow targeted fixes without full race rollback.
+6. **Season lifecycle separated** — create/delete/reset/import are workspace operations, not season-stream events.
+7. **Sequence-based replay** — `seq` field is authoritative for replay order; `recorded_at` is informational.
+8. **Integer meters** — `distance_m` replaces `distance_km` to avoid floating-point issues.
+9. **Enriched provenance** — `IncomingRowData` includes `sheet_name`, `section_name`, `row_index` for row-level traceability.
+10. **Season ≠ year** — seasons are identified by uuid + label, decoupled from a single calendar year.
+11. **Richer metadata** — `app_version` and `schema_version` on every event envelope.
+12. **Category-scoped merge** — `team.merged` is explicitly documented as category-scoped aliasing, not global identity merge.
+13. **Per-entry eligibility clearing** — exclusions after import are cleared via individual `ranking.eligibility_set` events, not a blanket reset.
+14. **Race metadata corrections** — `race.metadata_corrected` allows fixing race date/number/category without rollback.
+15. **Points as source facts** — confirmed: points are organizer-assigned facts stored on entries, not derived.
