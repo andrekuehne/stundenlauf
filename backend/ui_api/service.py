@@ -8,7 +8,7 @@ from typing import Any
 from backend.app_paths import default_workspace_dir
 from backend.export.gui_pdf_spec import laufuebersicht_einzel_paare_export_specs
 from backend.export.registry import export_standings_to_path
-from backend.export.spec import PDF_LAYOUT_PRESETS, pdf_layout_preset_catalog
+from backend.export.spec import normalize_pdf_layout_preset, pdf_layout_preset_catalog
 from backend.matching.config import MatchingConfig
 from backend.storage.repository import JsonProjectRepository
 from backend.ui_api import commands, queries, workspace
@@ -101,13 +101,13 @@ class UiApiService:
         if not path_raw:
             raise validation_error("destination_path is required")
         layout_raw = payload.get("layout_preset")
-        layout_preset: str | None
-        if layout_raw is None or (isinstance(layout_raw, str) and not layout_raw.strip()):
-            layout_preset = None
-        else:
-            layout_preset = str(layout_raw).strip().lower()
-            if layout_preset not in PDF_LAYOUT_PRESETS:
-                raise validation_error(f"layout_preset must be one of: {', '.join(sorted(PDF_LAYOUT_PRESETS))}")
+        if layout_raw is not None and not isinstance(layout_raw, str):
+            raise validation_error("layout_preset must be a string or null")
+        preset_raw = None if layout_raw is None else str(layout_raw).strip() or None
+        try:
+            layout_preset = normalize_pdf_layout_preset(preset_raw)
+        except ValueError as exc:
+            raise validation_error(str(exc)) from exc
         destination_path = Path(path_raw)
         suffix = destination_path.suffix.lower()
         if suffix not in ("", ".pdf"):

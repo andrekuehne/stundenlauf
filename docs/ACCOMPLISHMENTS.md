@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-12 - CLI `pdftest`: GUI-equivalent dual Laufübersicht PDF from session JSON
+- Requirement/Milestone: [R5, R7; M5 / F20]
+- What shipped: Console entry `pdftest` (`uv run pdftest`) builds the same **Einzel** / **Paare** Laufübersicht PDF pair as `export_standings_pdf`, defaulting to `example/stundenlauf-2025.stundenlauf-season/session_project.json` and writing `pdftest_export_{einzel,paare}.pdf` beside it. `normalize_pdf_layout_preset` aligns API/CLI/GUI preset handling (`default` / label substring). Docs: `docs/api/ui-api-v1.md`.
+- Evidence: `backend/export/pdftest_cli.py`, `backend/export/spec.py`, `backend/export/gui_pdf_spec.py`, `backend/ui_api/service.py`, `pyproject.toml`, `tests/test_f20_export.py`, `tests/test_f08_ui_api.py`; `uv run pytest`
+- Impact: Developers can regression-check PDF output from fixtures without launching the desktop shell.
+- Follow-up: none
+
 ### 2026-04-12 - Compact PDF preset: portrait, minimal margins, denser table rows
 - Requirement/Milestone: [R5, R7; M5 / F20]
 - What shipped: `layout_preset: compact` now targets **minimum page count**: A4 **portrait**, ~0.45 cm page margins, small section/cover/footer typography, **5 pt** table type with **`table_plain_leading_extra_pt` 1** so line height clears horizontal rules, **`lauf_result_leading_extra_pt` 0**, tight cell padding, **narrower** km/Pkt./Punkte/km totals so **Name & Verein** flex wider, reduced `table_width_extra_margin_cm`, **lighter Laufübersicht double rules** (`double_rule_weight_pt` / `double_rule_gap_pt`), and configurable **`table_cell_*_padding_pt`** on all tables. GUI Laufübersicht uses **portrait when compact** is selected (default export stays landscape).

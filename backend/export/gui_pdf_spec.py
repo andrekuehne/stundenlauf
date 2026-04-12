@@ -3,13 +3,19 @@
 from __future__ import annotations
 
 from backend.domain.models import ProjectDocument
-from backend.export.spec import ExportSpec, sort_category_keys_for_export, split_category_keys_einzel_paare
+from backend.export.spec import (
+    ExportSpec,
+    normalize_pdf_layout_preset,
+    sort_category_keys_for_export,
+    split_category_keys_einzel_paare,
+)
 
 
 def _laufuebersicht_gui_spec_dict(
     categories: list[str], *, section_number_start: int, layout_preset: str | None = None
 ) -> dict:
-    lp_norm = str(layout_preset or "").strip().lower()
+    layout = normalize_pdf_layout_preset(layout_preset)
+    lp_norm = layout or ""
     orientation = "portrait" if lp_norm == "compact" else "landscape"
     pdf_block: dict = {
         "orientation": orientation,
