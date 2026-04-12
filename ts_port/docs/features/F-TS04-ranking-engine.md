@@ -133,11 +133,11 @@ In the TS port, all entries reference `team_id` — there is no `participant_uid
 ```typescript
 function entitiesInCategory(
   races: RaceEvent[],
-  categoryKey: string,
+  catKey: string,
 ): Set<string> {
   const teamIds = new Set<string>();
   for (const race of races) {
-    if (categoryKey(race.category) !== categoryKey) continue;
+    if (categoryKey(race.category) !== catKey) continue;
     for (const entry of race.entries) {
       teamIds.add(entry.team_id);
     }
@@ -361,10 +361,10 @@ function applyExclusions(
 Keep all rows. Excluded teams get `rank: null` and an `excluded: true` flag. Eligible teams get sequential ranks (skipping excluded rows).
 
 ```typescript
-interface StandingsRowWithExclusion extends StandingsRow {
+type StandingsRowWithExclusion = Omit<StandingsRow, "rank"> & {
   excluded: boolean;
   rank: number | null;
-}
+};
 
 function markExclusions(
   table: CategoryStandingsTable,

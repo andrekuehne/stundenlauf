@@ -93,7 +93,6 @@ The parser receives a `File` object (from `<input type="file">` or drag-and-drop
 async function parseWorkbook(
   file: File | ArrayBuffer,
   fileName: string,
-  seriesYear: number,
   options?: { raceNoOverride?: number; sourceType?: "singles" | "couples" }
 ): Promise<ParsedWorkbook>
 ```
@@ -228,7 +227,7 @@ flush(state, sections)                        // final flush
 if sections is empty: error: no_rows
 ```
 
-`flush()` appends a typed section (with `ImportRaceContext` carrying `seriesYear`, `raceNo`, `duration`, `division`) to the sections list and clears the buffer. It is a no-op if the buffer is empty or duration/division are unset.
+`flush()` appends a typed section (with `ImportRaceContext` carrying `raceNo`, `duration`, `division`, `event_date`) to the sections list and clears the buffer. It is a no-op if the buffer is empty or duration/division are unset.
 
 ### 6. Race Number from Filename
 
@@ -297,14 +296,16 @@ interface ImportWorkbookMeta {
   source_file: string;           // original filename
   source_sha256: string;         // hex digest of file content
   parser_version: string;        // e.g. "f-ts02-v1"
-  schema_fingerprint: string;    // "{sheetTitle}|{headers}|sections={n}"
+  schema_fingerprint: string;    // "{sheetTitle}|{headers}|sections={n}" — diagnostic, not persisted in event log
+  file_mtime: number;            // File.lastModified (ms since epoch)
+  imported_at: string;           // ISO 8601 timestamp of when the parse occurred
 }
 
 interface ImportRaceContext {
-  series_year: number;
   race_no: number;
   duration: RaceDuration;        // "half_hour" | "hour"
   division: Division;            // "men" | "women" | "couples_men" | "couples_women" | "couples_mixed"
+  event_date: string | null;     // ISO 8601 date if available; null from current Excel parsers
 }
 
 interface ImportRowSingles {
@@ -401,13 +402,13 @@ The Python version stores distance as `distance_km: float` throughout the ingest
 
 The parser preserves this as `distance_km: number`. **Conversion to integer meters** (`distance_m`) happens downstream when the import workflow constructs `RaceEntryInput` for the event log (as specified in F-TS01). This feature does not perform that conversion.
 
-### 12. `file_mtime` and `imported_at`
+### 12. Metadata Fields
 
-The Python version stores `file_mtime` (filesystem modification time) on `ImportWorkbookMeta`. In the browser, `File.lastModified` provides the equivalent (milliseconds since epoch). Convert to seconds for compatibility or store as-is with a clear unit annotation.
+Both `file_mtime` and `imported_at` are now part of the `ImportWorkbookMeta` type definition (§8). `file_mtime` comes from `File.lastModified` (milliseconds since epoch). `imported_at` is set to `new Date().toISOString()` at parse time.
 
-`imported_at` is an ISO 8601 timestamp of when the parse occurred: `new Date().toISOString()`.
+`event_date` is carried on `ImportRaceContext` (§8) for forward compatibility. Current Excel parsers always set it to `null` because the organizer's files do not contain a date field.
 
-The Python version also stores `event_date` on `ImportRaceContext` (always `None` in the current adapters — the Excel files do not contain a date field). The TS port carries this as `event_date: string | null` on `ImportRaceContext` for forward compatibility, always `null` from the parser.
+`schema_fingerprint` is diagnostic metadata for debugging parser/layout issues. It is not persisted in the event log — the event log captures `source_file`, `source_sha256`, and `parser_version` on `import_batch.recorded` (F-TS01), which is sufficient for provenance.
 
 ### 13. Module Structure
 

@@ -41,7 +41,7 @@ The TS port replaces this with an **event-sourced** architecture where:
 
 ### Out of Scope
 
-- UI framework choice (F-TS02).
+- UI framework choice (future feature, M-TS5).
 - Excel parsing (separate feature).
 - Matching engine internals (fuzzy scoring, candidate ranking, thresholds, replay heuristics). Matching is a separate workflow module that *produces* events; it is not part of the event model itself.
 - PDF/CSV export.

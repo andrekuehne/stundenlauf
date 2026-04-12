@@ -14,7 +14,7 @@ The port preserves all functional capabilities of the Python version while gaini
 ## Architecture Principles
 
 - **Static site only** – no server, no API calls, no database. All logic runs in the browser.
-- **Event-sourced core** – the domain state is rebuilt deterministically from an append-only command log. Snapshots are optional caches, never the source of truth.
+- **Event-sourced core** – the domain state is rebuilt deterministically from an append-only event log. Snapshots are optional caches, never the source of truth.
 - **Teams as the universal entity** – a solo participant is a team of size 1. Couples are teams of size 2. This unifies identity, matching, and standings logic.
 - **TypeScript-first** – all domain logic, storage, and UI in TypeScript (or JS transpiled from TS). Strict types for domain models.
 - **Offline-first / local-first** – data never leaves the browser unless the user explicitly exports.
@@ -46,7 +46,7 @@ Mapped from the Python version's requirements, adapted for the static-site conte
 | Language | TypeScript 5.x | Strict mode, ES2022+ target |
 | Build | Vite | Fast dev server, static output for GitHub Pages |
 | UI Framework | TBD (React, Preact, Svelte, or vanilla) | Decide in a future feature |
-| State Management | Event-sourced command log | Core architecture; see F-TS01 |
+| State Management | Event-sourced event log | Core architecture; see F-TS01 |
 | Storage | IndexedDB (via idb or Dexie) + JSON export | Offline persistence |
 | Excel Parsing | SheetJS (xlsx) or ExcelJS | Client-side .xlsx reading |
 | Fuzzy Matching | Custom port or fuse.js + custom scoring | Port Python matching logic |
@@ -73,10 +73,11 @@ Features are prefixed `F-TS` to distinguish from the Python version's `F` prefix
 
 | Feature | Description | Milestone | Status |
 |---|---|---|---|
-| F-TS01 | Event-sourced command architecture | M-TS1 | Planned |
+| F-TS01 | Event-sourced event architecture | M-TS1 | Planned |
 | F-TS02 | Client-side Excel (.xlsx) parsing | M-TS2 | Planned |
 | F-TS03 | Fuzzy matching engine and review workflow | M-TS3 | Planned |
 | F-TS04 | Ranking engine and standings computation | M-TS4 | Planned |
+| F-TS05 | Import orchestration workflow | M-TS2 | Planned |
 | | *(additional features to be added as planning progresses)* | | |
 
 ## Mapping from Python Features
@@ -86,7 +87,7 @@ The following maps Python features to their TS-port equivalents or notes on appr
 | Python Feature | TS Port Approach |
 |---|---|
 | F01 Domain model & storage | F-TS01 event-sourced model replaces snapshot-based ProjectDocument |
-| F02 Excel ingestion | F-TS02: client-side xlsx parsing, same adapter pattern |
+| F02 Excel ingestion | F-TS02: client-side xlsx parsing; F-TS05: import orchestration (parse → match → emit) |
 | F03 Matching engine | F-TS03: port scoring/normalization/modes to TS; same fingerprint + scoring approach |
 | F04 Ranking engine | F-TS04: port as `stundenlauf_v1` ruleset; pure derived view over SeasonState |
 | F05 German UI | New UI framework; same German copy catalog |
@@ -139,3 +140,4 @@ TS version: UI components call domain functions directly. No serialization bound
 | Date | Change | Why |
 |---|---|---|
 | 2026-04-12 | Initial project plan scaffold | Begin TS port planning |
+| 2026-04-12 | Self-consistency review fixes | Terminology (command→event), added F-TS05 import orchestrator, fixed cross-doc type inconsistencies |

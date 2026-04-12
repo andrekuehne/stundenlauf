@@ -46,7 +46,8 @@ The TS port must replicate the scoring logic, mode system, and review workflow, 
 
 - Excel parsing (F-TS02).
 - Event emission and event log storage (F-TS01).
-- Ranking/standings computation (future feature).
+- Import orchestration workflow tying parsing → matching → event emission (F-TS05).
+- Ranking/standings computation (F-TS04).
 - `manual_reject` persistence — the infrastructure exists in the Python code but no GUI path creates `manual_reject` decisions. Not ported.
 - Identity merge (Python F16) — out of scope for v1; corrections use `entry.reassigned`.
 - PDF/CSV export.
@@ -281,8 +282,9 @@ This is the main orchestration per imported row. Direct port of `_resolve_person
 3. Compute fingerprint
 
 4. REPLAY CHECK
-   If fingerprint found in decision index with kind ∈ {manual_link, replay}
-   and target UID exists in registry → auto-link (confidence 1.0, features: {replay: 1.0})
+   If fingerprint found in replay index (derived from past entries with
+   resolution.method = "manual" or "auto" at confidence 1.0)
+   and target team_id exists in registry → auto-link (confidence 1.0, features: {replay: 1.0})
 
 5. CANDIDATE SCORING
    Build blocking index → gather candidates → exclude rejected UIDs →
@@ -456,8 +458,16 @@ All scoring weights and thresholds, with their default values:
 
 ```typescript
 interface MatchingConfig {
-  auto_min: number;                  // 0.88
+  // GUI mode fields (user-facing, control effective auto_min — see §8)
+  auto_merge_enabled: boolean;         // false — "Ab Schwelle" sub-mode active
+  perfect_match_auto_merge: boolean;   // false — "Nur 100 %" sub-mode active
+  strict_normalized_auto_only: boolean; // false — "Strikt" mode active
+
+  // Thresholds (auto_min is user-facing via slider; review_min is user-facing)
+  auto_min: number;                  // 0.88 — user slider value (only active when auto_merge_enabled)
   review_min: number;                // 0.72
+
+  // Scoring weights (internal tuning constants)
   yob_match_bonus: number;           // 0.10
   yob_mismatch_penalty: number;      // 0.45
   club_weight: number;               // 0.08
@@ -466,11 +476,10 @@ interface MatchingConfig {
   max_candidates_per_row: number;    // 48
   member_mismatch_floor: number;     // 0.52
   pair_unsafe_cap: number;           // 0.78
-  strict_normalized_auto_only: boolean; // false
 }
 ```
 
-Only `auto_min`, `review_min`, and `strict_normalized_auto_only` are user-facing. The scoring weights are internal tuning constants.
+The resolution pipeline computes the **effective auto_min** from the GUI mode fields (see §8 mode → config mapping) and uses that for routing. `review_min` is always used directly.
 
 ### 14. SequenceMatcher Porting Strategy
 
@@ -532,7 +541,7 @@ All exports are pure functions with no side effects and no framework dependencie
 | Rejection tracking | `rejected_participant_uids` / `rejected_team_uids` from `manual_reject` decisions | Not ported — no GUI path creates rejections. |
 | Review queue | Entries with `match_meta.route = "review"` stored on committed `RaceEntry` objects | Pre-commit staging area. Entries never enter the event log unresolved (eager resolution). |
 | Import blocking | Review queue checked at import time | Same behavior, but the review queue is ephemeral UI state. |
-| Workflow output | Mutated `ProjectDocument` with new decisions appended | Event batch: `person.registered`, `team.registered`, `race.registered`. No decision events. |
+| Workflow output | Mutated `ProjectDocument` with new decisions appended | Event batch: `import_batch.recorded`, `person.registered`, `team.registered`, `race.registered`, `ranking.eligibility_set` (to clear prior exclusions). No decision events. |
 | Couple model | `Couple` with `member_a`, `member_b` (embedded `Person`) | `Team { member_person_ids: [id1, id2] }` referencing `PersonIdentity` by ID |
 | Singles model | `Person` with `participant_uid` on entries | `Team { member_person_ids: [id] }` — solo is a team of size 1 |
 | SequenceMatcher | Python stdlib `difflib` | Direct port of Ratcliff/Obershelp algorithm |
