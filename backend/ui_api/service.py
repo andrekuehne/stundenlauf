@@ -8,6 +8,7 @@ from typing import Any
 from backend.app_paths import default_workspace_dir
 from backend.export.gui_pdf_spec import laufuebersicht_einzel_paare_export_specs
 from backend.export.registry import export_standings_to_path
+from backend.export.spec import PDF_LAYOUT_PRESETS, pdf_layout_preset_catalog
 from backend.matching.config import MatchingConfig
 from backend.storage.repository import JsonProjectRepository
 from backend.ui_api import commands, queries, workspace
@@ -49,6 +50,7 @@ class UiApiService:
             "reset_series_year": lambda payload: workspace.reset_series_year(self.workspace_dir, payload),
             "export_series_year": lambda payload: workspace.export_series_year(self.workspace_dir, payload),
             "export_standings_pdf": lambda payload: self._export_standings_pdf(payload),
+            "list_pdf_export_layout_presets": lambda payload: self._list_pdf_export_layout_presets(payload),
             "import_series_year": lambda payload: self._import_series_year(payload),
             "get_matching_config": lambda payload: self._get_matching_config(payload),
             "set_matching_config": lambda payload: self._set_matching_config(payload),
@@ -91,10 +93,21 @@ class UiApiService:
             raise ValueError(f"Unknown method: {req.method}")
         return handler(req.payload)
 
+    def _list_pdf_export_layout_presets(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {"presets": pdf_layout_preset_catalog()}
+
     def _export_standings_pdf(self, payload: dict[str, Any]) -> dict[str, Any]:
         path_raw = str(payload.get("destination_path", "")).strip()
         if not path_raw:
             raise validation_error("destination_path is required")
+        layout_raw = payload.get("layout_preset")
+        layout_preset: str | None
+        if layout_raw is None or (isinstance(layout_raw, str) and not layout_raw.strip()):
+            layout_preset = None
+        else:
+            layout_preset = str(layout_raw).strip().lower()
+            if layout_preset not in PDF_LAYOUT_PRESETS:
+                raise validation_error(f"layout_preset must be one of: {', '.join(sorted(PDF_LAYOUT_PRESETS))}")
         destination_path = Path(path_raw)
         suffix = destination_path.suffix.lower()
         if suffix not in ("", ".pdf"):
@@ -104,7 +117,7 @@ class UiApiService:
         repo = JsonProjectRepository(project_file)
         doc = repo.load()
         try:
-            spec_einzel, spec_paare = laufuebersicht_einzel_paare_export_specs(doc)
+            spec_einzel, spec_paare = laufuebersicht_einzel_paare_export_specs(doc, layout_preset=layout_preset)
         except ValueError as exc:
             raise validation_error(str(exc)) from exc
         if spec_einzel is None and spec_paare is None:

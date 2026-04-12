@@ -170,6 +170,27 @@ PDF_LAYOUT_PRESETS: dict[str, dict[str, Any]] = {
     },
 }
 
+# German labels for GUI / API catalog (keys must match ``PDF_LAYOUT_PRESETS``).
+PDF_LAYOUT_PRESET_LABELS_DE: dict[str, str] = {
+    "default": "Standard",
+    "compact": "Kompakt (größere Schrift, engere Ränder)",
+}
+
+
+def pdf_layout_preset_catalog() -> list[dict[str, str]]:
+    """Stable-ordered options for desktop PDF export (id + German label)."""
+    preferred = ("default", "compact")
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for k in preferred:
+        if k in PDF_LAYOUT_PRESETS:
+            ordered.append(k)
+            seen.add(k)
+    for k in sorted(PDF_LAYOUT_PRESETS):
+        if k not in seen:
+            ordered.append(k)
+    return [{"id": key, "label_de": PDF_LAYOUT_PRESET_LABELS_DE.get(key, key)} for key in ordered]
+
 
 def _pdf_opt_float(raw: dict[str, Any], key: str, default: float) -> float:
     if key not in raw:
