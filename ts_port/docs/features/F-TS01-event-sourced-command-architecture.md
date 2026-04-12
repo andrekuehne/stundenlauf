@@ -466,7 +466,7 @@ Validation and standings computation must operate on **effective** races and eff
 
 No matching state, no review queue, no fingerprint index in the projected state. Those are concerns of the matching workflow layer.
 
-**Standings** are NOT part of the projected state. They are computed on-demand from `SeasonState` using the ranking engine (same v1_legacy_top4 rules). This eliminates the need to store `StandingsSnapshot` and keeps the event log lean.
+**Standings** are NOT part of the projected state. They are computed on-demand from `SeasonState` using the ranking engine (same rules, ported as `stundenlauf_v1` ruleset; see F-TS04). This eliminates the need to store `StandingsSnapshot` and keeps the event log lean.
 
 **Participation** is implicit: if a team has no entry in a given `race_event_id`, they didn't participate in that race. No explicit "did not participate" records are needed.
 
@@ -583,7 +583,7 @@ Each event is validated before being appended to the log. Validation runs agains
 
 ### Reusable logic
 
-- Ranking rules (`v1_legacy_top4`, top-4 selection, scoring, sorting) port directly.
+- Ranking rules (top-4 selection, scoring, sorting; see F-TS04 `stundenlauf_v1`) port directly.
 - Identity fingerprint and scoring functions port directly.
 - Name parsing and normalization port directly.
 - Division/team-shape validation rules port directly (v1 validates solo-vs-couple structure, not gender composition).

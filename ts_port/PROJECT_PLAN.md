@@ -45,7 +45,7 @@ Mapped from the Python version's requirements, adapted for the static-site conte
 |---|---|---|
 | Language | TypeScript 5.x | Strict mode, ES2022+ target |
 | Build | Vite | Fast dev server, static output for GitHub Pages |
-| UI Framework | TBD (React, Preact, Svelte, or vanilla) | Decide in F-TS02 |
+| UI Framework | TBD (React, Preact, Svelte, or vanilla) | Decide in a future feature |
 | State Management | Event-sourced command log | Core architecture; see F-TS01 |
 | Storage | IndexedDB (via idb or Dexie) + JSON export | Offline persistence |
 | Excel Parsing | SheetJS (xlsx) or ExcelJS | Client-side .xlsx reading |
@@ -74,7 +74,9 @@ Features are prefixed `F-TS` to distinguish from the Python version's `F` prefix
 | Feature | Description | Milestone | Status |
 |---|---|---|---|
 | F-TS01 | Event-sourced command architecture | M-TS1 | Planned |
-| F-TS02 | UI framework and build scaffold | M-TS1 | Planned |
+| F-TS02 | Client-side Excel (.xlsx) parsing | M-TS2 | Planned |
+| F-TS03 | Fuzzy matching engine and review workflow | M-TS3 | Planned |
+| F-TS04 | Ranking engine and standings computation | M-TS4 | Planned |
 | | *(additional features to be added as planning progresses)* | | |
 
 ## Mapping from Python Features
@@ -84,9 +86,9 @@ The following maps Python features to their TS-port equivalents or notes on appr
 | Python Feature | TS Port Approach |
 |---|---|
 | F01 Domain model & storage | F-TS01 event-sourced model replaces snapshot-based ProjectDocument |
-| F02 Excel ingestion | New feature: client-side xlsx parsing, same adapter pattern |
-| F03 Matching engine | Port scoring/normalization logic to TS; same fingerprint + scoring approach |
-| F04 Ranking engine | Direct port of v1_legacy_top4 ruleset |
+| F02 Excel ingestion | F-TS02: client-side xlsx parsing, same adapter pattern |
+| F03 Matching engine | F-TS03: port scoring/normalization/modes to TS; same fingerprint + scoring approach |
+| F04 Ranking engine | F-TS04: port as `stundenlauf_v1` ruleset; pure derived view over SeasonState |
 | F05 German UI | New UI framework; same German copy catalog |
 | F08 API layer | Eliminated – UI calls domain directly (no pywebview bridge) |
 | F09–F19 Identity/matching/review features | Subsumed into TS matching + review features |
