@@ -45,8 +45,8 @@ Mapped from the Python version's requirements, adapted for the static-site conte
 |---|---|---|
 | Language | TypeScript 5.x | Strict mode, ES2022+ target |
 | Build | Vite | Fast dev server, static output for GitHub Pages |
-| UI Framework | TBD (React, Preact, Svelte, or vanilla) | Decide in a future feature |
-| State Management | Event-sourced event log | Core architecture; see F-TS01 |
+| UI Framework | React 18+ | Largest ecosystem, best AI-assist support, most docs; decided in F-TS06 |
+| State Management | Zustand + event-sourced event log | Zustand for UI state; event log for domain state (F-TS01) |
 | Storage | IndexedDB (via idb or Dexie) + JSON export | Offline persistence |
 | Excel Parsing | SheetJS (xlsx) or ExcelJS | Client-side .xlsx reading |
 | Fuzzy Matching | Custom port or fuse.js + custom scoring | Port Python matching logic |
@@ -78,7 +78,10 @@ Features are prefixed `F-TS` to distinguish from the Python version's `F` prefix
 | F-TS03 | Fuzzy matching engine and review workflow | M-TS3 | Planned |
 | F-TS04 | Ranking engine and standings computation | M-TS4 | Planned |
 | F-TS05 | Import orchestration workflow (parse → validate → match → review → emit) | M-TS2 | Planned |
-| | *(additional features to be added as planning progresses)* | | |
+| F-TS06 | UI framework and German UI shell | M-TS5 | Planned |
+| F-TS07 | Season data portability (JSON/ZIP export and import) | M-TS6 | Planned |
+| F-TS08 | Standings and results export (PDF, CSV) | M-TS6 | Planned |
+| F-TS09 | GitHub Pages deployment and PWA | M-TS7 | Planned |
 
 ## Mapping from Python Features
 
@@ -90,11 +93,51 @@ The following maps Python features to their TS-port equivalents or notes on appr
 | F02 Excel ingestion | F-TS02: client-side xlsx parsing; F-TS05: import orchestration (parse → match → emit) |
 | F03 Matching engine | F-TS03: port scoring/normalization/modes to TS; same fingerprint + scoring approach |
 | F04 Ranking engine | F-TS04: port as `stundenlauf_v1` ruleset; pure derived view over SeasonState |
-| F05 German UI | New UI framework; same German copy catalog |
+| F05 German UI | F-TS06: UI framework selection, app shell, German copy catalog, core workflow screens |
+| F06 Fixture HITL import script | Not ported – developer tooling; replaced by Vitest fixture-based tests |
+| F07 Gesamtwertung ground-truth comparison | Not ported – developer tooling; replaced by Vitest fixture-based tests |
 | F08 API layer | Eliminated – UI calls domain directly (no pywebview bridge) |
 | F09–F19 Identity/matching/review features | Subsumed into F-TS03 (matching) + F-TS05 (orchestration & review workflow) |
-| F20 Export | Client-side PDF/CSV generation |
-| F22 Windows packaging | Eliminated – replaced by GitHub Pages + PWA |
+| F12 Season import/export | F-TS07: browser-local season export/import (JSON/ZIP download/upload, IndexedDB ↔ file) |
+| F20 Export | F-TS08: client-side PDF/CSV generation for standings and results |
+| F22 Windows packaging | Eliminated – replaced by F-TS09 (GitHub Pages deployment + PWA) |
+
+## Python Dead Surface (Do Not Port)
+
+An audit of the Python GUI (2026-04-12) found unused code that should **not** be carried into the TS port. Documented here so porting work can reference Python source files without accidentally reproducing dead paths.
+
+### Dead API methods (registered in `backend/ui_api/service.py` `_dispatch`, never called by `frontend/app.js`)
+
+| Method | Why dead | Porting note |
+|---|---|---|
+| `get_project_state` | Superseded by `get_year_overview` which returns richer data. `queries.get_project_state()` wrapper is also uncalled. | Design year-overview query only; no separate project-state query needed. |
+| `list_categories` | Category info is embedded in the `get_year_overview` response. | Same — no standalone category-list query. |
+| `get_match_candidate` | Candidate data is returned inline within `get_review_queue`. | Return full candidate data in review queue response. |
+| `get_audit_timeline` | `get_year_timeline` covers audit rows. Separate endpoint was never wired. | Single timeline query covers both source-history and audit. |
+| `rollback_race` | Frontend uses `rollback_source_batch` (rolls back entire file import, not individual races). | Port `rollback_source_batch` semantics only. |
+| `reimport_race` | No UI flow ever existed for re-importing over a previous race. | Skip unless a clear use case emerges. |
+
+### Dead frontend code (`frontend/app.js`, `frontend/strings.js`)
+
+| Item | Location | Note |
+|---|---|---|
+| `formatEntityPreview()` | `app.js` line ~1530 | Defined, never called. |
+| `UIStrings.seasonEntry.tableRaces` | `strings.js` line 70 | String `"Läufe"` never referenced. |
+| Duplicate `escapeHtml()` | `app.js` lines ~1097 and ~1522 | Second definition shadows first; redundant copy. |
+
+### Dead API-layer re-exports (`backend/ui_api/mappers.py`)
+
+`mappers.py` re-exports `club_for_row`, `display_name_for_row`, `people_by_uid`, `teams_by_uid`, `yob_for_row` from `standings_display`. Only `category_label` and `race_event_identity` are actually imported by `queries.py`. The re-exports are unused within the API layer (the underlying functions are used elsewhere, but through direct imports from `standings_display`).
+
+### Stale Python feature docs (not authoritative for TS port)
+
+These Python docs have **drifted from shipped behavior** — when referencing Python source, trust the code over the doc text:
+
+| Doc | Drift |
+|---|---|
+| F05 (German UI) | Acceptance criteria still `[ ]` unchecked despite being shipped. References to `MergeResolutionDialog` and side-by-side layout are stale; actual UI uses a stacked comparison table. |
+| F06 (Fixture HITL) | Motivation says "Before the German GUI exists…" — GUI shipped long ago. |
+| F20 (Export) | Out-of-scope says "Desktop GUI export button is deferred" — but it was shipped (layout presets, PDF export in Aktuelle Wertung). |
 
 ## Key Architectural Differences from Python Version
 
@@ -142,3 +185,6 @@ TS version: UI components call domain functions directly. No serialization bound
 | 2026-04-12 | Initial project plan scaffold | Begin TS port planning |
 | 2026-04-12 | Self-consistency review fixes | Terminology (command→event), added F-TS05 import orchestrator, fixed cross-doc type inconsistencies |
 | 2026-04-12 | F-TS05 feature plan created | Detailed import orchestration workflow: phased API, eager resolution, review staging, event batch construction |
+| 2026-04-12 | Added F-TS06 through F-TS09 | Fill feature inventory gaps for M-TS5 (UI), M-TS6 (export/portability), M-TS7 (deployment/PWA); updated Python mapping table |
+| 2026-04-12 | Python dead-surface audit | Documented 6 dead API methods, dead frontend code, stale re-exports, and drifted Python docs as porting reference; added F06/F07 to mapping table as dev-tooling (not ported) |
+| 2026-04-12 | F-TS06 feature plan created | Detailed UI framework & German shell plan: full audit of all 4 screens in app.js (2762 lines), line-by-line keep/change/eliminate dispositions, dead code inventory, bridge elimination mapping, file API migration, confirmation modal migration, CSS audit, component architecture, string catalog porting plan |
