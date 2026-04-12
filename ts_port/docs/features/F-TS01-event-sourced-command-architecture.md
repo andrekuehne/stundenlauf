@@ -170,7 +170,6 @@ Below is the complete event catalog.
 | `person.registered` | Register a new person identity | Implicit in new-identity path during import |
 | `person.corrected` | Correct canonical fields on a person | `update_participant_identity` |
 | `team.registered` | Create a new team referencing persons | Implicit in `process_singles_section` / `process_couples_section` |
-| `team.merged` | Alias two duplicate teams within a category | `merge_standings_entities` |
 
 **`person.registered`**
 ```
@@ -209,16 +208,7 @@ Below is the complete event catalog.
 }
 ```
 
-**`team.merged`** — category-scoped alias: all entries in the given category pointing to `absorbed_team_id` are re-pointed to `survivor_team_id`. This is **not** a global identity merge; it resolves duplicates within one category's standings. The absorbed team's historical identity is preserved in the log.
-
-```
-{
-  survivor_team_id: string
-  absorbed_team_id: string
-  category: RaceCategory
-  rationale: string
-}
-```
+Operator matching mistakes (results imported under a wrongly-created team that should belong to an existing team) are corrected using `entry.reassigned`. Teams themselves are not merged in v1. Teams that lose all assigned results may remain as orphan identities — this is acceptable and handled in the UI layer (see Section 6).
 
 ---
 
@@ -434,7 +424,8 @@ SeasonState {
   // Person registry (built from person.registered, person.corrected)
   persons: Map<person_id, PersonIdentity>
 
-  // Team registry (built from team.registered, team.merged)
+  // Team registry (built from team.registered)
+  // Teams that lose all entries via entry.reassigned remain as orphan identities.
   teams: Map<team_id, Team>
 
   // Import batches (built from import_batch.recorded, import_batch.rolled_back)
@@ -449,10 +440,6 @@ SeasonState {
 
   // Ranking exclusions (built from ranking.eligibility_set)
   exclusions: Map<category_key, Set<team_id>>
-
-  // Team merge alias map (built from team.merged)
-  // Maps absorbed_team_id → survivor_team_id per category
-  merge_aliases: Map<category_key, Map<team_id, team_id>>
 }
 ```
 
@@ -461,6 +448,8 @@ No matching state, no review queue, no fingerprint index in the projected state.
 **Standings** are NOT part of the projected state. They are computed on-demand from `SeasonState` using the ranking engine (same v1_legacy_top4 rules). This eliminates the need to store `StandingsSnapshot` and keeps the event log lean.
 
 **Participation** is implicit: if a team has no entry in a given `race_event_id`, they didn't participate in that race. No explicit "did not participate" records are needed.
+
+**Orphaned teams** are expected. When an operator corrects a matching mistake by reassigning all of a wrongly-created team's entries to the correct team, the original team remains in the registry with no associated entries. This is intentional: the event log stays truthful, no destructive cleanup is needed, and projections stay simple. In the UI, teams with no effective entries can be hidden by default or shown only in an identity administration view.
 
 ### 7. Storage Format
 
@@ -511,7 +500,6 @@ function applyEvent(state: SeasonState, event: EventEnvelope): SeasonState {
     case "person.registered":          return applyPersonRegistered(state, event.payload);
     case "person.corrected":           return applyPersonCorrected(state, event.payload);
     case "team.registered":            return applyTeamRegistered(state, event.payload);
-    case "team.merged":                return applyTeamMerged(state, event.payload);
     case "race.registered":            return applyRaceRegistered(state, event.payload);
     case "race.rolled_back":           return applyRaceRolledBack(state, event.payload);
     case "race.metadata_corrected":    return applyRaceMetadataCorrected(state, event.payload);
@@ -526,6 +514,14 @@ function applyEvent(state: SeasonState, event: EventEnvelope): SeasonState {
 
 The projection is **pure** (no side effects, no I/O). This makes it trivially testable and deterministic.
 
+**Correction precedence:** The effective state of any race entry is determined by replaying events in `seq` order. Specifically:
+
+1. Start from the base entry as recorded in `race.registered`.
+2. Apply any `entry.corrected` events (updating `distance_m`, `points`, `startnr`) in sequence order.
+3. Apply any `entry.reassigned` events (updating `team_id`) in sequence order.
+
+Because all correction events are applied in global `seq` order during projection, each correction sees the result of all prior corrections. The effective entry state after full replay is the single source of truth.
+
 ### 9. Validation
 
 Each event is validated before being appended to the log. Validation runs against the projected state produced by all prior events (including earlier events in the same batch):
@@ -533,8 +529,7 @@ Each event is validated before being appended to the log. Validation runs agains
 - `person.registered`: no duplicate `person_id`.
 - `team.registered`: no duplicate `team_id`; all `member_person_ids` must reference registered persons; member count matches `team_kind`.
 - `race.registered`: no duplicate `race_event_id`; no active event with same category + race_no; no already-applied batch with same `import_batch_id`; every entry's `team_id` must reference a registered team.
-- `team.merged`: both teams exist; no overlapping race participation in the same category.
-- `entry.reassigned`: entry exists in an active race; `from_team_id` matches current assignment; `to_team_id` references a registered team.
+- `entry.reassigned`: entry exists in an active race; `from_team_id` matches current effective assignment; `to_team_id` references a registered team; `to_team_id` is compatible with the race's category (e.g. solo team for singles division, couple team for couples division); the race must not already contain an effective entry for `to_team_id` (no duplicate team participation in a single race).
 - `entry.corrected`: entry exists in an active race.
 - `race.metadata_corrected`: race event exists and is active.
 - `ranking.eligibility_set`: team must have entries in the given category.
@@ -770,7 +765,7 @@ This plan incorporates feedback from an external architecture review. Key change
 9. **Enriched provenance** — `IncomingRowData` includes `sheet_name`, `section_name`, `row_index` for row-level traceability.
 10. **Season ≠ year** — seasons are identified by uuid + label, decoupled from a single calendar year.
 11. **Richer metadata** — `app_version` and `schema_version` on every event envelope.
-12. **Category-scoped merge** — `team.merged` is explicitly documented as category-scoped aliasing, not global identity merge.
+12. **Result reassignment over merge** — `team.merged` removed in favor of `entry.reassigned` for correcting operator matching mistakes. The real business operation is result reassignment, not identity merging. Orphaned teams are acceptable historical artifacts.
 13. **Per-entry eligibility clearing** — exclusions after import are cleared via individual `ranking.eligibility_set` events, not a blanket reset.
 14. **Race metadata corrections** — `race.metadata_corrected` allows fixing race date/number/category without rollback.
 15. **Points as source facts** — confirmed: points are organizer-assigned facts stored on entries, not derived.
