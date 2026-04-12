@@ -66,6 +66,8 @@ class PdfLayoutTokens:
     narrow_distanz_gesamt_cm: float
     narrow_laufuebersicht_km_pkt_cm: float
     table_width_extra_margin_cm: float
+    table_cell_horizontal_padding_pt: float
+    table_cell_vertical_padding_pt: float
 
     @property
     def line_grey(self) -> colors.Color:
@@ -141,6 +143,8 @@ def pdf_layout_tokens(pdf: PdfStyleSpec) -> PdfLayoutTokens:
         narrow_distanz_gesamt_cm=pdf.narrow_distanz_gesamt_cm,
         narrow_laufuebersicht_km_pkt_cm=pdf.narrow_laufuebersicht_km_pkt_cm,
         table_width_extra_margin_cm=pdf.table_width_extra_margin_cm,
+        table_cell_horizontal_padding_pt=pdf.table_cell_horizontal_padding_pt,
+        table_cell_vertical_padding_pt=pdf.table_cell_vertical_padding_pt,
     )
 
 

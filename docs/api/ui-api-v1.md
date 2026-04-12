@@ -103,7 +103,7 @@ This document defines the frontend-facing Python API contract for the pywebview 
 - Payload:
   - `destination_path` (required, non-empty): **base path** for the export (no extension, or ending in `.pdf` which is stripped). The service writes `{base}_einzel.pdf` and `{base}_paare.pdf` when both Einzel- and Paare-Kategorien exist; otherwise only the file(s) that have at least one category.
   - `layout_preset` (optional): string key from `PDF_LAYOUT_PRESETS` (e.g. `default`, `compact`). Omitted or empty uses the standard layout. Invalid keys yield `VALIDATION_ERROR`.
-- Renders **Laufübersicht** PDFs: **Einzel** (women/men divisions) and **Paare** (`couples_*`) separately, each with the same year + Hinweis header and the same declarative spec as the GUI (`laufuebersicht_board`, embedded standings, all active races, eligible-only rows, landscape A4, page break before each category after the first). Section headings (`1. …`, `2. …`, …) continue across the Paare PDF (Paare does not restart at `1.`).
+- Renders **Laufübersicht** PDFs: **Einzel** (women/men divisions) and **Paare** (`couples_*`) separately, each with the same year + Hinweis header and the same declarative spec as the GUI (`laufuebersicht_board`, embedded standings, all active races, eligible-only rows, A4, page break before each category after the first). **Default** layout uses landscape A4; **`layout_preset: compact`** uses portrait A4 with tighter margins, typography, and table cell padding to reduce page count. Section headings (`1. …`, `2. …`, …) continue across the Paare PDF (Paare does not restart at `1.`).
 - Returns:
   - `export_files` (list of written paths, one or two entries)
   - `bytes_written` (sum of file sizes)

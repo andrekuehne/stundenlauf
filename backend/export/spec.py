@@ -161,19 +161,43 @@ PDF_LAYOUT_PRESETS: dict[str, dict[str, Any]] = {
     "default": {},
     # Example: tighter page margins and slightly larger table type (data columns unchanged).
     "compact": {
-        "margin_left_cm": 1.0,
-        "margin_right_cm": 1.0,
-        "margin_top_cm": 1.0,
-        "margin_bottom_cm": 1.2,
-        "table_font_size": 8,
-        "table_header_font_size": 9,
+        "orientation": "portrait",
+        "margin_left_cm": 0.45,
+        "margin_right_cm": 0.45,
+        "margin_top_cm": 0.45,
+        "margin_bottom_cm": 0.65,
+        "footer_font_size_pt": 7.0,
+        "footer_y_cm": 0.55,
+        "section_title_font_size_pt": 11.0,
+        "section_title_space_after_pt": 2.0,
+        "section_subtitle_font_size_pt": 8.0,
+        "section_subtitle_space_after_pt": 4.0,
+        "cover_year_font_size_pt": 20.0,
+        "cover_year_leading_pt": 22.0,
+        "cover_year_space_after_pt": 8.0,
+        "cover_notice_font_size_pt": 8.0,
+        "cover_notice_leading_pt": 10.0,
+        "cover_spacer_after_cm": 0.2,
+        "table_spacer_after_cm": 0.25,
+        "logo_draw_height_cm": 1.5,
+        "logo_spacer_after_cm": 0.12,
+        "table_font_size": 7,
+        "table_header_font_size": 7,
+        "lauf_result_leading_extra_pt": 0,
+        "table_cell_horizontal_padding_pt": 2.0,
+        "table_cell_vertical_padding_pt": 0.5,
+        "table_width_extra_margin_cm": 0.8,
+        "narrow_platz_cm": 0.78,
+        "narrow_punkte_gesamt_cm": 0.95,
+        "narrow_distanz_gesamt_cm": 1.05,
+        "narrow_laufuebersicht_km_pkt_cm": 1.05,
     },
 }
 
 # German labels for GUI / API catalog (keys must match ``PDF_LAYOUT_PRESETS``).
 PDF_LAYOUT_PRESET_LABELS_DE: dict[str, str] = {
     "default": "Standard",
-    "compact": "Kompakt (größere Schrift, engere Ränder)",
+    "compact": "Kompakt (Hochformat, wenig Weißraum, kleine Schrift)",
 }
 
 
@@ -300,6 +324,9 @@ class PdfStyleSpec:
     narrow_distanz_gesamt_cm: float = 1.35
     narrow_laufuebersicht_km_pkt_cm: float = 1.25
     table_width_extra_margin_cm: float = 3.0
+    # ReportLab default cell padding is 6 pt horizontal / 3 pt vertical; lower = denser rows.
+    table_cell_horizontal_padding_pt: float = 6.0
+    table_cell_vertical_padding_pt: float = 3.0
 
     @staticmethod
     def from_dict(raw: dict[str, Any]) -> PdfStyleSpec:
@@ -401,6 +428,8 @@ class PdfStyleSpec:
             narrow_distanz_gesamt_cm=_pdf_opt_float(merged, "narrow_distanz_gesamt_cm", 1.35),
             narrow_laufuebersicht_km_pkt_cm=_pdf_opt_float(merged, "narrow_laufuebersicht_km_pkt_cm", 1.25),
             table_width_extra_margin_cm=_pdf_opt_float(merged, "table_width_extra_margin_cm", 3.0),
+            table_cell_horizontal_padding_pt=_pdf_opt_float(merged, "table_cell_horizontal_padding_pt", 6.0),
+            table_cell_vertical_padding_pt=_pdf_opt_float(merged, "table_cell_vertical_padding_pt", 3.0),
         )
 
     def resolved_laufuebersicht_notice(self) -> str:

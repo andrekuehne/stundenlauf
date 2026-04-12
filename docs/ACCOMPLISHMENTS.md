@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-12 - Compact PDF preset: portrait, minimal margins, denser table rows
+- Requirement/Milestone: [R5, R7; M5 / F20]
+- What shipped: `layout_preset: compact` now targets **minimum page count**: A4 **portrait**, ~0.45 cm page margins, smaller section/cover/footer typography, narrower fixed columns, reduced `table_width_extra_margin_cm`, `lauf_result_leading_extra_pt` 0, 7 pt table type, and configurable **`table_cell_horizontal_padding_pt` / `table_cell_vertical_padding_pt`** applied to all PDF tables via `TableStyle` padding plus tight `LEADING`. GUI Laufübersicht export uses **portrait when compact** is selected (default export stays landscape).
+- Evidence: `backend/export/spec.py` (`PDF_LAYOUT_PRESETS["compact"]`, new padding fields on `PdfStyleSpec`), `backend/export/pdf_layout_tokens.py`, `backend/export/pdf_renderer.py`, `backend/export/gui_pdf_spec.py`, `docs/api/ui-api-v1.md`, `tests/test_f20_export.py`; `uv run pytest`
+- Impact: Organizers who pick **Kompakt** get fewer printed pages at the cost of readability.
+- Follow-up: none
+
 ### 2026-04-12 - PDF export: centralized layout tokens and named layout presets
 - Requirement/Milestone: [R5, R7; M5 / F20]
 - What shipped: Visual PDF parameters (margins, section/cover typography, logo size, table line weights, Laufübersicht colors, column width scale, zebra/podium RGB) live on `PdfStyleSpec` and resolve through `backend/export/pdf_layout_tokens.py` for `pdf_renderer`. Export JSON may set `pdf.layout_preset` (`default`, `compact`, …) merged with per-export overrides; `laufuebersicht_result_font_extra_pt` now scales Laufübersicht body/result text.

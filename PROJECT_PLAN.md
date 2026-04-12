@@ -80,6 +80,7 @@ Checkboxes mark **product-level** satisfaction. Capabilities delivered only via 
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-04-12 | PDF **compact** preset: A4 **portrait**, minimal margins, denser table padding/leading, smaller type | Fewer printed pages for Laufübersicht when organizers pick **Kompakt**; [`backend/export/spec.py`](backend/export/spec.py), [`backend/export/pdf_renderer.py`](backend/export/pdf_renderer.py), [`backend/export/gui_pdf_spec.py`](backend/export/gui_pdf_spec.py) |
 | 2026-04-11 | Laufübersicht PDF: **cover** (year + Hinweis), **numbered** section titles, **green/red/double/dashed** table rules, **blue** podium tint | Organizer bulletin styling; [`backend/export/pdf_renderer.py`](backend/export/pdf_renderer.py), [`backend/export/spec.py`](backend/export/spec.py), [`docs/features/F20-standings-multi-format-export.md`](docs/features/F20-standings-multi-format-export.md) |
 | 2026-04-11 | Laufübersicht PDF: **three-row** header (`n. Lauf` / Laufstr.·Wertung / (km)·(Punkte)) | Clearer per-run column meaning; [`backend/export/projection.py`](backend/export/projection.py), [`tests/test_f20_export.py`](tests/test_f20_export.py) |
 | 2026-04-11 | Laufübersicht PDF: **Str. (km)** + **Pkt.** columns (equal width, bold Pkt.) | GUI PDF export / `pdf.table_layout: laufuebersicht`; [`backend/export/projection.py`](backend/export/projection.py), [`tests/test_f20_export.py`](tests/test_f20_export.py) |
