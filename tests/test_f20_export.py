@@ -172,10 +172,10 @@ class TestExportSpec(unittest.TestCase):
         spec = ExportSpec.from_dict(raw)
         self.assertEqual(spec.pdf.margin_left_cm, 2.0)
         self.assertEqual(spec.pdf.margin_right_cm, 0.45)
-        self.assertEqual(spec.pdf.table_font_size, 6)
+        self.assertEqual(spec.pdf.table_font_size, 5)
         self.assertEqual(spec.pdf.orientation, "portrait")
-        self.assertEqual(spec.pdf.table_cell_vertical_padding_pt, 0.35)
-        self.assertEqual(spec.pdf.table_plain_leading_extra_pt, 0)
+        self.assertEqual(spec.pdf.table_cell_vertical_padding_pt, 0.45)
+        self.assertEqual(spec.pdf.table_plain_leading_extra_pt, 1)
 
     def test_gui_pdf_spec_compact_uses_portrait(self) -> None:
         doc = _minimal_doc_one_category()
