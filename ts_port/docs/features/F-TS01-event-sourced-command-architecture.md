@@ -49,7 +49,7 @@ The TS port replaces this with an **event-sourced** architecture where:
 
 ## Acceptance Criteria
 
-- [ ] All Python-version state mutations are expressible as events in the log.
+- [ ] All Python-version **season-domain** state mutations are expressible as events in the season log, and workspace lifecycle operations are expressible in the workspace layer.
 - [ ] A fresh projection from an empty log through any valid event sequence produces the same logical state as the Python version would.
 - [ ] The event log uses a `schema_version`; replay on an unrecognized event type or schema version fails loudly rather than silently skipping.
 - [ ] Solo participants and couples are both represented as Teams with validated member counts.
@@ -142,7 +142,7 @@ Below is the complete event catalog.
 | Event Type | Purpose | Python Equivalent |
 |---|---|---|
 | `import_batch.recorded` | Record provenance for a file import operation | Implicit in `import_excel_into_project` |
-| `import_batch.rolled_back` | Roll back all events from an import batch | `rollback_source_batch` |
+| `import_batch.rolled_back` | Mark all race results from an import batch as ineffective | `rollback_source_batch` |
 
 **`import_batch.recorded`** — emitted once per file import, before the person/team/race events it produces.
 
@@ -518,13 +518,7 @@ function applyEvent(state: SeasonState, event: EventEnvelope): SeasonState {
 
 The projection is **pure** (no side effects, no I/O). This makes it trivially testable and deterministic.
 
-**Correction precedence:** The effective state of any race entry is determined by replaying events in `seq` order. Specifically:
-
-1. Start from the base entry as recorded in `race.registered`.
-2. Apply any `entry.corrected` events (updating `distance_m`, `points`, `startnr`) in sequence order.
-3. Apply any `entry.reassigned` events (updating `team_id`) in sequence order.
-
-Because all correction events are applied in global `seq` order during projection, each correction sees the result of all prior corrections. The effective entry state after full replay is the single source of truth.
+**Correction precedence:** The effective state of an entry is determined by replaying **all events affecting that entry in global `seq` order**. Start from the base entry as recorded in `race.registered`. When an `entry.corrected` event is encountered, it updates the current effective entry fields (`distance_m`, `points`, `startnr`). When an `entry.reassigned` event is encountered, it updates the current effective `team_id`. The fully replayed effective entry state is the source of truth.
 
 ### 9. Validation
 
@@ -532,13 +526,15 @@ Each event is validated before being appended to the log. Validation runs agains
 
 - `person.registered`: no duplicate `person_id`.
 - `team.registered`: no duplicate `team_id`; all `member_person_ids` must reference registered persons; member count matches `team_kind`.
-- `race.registered`: no duplicate `race_event_id`; no active event with same category + race_no; no already-applied batch with same `import_batch_id`; every entry's `team_id` must reference a registered team; every `entry_id` introduced by the event must be globally unique within the season event log.
+- `race.registered`: no duplicate `race_event_id`; no active event with same category + race_no; every entry's `team_id` must reference a registered team; every `entry_id` introduced by the event must be globally unique within the season event log.
 - `entry.reassigned`: entry exists in an active race; `from_team_id` matches current effective assignment; `to_team_id` references a registered team; `to_team_id` is compatible with the race's category (e.g. solo team for singles division, couple team for couples division); the race must not already contain an effective entry for `to_team_id` (no duplicate team participation in a single race).
 - `entry.corrected`: entry exists in an active race.
 - `race.metadata_corrected`: race event exists and is active; the resulting `(category, race_no)` must not collide with another active race; all effective entries in the race must remain compatible with the resulting category (e.g. solo entries in a solo division, couple entries in a couples division); if the category change would invalidate existing category-scoped eligibility state, the correction must be rejected.
 - `ranking.eligibility_set`: team must have entries in the given category.
 - `import_batch.recorded`: no duplicate `import_batch_id`.
 - `import_batch.rolled_back`: batch exists and has not already been rolled back.
+
+**Cross-field consistency:** When `metadata.import_batch_id` is present on an event whose payload also carries `import_batch_id`, the two values must be identical. This prevents silent drift between provenance fields.
 
 ---
 
