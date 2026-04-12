@@ -22,7 +22,11 @@ data/2023/**/*.csv
 data/2023/**/*.json
 data/2023/**/*.json.bak
 
-example/
+# example/: cannot use `example/` + `!.../file` — ignored parent dirs block re-include (gitignore(5)).
+example/*
+!example/stundenlauf-2025.stundenlauf-season/
+example/stundenlauf-2025.stundenlauf-season/*
+!example/stundenlauf-2025.stundenlauf-season/*.json
 
 # Inno Setup output (local builds)
 installer/output/
