@@ -84,6 +84,8 @@ Team {
 }
 ```
 
+In v1, `Team` is intentionally named broadly to support future 1..n-person scoring units. However, the current implementation validates `member_person_ids.length` to **1 or 2 only**, and `team_kind` is currently limited to **`"solo" | "couple"`**. Larger teams are a future extension and are not part of this feature.
+
 - Division rules validate team size: `men`/`women` divisions require solo teams; `couples_*` divisions require couple teams.
 - Entries always reference `team_id`. There is no `participant_uid` vs `team_uid` branching.
 - Member order within a couple team is canonical (stored in order, but matching is order-insensitive).
@@ -160,6 +162,8 @@ Below is the complete event catalog.
   reason: string
 }
 ```
+
+`import_batch.rolled_back` is a **result-level rollback**, not a destructive entity rollback. During projection, all `race.registered` events associated with the rolled-back batch are treated as ineffective, and any `ranking.eligibility_set` events emitted by that batch are likewise ignored. `person.registered` and `team.registered` events from the batch remain part of the projected identity registries. This may leave orphaned persons or teams, which is acceptable.
 
 ---
 
@@ -247,7 +251,7 @@ IncomingRowData {
   yob: number | null          // solo; null for couples
   yob_text: string | null     // couples: "1985 / 1990"; null for solo
   club: string | null         // raw club string
-  kind: "solo" | "team"
+  row_kind: "solo" | "team"   // shape of the imported row, not the canonical TeamKind
   sheet_name: string          // source worksheet name
   section_name: string        // parsed section header (e.g. "Herren 60min")
   row_index: number           // 0-based row index in the sheet
@@ -528,10 +532,10 @@ Each event is validated before being appended to the log. Validation runs agains
 
 - `person.registered`: no duplicate `person_id`.
 - `team.registered`: no duplicate `team_id`; all `member_person_ids` must reference registered persons; member count matches `team_kind`.
-- `race.registered`: no duplicate `race_event_id`; no active event with same category + race_no; no already-applied batch with same `import_batch_id`; every entry's `team_id` must reference a registered team.
+- `race.registered`: no duplicate `race_event_id`; no active event with same category + race_no; no already-applied batch with same `import_batch_id`; every entry's `team_id` must reference a registered team; every `entry_id` introduced by the event must be globally unique within the season event log.
 - `entry.reassigned`: entry exists in an active race; `from_team_id` matches current effective assignment; `to_team_id` references a registered team; `to_team_id` is compatible with the race's category (e.g. solo team for singles division, couple team for couples division); the race must not already contain an effective entry for `to_team_id` (no duplicate team participation in a single race).
 - `entry.corrected`: entry exists in an active race.
-- `race.metadata_corrected`: race event exists and is active.
+- `race.metadata_corrected`: race event exists and is active; the resulting `(category, race_no)` must not collide with another active race; all effective entries in the race must remain compatible with the resulting category (e.g. solo entries in a solo division, couple entries in a couples division); if the category change would invalidate existing category-scoped eligibility state, the correction must be rejected.
 - `ranking.eligibility_set`: team must have entries in the given category.
 - `import_batch.recorded`: no duplicate `import_batch_id`.
 - `import_batch.rolled_back`: batch exists and has not already been rolled back.
@@ -672,7 +676,7 @@ interface IncomingRowData {
   yob: number | null;
   yob_text: string | null;
   club: string | null;
-  kind: "solo" | "team";
+  row_kind: "solo" | "team";  // shape of the imported row, not the canonical TeamKind
   sheet_name: string;
   section_name: string;
   row_index: number;
