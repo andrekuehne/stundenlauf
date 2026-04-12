@@ -14,6 +14,7 @@ All Python commands must go through `uv` — see `.cursor/rules/python-uv-execut
 - **Run tests:** `uv run pytest` (201 tests, ~10s, fully headless)
 - **Lint:** `uv run ruff check` and `uv run ruff format --check`
 - **Auto-fix lint:** `uv run ruff check --fix` and `uv run ruff format`
+- **Launch GUI:** see below
 
 ### Lint
 
@@ -49,4 +50,8 @@ webview.start(debug=True, http_server=True)
 "
 ```
 
-System packages needed for pywebview GTK backend (pre-installed in the VM snapshot): `gir1.2-webkit2-4.1`, `libgirepository-2.0-dev`, `libgirepository1.0-dev`, `libcairo2-dev`, `pkg-config`, plus `PyGObject` pip package.
+System packages needed for pywebview GTK backend (pre-installed in the VM snapshot): `gir1.2-webkit2-4.1`, `libgirepository-2.0-dev`, `libgirepository1.0-dev`, `libcairo2-dev`, `pkg-config`, plus `PyGObject` pip package. `scrot` is available for taking screenshots.
+
+### Testing
+
+`uv run pytest` runs all 201 tests (~10 s). Tests are fully headless and do not require a display or the GUI.
