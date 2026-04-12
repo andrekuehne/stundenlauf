@@ -221,6 +221,27 @@ def pdf_layout_preset_catalog() -> list[dict[str, str]]:
     return [{"id": key, "label_de": PDF_LAYOUT_PRESET_LABELS_DE.get(key, key)} for key in ordered]
 
 
+def normalize_pdf_layout_preset(raw: str | None) -> str | None:
+    """Resolve a user-facing preset string to a ``PDF_LAYOUT_PRESETS`` key or ``None`` (standard layout).
+
+    Matches desktop GUI behavior: ``default`` / empty / whitespace only omits ``layout_preset`` in the export
+    spec. Accepts preset ids (case-insensitive) or a substring of a German catalog label (case-insensitive).
+    """
+
+    if raw is None:
+        return None
+    key = str(raw).strip().lower()
+    if not key or key in ("default", "standard"):
+        return None
+    if key in PDF_LAYOUT_PRESETS:
+        return key
+    for preset_id, label_de in PDF_LAYOUT_PRESET_LABELS_DE.items():
+        if key in label_de.lower():
+            return preset_id
+    known = ", ".join(sorted(PDF_LAYOUT_PRESETS))
+    raise ValueError(f"Unknown PDF layout preset {raw!r}; use one of: {known} (see also --list-presets).")
+
+
 def _pdf_opt_float(raw: dict[str, Any], key: str, default: float) -> float:
     if key not in raw:
         return default

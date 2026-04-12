@@ -682,6 +682,40 @@ class TestF08UiApi(unittest.TestCase):
             self.assertEqual(exported["status"], "error")
             self.assertEqual(exported["error"]["code"], "VALIDATION_ERROR")
 
+    def test_export_standings_pdf_accepts_default_layout_preset(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "session_project.json"
+            _seed_project_for_year(project_path, 2026)
+            service = UiApiService(project_path)
+            out_base = Path(temp_dir) / "wertung"
+            exported = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_export_pdf_default_preset",
+                    "method": "export_standings_pdf",
+                    "payload": {"destination_path": str(out_base), "layout_preset": "default"},
+                }
+            )
+            self.assertEqual(exported["status"], "ok")
+            self.assertTrue((Path(temp_dir) / "wertung_einzel.pdf").exists())
+
+    def test_export_standings_pdf_accepts_label_substring_layout_preset(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "session_project.json"
+            _seed_project_for_year(project_path, 2026)
+            service = UiApiService(project_path)
+            out_base = Path(temp_dir) / "wertung"
+            exported = service.handle(
+                {
+                    "api_version": API_VERSION_V1,
+                    "request_id": "req_export_pdf_label_preset",
+                    "method": "export_standings_pdf",
+                    "payload": {"destination_path": str(out_base), "layout_preset": "kompakt"},
+                }
+            )
+            self.assertEqual(exported["status"], "ok")
+            self.assertTrue((Path(temp_dir) / "wertung_einzel.pdf").exists())
+
     def test_export_standings_pdf_writes_pdf(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project_path = Path(temp_dir) / "session_project.json"

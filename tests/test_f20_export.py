@@ -15,7 +15,9 @@ from backend.domain.models import (
     RaceEvent,
     RaceSeriesCategory,
 )
+from backend.export.gui_dual_pdf_export import InvalidDualPdfDestinationSuffixError, export_gui_laufuebersicht_dual_pdfs
 from backend.export.gui_pdf_spec import laufuebersicht_einzel_paare_export_specs
+from backend.export.pdftest_cli import main as pdftest_main
 from backend.export.projection import build_export_sections
 from backend.export.registry import export_standings_pdf_bytes
 from backend.export.resolve import ephemeral_document_with_race_filter, resolve_document_for_export
@@ -23,11 +25,13 @@ from backend.export.spec import (
     DEFAULT_PDF_ORGANIZER_FOOTER,
     ExportSpec,
     RaceFilterSpec,
+    normalize_pdf_layout_preset,
     sort_category_keys_for_export,
     split_category_keys_einzel_paare,
 )
 from backend.ranking.engine import recompute_project_standings
 from backend.standings_display import category_footer_label, export_pdf_category_title
+from backend.storage.repository import JsonProjectRepository
 from backend.storage.schema_v2 import SCHEMA_VERSION_V2
 from backend.ui_api import queries
 
@@ -189,6 +193,14 @@ class TestExportSpec(unittest.TestCase):
         assert spec_d is not None
         self.assertEqual(spec_d.pdf.orientation, "landscape")
 
+    def test_gui_pdf_spec_default_preset_matches_none(self) -> None:
+        doc = _minimal_doc_one_category()
+        spec_a, _ = laufuebersicht_einzel_paare_export_specs(doc, layout_preset=None)
+        spec_b, _ = laufuebersicht_einzel_paare_export_specs(doc, layout_preset="default")
+        assert spec_a is not None and spec_b is not None
+        self.assertEqual(spec_a.pdf.orientation, spec_b.pdf.orientation)
+        self.assertEqual(spec_a.pdf.margin_left_cm, spec_b.pdf.margin_left_cm)
+
     def test_pdf_laufuebersicht_result_font_extra_pt_from_dict(self) -> None:
         raw = {
             "format": "pdf",
@@ -198,6 +210,105 @@ class TestExportSpec(unittest.TestCase):
         }
         spec = ExportSpec.from_dict(raw)
         self.assertEqual(spec.pdf.laufuebersicht_result_font_extra_pt, 2)
+
+
+class TestGuiDualPdfExport(unittest.TestCase):
+    def test_rejects_bad_destination_suffix(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "session_project.json"
+            JsonProjectRepository(project_path).save(_minimal_doc_one_category())
+            with self.assertRaises(InvalidDualPdfDestinationSuffixError):
+                export_gui_laufuebersicht_dual_pdfs(project_path, Path(temp_dir) / "out.txt")
+
+    def test_writes_einzel_matches_bytes_and_path(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "session_project.json"
+            JsonProjectRepository(project_path).save(_minimal_doc_one_category())
+            out_base = Path(temp_dir) / "report"
+            written, total = export_gui_laufuebersicht_dual_pdfs(project_path, out_base)
+            self.assertEqual(len(written), 1)
+            self.assertEqual(written[0], Path(temp_dir) / "report_einzel.pdf")
+            self.assertEqual(total, written[0].stat().st_size)
+            self.assertEqual(written[0].read_bytes()[:4], b"%PDF")
+
+    def test_pdf_suffix_stripped_for_stem(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "session_project.json"
+            JsonProjectRepository(project_path).save(_minimal_doc_one_category())
+            written, _ = export_gui_laufuebersicht_dual_pdfs(project_path, Path(temp_dir) / "x.pdf")
+            self.assertEqual(written[0].name, "x_einzel.pdf")
+
+
+class TestNormalizePdfLayoutPreset(unittest.TestCase):
+    def test_empty_and_default(self) -> None:
+        self.assertIsNone(normalize_pdf_layout_preset(None))
+        self.assertIsNone(normalize_pdf_layout_preset(""))
+        self.assertIsNone(normalize_pdf_layout_preset("  "))
+        self.assertIsNone(normalize_pdf_layout_preset("default"))
+        self.assertIsNone(normalize_pdf_layout_preset("standard"))
+
+    def test_id_case_insensitive(self) -> None:
+        self.assertEqual(normalize_pdf_layout_preset("compact"), "compact")
+        self.assertEqual(normalize_pdf_layout_preset("COMPACT"), "compact")
+
+    def test_label_substring(self) -> None:
+        self.assertEqual(normalize_pdf_layout_preset("kompakt"), "compact")
+
+    def test_unknown_raises(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            normalize_pdf_layout_preset("not_a_real_preset")
+        self.assertIn("not_a_real_preset", str(ctx.exception))
+
+
+class TestPdfTestCli(unittest.TestCase):
+    def test_writes_einzel_pdf_for_minimal_project(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        from backend.domain.enums import Division, Gender, RaceDuration
+        from backend.domain.models import EntryResult, Person, ProjectDocument, RaceEntry, RaceEvent, RaceSeriesCategory
+        from backend.ranking.engine import recompute_project_standings
+        from backend.storage.schema_v2 import SCHEMA_VERSION_V2
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "session_project.json"
+            category = RaceSeriesCategory(year=2026, duration=RaceDuration.HALF_HOUR, division=Division.MEN)
+            participant = Person(uid="participant_2026", name="Starter 2026", yob=1990, gender=Gender.M, club="TSV")
+            event = RaceEvent(
+                race_event_uid="race_event_2026_1",
+                category=category,
+                race_date="2026-01-05",
+                race_no=1,
+                source_file="fixture_2026.xlsx",
+                source_sha256="sha_2026",
+                imported_at="2026-01-05T10:00:00+00:00",
+                parser_version="v1",
+                schema_fingerprint="fp_2026",
+                entries=(
+                    RaceEntry(
+                        entry_uid="entry_2026_1",
+                        participant_uid=participant.uid,
+                        startnr="1",
+                        result=EntryResult(distance_km=10.0, points=20.0),
+                    ),
+                ),
+            )
+            doc = ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(participant,), events=(event,))
+            JsonProjectRepository(project_path).save(recompute_project_standings(doc))
+            out_base = Path(temp_dir) / "out"
+            pdftest_main(["default", "-i", str(project_path), "-o", str(out_base)])
+            out_einzel = Path(temp_dir) / "out_einzel.pdf"
+            self.assertTrue(out_einzel.exists())
+            self.assertEqual(out_einzel.read_bytes()[:4], b"%PDF")
 
 
 class TestCategoryFooterLabel(unittest.TestCase):
