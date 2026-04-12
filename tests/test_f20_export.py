@@ -15,6 +15,7 @@ from backend.domain.models import (
     RaceEvent,
     RaceSeriesCategory,
 )
+from backend.export.gui_pdf_spec import laufuebersicht_einzel_paare_export_specs
 from backend.export.projection import build_export_sections
 from backend.export.registry import export_standings_pdf_bytes
 from backend.export.resolve import ephemeral_document_with_race_filter, resolve_document_for_export
@@ -45,6 +46,17 @@ def _cat_couples() -> RaceSeriesCategory:
 
 def _ck_couples() -> str:
     return _cat_couples().key
+
+
+def _minimal_doc_one_category() -> ProjectDocument:
+    p = Person(uid="p1", name="Müller", yob=1990, gender=Gender.M)
+    ev = RaceEvent(
+        race_event_uid="r1",
+        category=_cat(),
+        race_date="2026-01-01",
+        entries=(RaceEntry(participant_uid="p1", result=EntryResult(1.0, 1.0)),),
+    )
+    return recompute_project_standings(ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(p,), events=(ev,)))
 
 
 class TestExportSpec(unittest.TestCase):
@@ -159,8 +171,23 @@ class TestExportSpec(unittest.TestCase):
         }
         spec = ExportSpec.from_dict(raw)
         self.assertEqual(spec.pdf.margin_left_cm, 2.0)
-        self.assertEqual(spec.pdf.margin_right_cm, 1.0)
-        self.assertEqual(spec.pdf.table_font_size, 8)
+        self.assertEqual(spec.pdf.margin_right_cm, 0.45)
+        self.assertEqual(spec.pdf.table_font_size, 5)
+        self.assertEqual(spec.pdf.orientation, "portrait")
+        self.assertEqual(spec.pdf.table_cell_vertical_padding_pt, 0.45)
+        self.assertEqual(spec.pdf.table_plain_leading_extra_pt, 1)
+        self.assertEqual(spec.pdf.double_rule_weight_pt, 0.45)
+        self.assertEqual(spec.pdf.double_rule_gap_pt, 0.5)
+
+    def test_gui_pdf_spec_compact_uses_portrait(self) -> None:
+        doc = _minimal_doc_one_category()
+        spec_e, _spec_p = laufuebersicht_einzel_paare_export_specs(doc, layout_preset="compact")
+        assert spec_e is not None
+        self.assertEqual(spec_e.pdf.orientation, "portrait")
+        self.assertEqual(spec_e.pdf.table_layout, "laufuebersicht")
+        spec_d, _ = laufuebersicht_einzel_paare_export_specs(doc, layout_preset=None)
+        assert spec_d is not None
+        self.assertEqual(spec_d.pdf.orientation, "landscape")
 
     def test_pdf_laufuebersicht_result_font_extra_pt_from_dict(self) -> None:
         raw = {

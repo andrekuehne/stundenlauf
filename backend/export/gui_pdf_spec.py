@@ -9,17 +9,17 @@ from backend.export.spec import ExportSpec, sort_category_keys_for_export, split
 def _laufuebersicht_gui_spec_dict(
     categories: list[str], *, section_number_start: int, layout_preset: str | None = None
 ) -> dict:
+    lp_norm = str(layout_preset or "").strip().lower()
+    orientation = "portrait" if lp_norm == "compact" else "landscape"
     pdf_block: dict = {
-        "orientation": "landscape",
+        "orientation": orientation,
         "page_size": "A4",
         "table_layout": "laufuebersicht",
         "page_break_before_each_category": True,
         "laufuebersicht_section_number_start": section_number_start,
     }
-    if layout_preset:
-        lp = str(layout_preset).strip().lower()
-        if lp:
-            pdf_block["layout_preset"] = lp
+    if lp_norm:
+        pdf_block["layout_preset"] = lp_norm
     return {
         "format": "pdf",
         "categories": categories,
@@ -31,9 +31,7 @@ def _laufuebersicht_gui_spec_dict(
     }
 
 
-def laufuebersicht_export_spec_from_document(
-    doc: ProjectDocument, *, layout_preset: str | None = None
-) -> ExportSpec:
+def laufuebersicht_export_spec_from_document(doc: ProjectDocument, *, layout_preset: str | None = None) -> ExportSpec:
     """Build the same Laufübersicht PDF spec as ``scripts/pdf_export_playground.py`` (all categories, one PDF)."""
 
     keys = {e.category.key for e in doc.events}

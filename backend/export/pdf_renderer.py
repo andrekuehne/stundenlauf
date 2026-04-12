@@ -38,11 +38,12 @@ def _laufuebersicht_apply_result_cell_paragraphs(
     ncols: int,
     body_fs: int,
     leading_extra: int,
+    plain_leading_extra: int,
     styles: Any,
     style_tag: int,
 ) -> None:
     """Str. (km) and Pkt. body cells as Paragraphs with shared leading (centered)."""
-    leading = body_fs + leading_extra
+    leading = body_fs + leading_extra + plain_leading_extra
     cell_plain = ParagraphStyle(
         name=f"LaufResPl_{style_tag}",
         parent=styles["Normal"],
@@ -174,9 +175,7 @@ def _laufuebersicht_append_column_lines(
     last_j = ncols - 2
     for j in range(last_j + 1):
         if j == 2:
-            cmds.append(
-                _laufuebersicht_line_cmd("LINEAFTER", j, 0, j, n_rows_tbl - 1, layout.line_thick_pt, line_grey)
-            )
+            cmds.append(_laufuebersicht_line_cmd("LINEAFTER", j, 0, j, n_rows_tbl - 1, layout.line_thick_pt, line_grey))
         elif double_after_last_race_pkt is not None and j == double_after_last_race_pkt:
             cmds.append(
                 _laufuebersicht_line_cmd(
@@ -483,6 +482,7 @@ def render_pdf(
                 ncols=ncols,
                 body_fs=body_fs,
                 leading_extra=layout.lauf_result_leading_extra_pt,
+                plain_leading_extra=layout.table_plain_leading_extra_pt,
                 styles=styles,
                 style_tag=lauf_table_seq,
             )
@@ -497,15 +497,32 @@ def render_pdf(
         tbl_cls = _LaufUbersichtTable if use_lauf_split_table else Table
         tbl = tbl_cls(data, colWidths=col_widths, repeatRows=repeat_n)
         hdr_last = n_header - 1
-        band_grey = layout.band_grey
         header_bg = colors.lightgrey
         if sec.body_row_band_group is not None and n_header == 3 and ncols > 3:
             header_bg = layout.header_green
+        pad_h = layout.table_cell_horizontal_padding_pt
+        pad_v = layout.table_cell_vertical_padding_pt
         tbl_style_cmds: list = [
+            ("LEFTPADDING", (0, 0), (-1, -1), pad_h),
+            ("RIGHTPADDING", (0, 0), (-1, -1), pad_h),
+            ("TOPPADDING", (0, 0), (-1, -1), pad_v),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), pad_v),
             ("FONTNAME", (0, 0), (-1, hdr_last), "Helvetica-Bold"),
             ("FONTNAME", (0, n_header), (-1, -1), "Helvetica"),
             ("FONTSIZE", (0, 0), (-1, hdr_last), hdr_fs),
             ("FONTSIZE", (0, n_header), (-1, -1), body_fs),
+            (
+                "LEADING",
+                (0, 0),
+                (-1, hdr_last),
+                hdr_fs + layout.table_plain_leading_extra_pt,
+            ),
+            (
+                "LEADING",
+                (0, n_header),
+                (-1, -1),
+                body_fs + layout.table_plain_leading_extra_pt,
+            ),
             ("BACKGROUND", (0, 0), (-1, hdr_last), header_bg),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]
@@ -590,9 +607,7 @@ def render_pdf(
                     fill = layout.zebra_even if gid % 2 == 0 else layout.zebra_odd
                 tbl_style_cmds.append(("BACKGROUND", (0, tr), (-1, tr), fill))
         else:
-            tbl_style_cmds.append(
-                ("ROWBACKGROUNDS", (0, n_header), (-1, -1), [layout.zebra_even, layout.zebra_odd])
-            )
+            tbl_style_cmds.append(("ROWBACKGROUNDS", (0, n_header), (-1, -1), [layout.zebra_even, layout.zebra_odd]))
         if sec.table_spans:
             for (c0, r0), (c1, r1) in sec.table_spans:
                 tbl_style_cmds.append(("SPAN", (c0, r0), (c1, r1)))
