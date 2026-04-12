@@ -194,8 +194,8 @@ PDF_LAYOUT_PRESETS: dict[str, dict[str, Any]] = {
         "narrow_distanz_gesamt_cm": 0.88,
         "narrow_laufuebersicht_km_pkt_cm": 0.88,
         # Thinner double rules (header/body + vertical before Gesamt) to match small type.
-        "double_rule_weight_pt": 0.5,
-        "double_rule_gap_pt": 0.65,
+        "double_rule_weight_pt": 0.45,
+        "double_rule_gap_pt": 0.5,
     },
 }
 

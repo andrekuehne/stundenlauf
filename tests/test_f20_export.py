@@ -176,8 +176,8 @@ class TestExportSpec(unittest.TestCase):
         self.assertEqual(spec.pdf.orientation, "portrait")
         self.assertEqual(spec.pdf.table_cell_vertical_padding_pt, 0.45)
         self.assertEqual(spec.pdf.table_plain_leading_extra_pt, 1)
-        self.assertEqual(spec.pdf.double_rule_weight_pt, 0.5)
-        self.assertEqual(spec.pdf.double_rule_gap_pt, 0.65)
+        self.assertEqual(spec.pdf.double_rule_weight_pt, 0.45)
+        self.assertEqual(spec.pdf.double_rule_gap_pt, 0.5)
 
     def test_gui_pdf_spec_compact_uses_portrait(self) -> None:
         doc = _minimal_doc_one_category()
