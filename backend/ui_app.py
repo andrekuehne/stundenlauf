@@ -11,19 +11,17 @@ def _close_pyi_splash() -> None:
         import pyi_splash
     except ImportError:
         return
-    try:
+    import contextlib
+
+    with contextlib.suppress(Exception):
         pyi_splash.close()
-    except Exception:
-        pass
 
 
 def launch_ui(workspace_dir: Path, project_file: Path | None = None) -> None:
     try:
         import webview
     except ImportError as exc:  # pragma: no cover - runtime dependency check
-        raise RuntimeError(
-            "pywebview ist nicht installiert. Bitte `uv add pywebview` ausführen."
-        ) from exc
+        raise RuntimeError("pywebview ist nicht installiert. Bitte `uv add pywebview` ausführen.") from exc
 
     workspace_dir = workspace_dir.resolve()
     frontend_index = (project_root_dir() / "frontend" / "index.html").resolve()

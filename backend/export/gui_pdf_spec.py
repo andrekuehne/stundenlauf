@@ -43,14 +43,10 @@ def laufuebersicht_einzel_paare_export_specs(doc: ProjectDocument) -> tuple[Expo
     einzel, paare = split_category_keys_einzel_paare(keys)
     n_einzel = len(einzel)
     spec_einzel = (
-        ExportSpec.from_dict(_laufuebersicht_gui_spec_dict(list(einzel), section_number_start=1))
-        if einzel
-        else None
+        ExportSpec.from_dict(_laufuebersicht_gui_spec_dict(list(einzel), section_number_start=1)) if einzel else None
     )
     spec_paare = (
-        ExportSpec.from_dict(
-            _laufuebersicht_gui_spec_dict(list(paare), section_number_start=n_einzel + 1)
-        )
+        ExportSpec.from_dict(_laufuebersicht_gui_spec_dict(list(paare), section_number_start=n_einzel + 1))
         if paare
         else None
     )

@@ -110,9 +110,7 @@ def should_review_strong_name_yob_mismatch(
         return False
     name_base = feats.get("name_base", 0.0)
     token_overlap = feats.get("token_overlap", 0.0)
-    if name_base < 0.98 and token_overlap < 1.0:
-        return False
-    return True
+    return not (name_base < 0.98 and token_overlap < 1.0)
 
 
 def _strong_person_name_match(name_base: float, token_overlap: float) -> bool:
@@ -135,6 +133,4 @@ def should_review_strong_couple_yob_mismatch(
     nb1 = float(feats.get("m1_name_base", 0.0))
     to0 = float(feats.get("m0_token_overlap", 0.0))
     to1 = float(feats.get("m1_token_overlap", 0.0))
-    if not (_strong_person_name_match(nb0, to0) and _strong_person_name_match(nb1, to1)):
-        return False
-    return True
+    return _strong_person_name_match(nb0, to0) and _strong_person_name_match(nb1, to1)

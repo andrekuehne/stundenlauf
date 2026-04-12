@@ -189,9 +189,7 @@ class TestF04Integration(unittest.TestCase):
                 entries=(RaceEntry(participant_uid="p1", result=EntryResult(1.0, 2.0)),),
             ),
         )
-        doc = recompute_project_standings(
-            ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(p,), events=events)
-        )
+        doc = recompute_project_standings(ProjectDocument(schema_version=SCHEMA_VERSION_V2, people=(p,), events=events))
         self.assertIsNotNone(doc.standings)
         roundtrip = from_dict(to_dict(doc))
         self.assertEqual(roundtrip.standings, doc.standings)

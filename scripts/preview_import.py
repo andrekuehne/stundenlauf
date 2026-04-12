@@ -15,7 +15,9 @@ from backend.ingestion.adapters.singles import parse_singles_workbook
 def test_readable_import_preview(file_path: Path, series_year: int = 2023) -> None:
     """Read one singles or couples file and print a readable preview."""
     is_couples = "paare" in file_path.name.lower()
-    parsed = parse_couples_workbook(file_path, series_year) if is_couples else parse_singles_workbook(file_path, series_year)
+    parsed = (
+        parse_couples_workbook(file_path, series_year) if is_couples else parse_singles_workbook(file_path, series_year)
+    )
 
     print("=" * 80)
     print(f"Datei: {file_path}")

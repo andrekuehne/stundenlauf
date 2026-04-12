@@ -13,8 +13,9 @@ from backend.domain.models import (
     StandingsRow,
     StandingsSnapshot,
 )
-from backend.ranking.rules import RULESET_V1_LEGACY_TOP4
 from backend.ingestion.adapters.common import parse_race_no
+from backend.ranking.rules import RULESET_V1_LEGACY_TOP4
+from backend.storage.schema_v2 import SCHEMA_VERSION_V2
 from backend.tools.fixture_session import (
     entity_display_name,
     ordered_import_paths,
@@ -22,7 +23,6 @@ from backend.tools.fixture_session import (
     safe_filename_stem,
     standings_snapshot_to_csv,
 )
-from backend.storage.schema_v2 import SCHEMA_VERSION_V2
 
 
 class TestParseRaceNo(unittest.TestCase):

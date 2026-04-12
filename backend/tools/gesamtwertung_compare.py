@@ -9,9 +9,9 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections import defaultdict, deque
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Sequence
 
 from openpyxl import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
@@ -56,7 +56,7 @@ def sheet_label_for_category_key(category_key: str) -> str:
 
 
 def safe_excel_sheet_name(name: str, max_len: int = 31) -> str:
-    for c in '[]:*?/\\':
+    for c in "[]:*?/\\":
         name = name.replace(c, "_")
     return name[:max_len]
 
@@ -69,16 +69,14 @@ def normalize_person_name(name: str) -> str:
 
 
 # Pairs of names treated as the same for matching (e.g. spelling variants).
-_NAME_EQUIVALENCE_CLASSES: tuple[tuple[str, str], ...] = (
-    ("Bianca Bohmeier", "Bianca Bomeier"),
-)
+_NAME_EQUIVALENCE_CLASSES: tuple[tuple[str, str], ...] = (("Bianca Bohmeier", "Bianca Bomeier"),)
 
 
 def _canonical_match_name(name: str) -> str:
     n = normalize_person_name(name)
     for a, b in _NAME_EQUIVALENCE_CLASSES:
         na, nb = normalize_person_name(a), normalize_person_name(b)
-        if n == na or n == nb:
+        if n in (na, nb):
             return min(na, nb)
     return n
 
@@ -130,9 +128,7 @@ def aggregate_row_like_standings(
     """Same top-N rule as project standings, using synthetic race ids for ordering ties."""
     if not pairs:
         return 0.0, 0.0
-    race_rows = tuple(
-        (f"syn_lauf_{i}", float(pt), float(km)) for i, (km, pt) in enumerate(pairs)
-    )
+    race_rows = tuple((f"syn_lauf_{i}", float(pt), float(km)) for i, (km, pt) in enumerate(pairs))
     agg = sum_top_n_or_all_points_and_distance(
         race_rows,
         n=top_n,

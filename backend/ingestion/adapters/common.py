@@ -5,7 +5,6 @@ import re
 from datetime import UTC, datetime
 from pathlib import Path
 
-
 PARSER_VERSION = "f02-v1"
 
 

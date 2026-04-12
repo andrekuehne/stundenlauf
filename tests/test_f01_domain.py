@@ -4,8 +4,13 @@ import unittest
 
 from backend.domain.enums import Division, Gender, RaceDuration
 from backend.domain.identity import couple_key
-from backend.domain.models import Couple, EntryResult, Person, RaceEntry, RaceEvent, RaceSeriesCategory
-from backend.domain.validation import DivisionEligibility, ValidationError, validate_entry_category_compatibility, validate_person
+from backend.domain.models import Couple, EntryResult, Person, RaceEntry, RaceSeriesCategory
+from backend.domain.validation import (
+    DivisionEligibility,
+    ValidationError,
+    validate_entry_category_compatibility,
+    validate_person,
+)
 
 
 class TestF01Domain(unittest.TestCase):
@@ -51,7 +56,9 @@ class TestF01Domain(unittest.TestCase):
         person_by_uid = {person.uid: person}
         entry = RaceEntry(startnr="7", participant_uid=person.uid, result=EntryResult(3.0, 6.0))
         with self.assertRaises(ValidationError):
-            validate_entry_category_compatibility(entry, Division.COUPLES_MEN, person_by_uid, {}, DivisionEligibility.default())
+            validate_entry_category_compatibility(
+                entry, Division.COUPLES_MEN, person_by_uid, {}, DivisionEligibility.default()
+            )
 
     def test_distance_and_points_must_be_numeric_and_non_negative(self) -> None:
         person = Person(uid="participant_1", name="Alex", yob=1988, gender=Gender.M)

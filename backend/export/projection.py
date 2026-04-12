@@ -8,13 +8,13 @@ from typing import Any
 from backend.domain.enums import RaceEventState
 from backend.domain.models import ProjectDocument, RaceEvent, RaceSeriesCategory
 from backend.export.spec import GERMAN_HEADER_BY_COLUMN, ExportSpec
-from backend.standings_view import build_standings_rows_for_category
 from backend.standings_display import (
     category_footer_label,
     category_label,
     export_pdf_category_title,
     laufuebersicht_section_title,
 )
+from backend.standings_view import build_standings_rows_for_category
 
 
 @dataclass(frozen=True)
@@ -54,11 +54,7 @@ def _find_category(document: ProjectDocument, category_key: str) -> RaceSeriesCa
 
 
 def _ordered_active_races_for_category(document: ProjectDocument, category_key: str) -> tuple[RaceEvent, ...]:
-    active = [
-        e
-        for e in document.events
-        if e.state == RaceEventState.ACTIVE and e.category.key == category_key
-    ]
+    active = [e for e in document.events if e.state == RaceEventState.ACTIVE and e.category.key == category_key]
     active.sort(key=lambda e: (e.race_no, e.race_date, e.race_event_uid))
     return tuple(active)
 
@@ -92,9 +88,7 @@ def _cell_team_members(row: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _build_column_defs(
-    resolved_columns: tuple[str, ...], race_events: tuple[RaceEvent, ...]
-) -> tuple[ColumnDef, ...]:
+def _build_column_defs(resolved_columns: tuple[str, ...], race_events: tuple[RaceEvent, ...]) -> tuple[ColumnDef, ...]:
     cols: list[ColumnDef] = []
     for cid in resolved_columns:
         if cid == "points_per_race":
@@ -208,9 +202,7 @@ def _build_laufuebersicht_sections(document: ProjectDocument, spec: ExportSpec) 
         table_rows = eligible if spec.rows.eligibility == "eligible_only" else _full
 
         if len(table_rows) > spec.pdf.max_rows_per_category:
-            raise ValueError(
-                f"Category {cat_key!r} has {len(table_rows)} rows; max {spec.pdf.max_rows_per_category}"
-            )
+            raise ValueError(f"Category {cat_key!r} has {len(table_rows)} rows; max {spec.pdf.max_rows_per_category}")
         ncols_chk = 5 + 2 * len(races)
         if ncols_chk > spec.pdf.max_columns:
             raise ValueError(
@@ -238,9 +230,9 @@ def _build_laufuebersicht_sections(document: ProjectDocument, spec: ExportSpec) 
         podium_rows: list[bool] = []
         band_g = 0
 
-        def numeric_cells(r: dict[str, Any]) -> list[str]:
+        def numeric_cells(r: dict[str, Any], _races: tuple[RaceEvent, ...] = races) -> list[str]:
             cells: list[str] = []
-            for ev in races:
+            for ev in _races:
                 uid = ev.race_event_uid
                 cells.append(_race_km_cell(uid, r))
                 cells.append(_race_pkt_cell(uid, r))
@@ -377,13 +369,9 @@ def build_export_sections(document: ProjectDocument, spec: ExportSpec) -> tuple[
             table_rows = full
 
         if len(table_rows) > spec.pdf.max_rows_per_category:
-            raise ValueError(
-                f"Category {cat_key!r} has {len(table_rows)} rows; max {spec.pdf.max_rows_per_category}"
-            )
+            raise ValueError(f"Category {cat_key!r} has {len(table_rows)} rows; max {spec.pdf.max_rows_per_category}")
 
-        title = spec.pdf.title or export_pdf_category_title(
-            category.year, category.duration, category.division
-        )
+        title = spec.pdf.title or export_pdf_category_title(category.year, category.duration, category.division)
         subtitle = spec.pdf.subtitle
 
         cell_rows = tuple(_row_to_cells(r, column_defs) for r in table_rows)

@@ -24,7 +24,9 @@ def build_sample_document() -> ProjectDocument:
         race_date="2026-03-01",
         source_file="race1.xlsx",
         entries=(
-            RaceEntry(entry_uid="entry_1", startnr="17", team_uid="team_1", result=EntryResult(distance_km=10.0, points=20.0)),
+            RaceEntry(
+                entry_uid="entry_1", startnr="17", team_uid="team_1", result=EntryResult(distance_km=10.0, points=20.0)
+            ),
         ),
     )
     return ProjectDocument(

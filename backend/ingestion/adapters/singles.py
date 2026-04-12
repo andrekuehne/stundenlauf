@@ -6,7 +6,14 @@ from openpyxl import load_workbook
 
 from backend.domain.club import optional_club_from_cell
 from backend.domain.enums import Division, RaceDuration
-from backend.ingestion.adapters.common import PARSER_VERSION, file_sha256, imported_now_iso, parse_decimal, parse_race_no, to_text
+from backend.ingestion.adapters.common import (
+    PARSER_VERSION,
+    file_sha256,
+    imported_now_iso,
+    parse_decimal,
+    parse_race_no,
+    to_text,
+)
 from backend.ingestion.types import (
     ImportRaceContext,
     ImportRowSingles,
@@ -79,7 +86,15 @@ def parse_singles_workbook(path: Path, series_year: int, *, race_no_override: in
                 continue
             if current_duration is None or current_division is None:
                 raise ImportValidationError(
-                    (make_issue("missing_section_marker", "Abschnittsmarker fehlt vor Ergebniszeile.", ws.title, row_idx, "A"),)
+                    (
+                        make_issue(
+                            "missing_section_marker",
+                            "Abschnittsmarker fehlt vor Ergebniszeile.",
+                            ws.title,
+                            row_idx,
+                            "A",
+                        ),
+                    )
                 )
             try:
                 row = ImportRowSingles(
@@ -92,13 +107,19 @@ def parse_singles_workbook(path: Path, series_year: int, *, race_no_override: in
                 )
             except ValueError:
                 raise ImportValidationError(
-                    (make_issue("invalid_number", "Ungültiger Zahlenwert in Einzellauf-Zeile.", ws.title, row_idx, "D/F/H"),)
+                    (
+                        make_issue(
+                            "invalid_number", "Ungültiger Zahlenwert in Einzellauf-Zeile.", ws.title, row_idx, "D/F/H"
+                        ),
+                    )
                 ) from None
             rows_buffer.append(row)
 
         flush()
         if not sections:
-            raise ImportValidationError((make_issue("no_rows", "Keine Ergebniszeilen im Einzellauf gefunden.", ws.title, 1, "A"),))
+            raise ImportValidationError(
+                (make_issue("no_rows", "Keine Ergebniszeilen im Einzellauf gefunden.", ws.title, 1, "A"),)
+            )
 
         fingerprint = f"{ws.title}|{'|'.join(header)}|sections={len(sections)}"
         stat = path.stat()

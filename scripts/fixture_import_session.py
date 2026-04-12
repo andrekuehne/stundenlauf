@@ -20,7 +20,6 @@ from backend.domain.models import Couple, Person, ProjectDocument
 from backend.ingestion.service import import_excel_into_project
 from backend.storage.repository import JsonProjectRepository
 from backend.tools.fixture_session import (
-    entity_display_name,
     ordered_import_paths,
     people_couples_maps,
     safe_filename_stem,
@@ -111,8 +110,7 @@ def run_session(
         else:
             print(f"\n[{idx}/{len(paths)}] Import OK: {excel_path.name}")
             print(
-                f"  Zeilen={result.rows_imported}, Events={len(result.merged_event_uids)}, "
-                f"Datei={result.source_file}"
+                f"  Zeilen={result.rows_imported}, Events={len(result.merged_event_uids)}, Datei={result.source_file}"
             )
             if result.matching_report is not None:
                 mr = result.matching_report

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Literal, cast
+from typing import Any, Literal, cast
 
 StandingsSource = Literal["embedded", "live"]
 RaceFilterMode = Literal["all_active", "race_event_uids", "up_to_race_no"]
@@ -270,9 +271,7 @@ class ExportSpec:
         """Expand presets to concrete column ids."""
         if self.pdf.table_layout == "laufuebersicht":
             if self.columns != ("laufuebersicht_board",):
-                raise ValueError(
-                    "pdf.table_layout 'laufuebersicht' requires columns: ['laufuebersicht_board'] exactly"
-                )
+                raise ValueError("pdf.table_layout 'laufuebersicht' requires columns: ['laufuebersicht_board'] exactly")
             return ()
         out: list[str] = []
         for item in self.columns:

@@ -14,7 +14,6 @@ from backend.ingestion.types import (
 from backend.matching.config import MatchingConfig
 from backend.matching.decisions import identity_fingerprint, latest_decisions_by_fingerprint, team_fingerprint
 from backend.matching.normalize import parse_person_name
-from backend.matching.workflow import process_couples_section, process_singles_section
 from backend.matching.score import (
     person_parsed,
     route_from_score,
@@ -23,6 +22,7 @@ from backend.matching.score import (
     should_review_strong_name_yob_mismatch,
 )
 from backend.matching.teams import score_couple_match
+from backend.matching.workflow import process_couples_section, process_singles_section
 from backend.storage.schema_v2 import SCHEMA_VERSION_V2
 
 
@@ -61,7 +61,7 @@ class TestF03Scoring(unittest.TestCase):
         cfg = MatchingConfig()
         inc = parse_person_name("Jonas Schmidt")
         cand = Person(name="Jonaas Schmidt", yob=1991, gender=Gender.M, club="TSV")
-        score, feats = score_person_match(inc, 1991, "tsv", cand, cfg)
+        score, _feats = score_person_match(inc, 1991, "tsv", cand, cfg)
         self.assertGreater(score, cfg.review_min)
 
     def test_yob_mismatch_hurts(self) -> None:
@@ -196,7 +196,7 @@ class TestF03PairMatching(unittest.TestCase):
             member_b=Person(name="Max M", yob=1988, gender=Gender.M),
         )
         s1, f1 = score_couple_match(inc_a, 1988, "", inc_b, 1990, "", t1, cfg)
-        s2, f2 = score_couple_match(inc_a, 1988, "", inc_b, 1990, "", t2, cfg)
+        s2, _f2 = score_couple_match(inc_a, 1988, "", inc_b, 1990, "", t2, cfg)
         self.assertAlmostEqual(s1, s2, places=3)
         self.assertIn("m0_yob_agreement", f1)
         self.assertIn("m1_yob_agreement", f1)

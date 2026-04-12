@@ -12,11 +12,11 @@ from backend.domain.models import (
 )
 from backend.ranking.rules import RULESET_V1_LEGACY_TOP4
 from backend.tools.gesamtwertung_compare import (
+    GesamtwertungRow,
     aggregate_row_like_standings,
     compare_gesamtwertung_to_standings,
-    merge_duplicate_gt_rows,
-    GesamtwertungRow,
     load_all_einzel_gesamtwertung_sections,
+    merge_duplicate_gt_rows,
     normalize_person_name,
     parse_gesamtwertung_section,
     sheet_label_for_category_key,

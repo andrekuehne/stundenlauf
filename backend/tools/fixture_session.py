@@ -46,9 +46,7 @@ def standings_snapshot_to_csv(
 
     for table in snapshot.category_tables:
         for row in table.rows:
-            display = entity_display_name(
-                row.entity_kind, row.entity_uid, people_by_uid, couples_by_uid
-            )
+            display = entity_display_name(row.entity_kind, row.entity_uid, people_by_uid, couples_by_uid)
             writer.writerow(
                 [
                     table.category_key,

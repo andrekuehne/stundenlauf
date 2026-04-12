@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -17,9 +18,9 @@ from backend.ingestion.service import import_excel_into_project
 from backend.matching.config import MatchingConfig
 from backend.matching.normalize import normalize_club, parse_person_name
 from backend.ranking.engine import recompute_project_standings
+from backend.standings_view import build_standings_rows_for_category
 from backend.storage.repository import JsonProjectRepository
 from backend.ui_api.errors import not_found, validation_error
-from backend.standings_view import build_standings_rows_for_category
 from backend.ui_api.queries import _find_category
 from backend.ui_api.ranking_display import (
     merge_ranking_exclusions_after_identity_merge,
@@ -69,7 +70,9 @@ def _clone_couple_members(source: Couple) -> Couple:
     return Couple(member_a=_clone_person_identity(source.member_a), member_b=_clone_person_identity(source.member_b))
 
 
-def _new_singles_identity_from_review(entry: RaceEntry, candidate: Person) -> tuple[Person, Literal["incoming_meta", "clone_candidate"]]:
+def _new_singles_identity_from_review(
+    entry: RaceEntry, candidate: Person
+) -> tuple[Person, Literal["incoming_meta", "clone_candidate"]]:
     mm = entry.match_meta
     raw = (mm.incoming_display_name or "").strip() if mm else ""
     if not raw or (mm is not None and mm.incoming_kind == "team"):
@@ -91,7 +94,9 @@ def _new_singles_identity_from_review(entry: RaceEntry, candidate: Person) -> tu
     )
 
 
-def _new_team_identity_from_review(entry: RaceEntry, candidate: Couple) -> tuple[Couple, Literal["incoming_meta", "clone_candidate"]]:
+def _new_team_identity_from_review(
+    entry: RaceEntry, candidate: Couple
+) -> tuple[Couple, Literal["incoming_meta", "clone_candidate"]]:
     mm = entry.match_meta
     if mm is None or mm.incoming_kind != "team":
         return _clone_couple_members(candidate), "clone_candidate"
@@ -106,22 +111,17 @@ def _new_team_identity_from_review(entry: RaceEntry, candidate: Couple) -> tuple
     if yt:
         yparts = [p.strip() for p in yt.split(" / ")]
         if yparts:
-            try:
+            with contextlib.suppress(ValueError):
                 yob_a = int(yparts[0])
-            except ValueError:
-                pass
         if len(yparts) > 1:
-            try:
+            with contextlib.suppress(ValueError):
                 yob_b = int(yparts[1])
-            except ValueError:
-                pass
     club_a, club_b = candidate.member_a.club, candidate.member_b.club
     cc = (mm.incoming_club or "").strip()
     if cc:
         cparts = [p.strip() for p in cc.split(" / ")]
-        if cparts:
-            if cparts[0].strip():
-                club_a = optional_club_from_cell(cparts[0])
+        if cparts and cparts[0].strip():
+            club_a = optional_club_from_cell(cparts[0])
         if len(cparts) > 1 and cparts[1].strip():
             club_b = optional_club_from_cell(cparts[1])
     pa, pb = parse_person_name(name_a), parse_person_name(name_b)

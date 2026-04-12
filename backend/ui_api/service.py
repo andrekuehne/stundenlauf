@@ -1,20 +1,19 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from backend.app_paths import default_workspace_dir
 from backend.export.gui_pdf_spec import laufuebersicht_einzel_paare_export_specs
 from backend.export.registry import export_standings_to_path
 from backend.matching.config import MatchingConfig
 from backend.storage.repository import JsonProjectRepository
-from backend.ui_api import commands, queries
-from backend.ui_api import workspace
+from backend.ui_api import commands, queries, workspace
 from backend.ui_api.dto import ApiEnvelopeRequest
 from backend.ui_api.envelopes import API_VERSION_V1, error_response, ok_response, parse_request
-from backend.ui_api.errors import map_exception
-from backend.ui_api.errors import validation_error
+from backend.ui_api.errors import map_exception, validation_error
 
 LOGGER = logging.getLogger(__name__)
 
@@ -55,7 +54,9 @@ class UiApiService:
             "set_matching_config": lambda payload: self._set_matching_config(payload),
             "get_project_state": lambda payload: queries.get_project_state_filtered(self._load(), payload),
             "get_standings": lambda payload: queries.get_standings(self._load(), payload),
-            "get_category_current_results_table": lambda payload: queries.get_category_current_results_table(self._load(), payload),
+            "get_category_current_results_table": lambda payload: queries.get_category_current_results_table(
+                self._load(), payload
+            ),
             "list_categories": lambda payload: queries.list_categories(self._load(), payload),
             "get_year_overview": lambda payload: queries.get_year_overview(self._load(), payload),
             "get_year_timeline": lambda payload: queries.get_year_timeline(self._load(), payload),
@@ -67,7 +68,9 @@ class UiApiService:
                 payload,
                 matching_config=self.matching_config,
             ),
-            "apply_match_decision": lambda payload: commands.apply_match_decision(self._require_active_project_file(), payload),
+            "apply_match_decision": lambda payload: commands.apply_match_decision(
+                self._require_active_project_file(), payload
+            ),
             "update_participant_identity": lambda payload: commands.update_participant_identity(
                 self._require_active_project_file(), payload
             ),

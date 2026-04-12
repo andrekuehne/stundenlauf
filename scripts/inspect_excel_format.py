@@ -7,7 +7,6 @@ from typing import Any
 
 from openpyxl import load_workbook
 
-
 KEY_TOKENS = {
     "1/2 h-Lauf",
     "h-Lauf",

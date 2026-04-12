@@ -5,7 +5,15 @@ from typing import Any
 
 from backend.domain.club import optional_club_composite_from_field, optional_club_from_cell
 from backend.domain.enums import RaceEventState
-from backend.domain.models import Couple, MatchingDecision, Person, ProjectDocument, RaceEntry, RaceEvent, RaceSeriesCategory
+from backend.domain.models import (
+    Couple,
+    MatchingDecision,
+    Person,
+    ProjectDocument,
+    RaceEntry,
+    RaceEvent,
+    RaceSeriesCategory,
+)
 from backend.matching.review_display import build_candidate_review_display
 from backend.standings_view import build_standings_rows_for_category
 from backend.ui_api.errors import not_found, validation_error
@@ -47,11 +55,7 @@ def get_project_state(document: ProjectDocument) -> dict[str, Any]:
 
 def get_project_state_filtered(document: ProjectDocument, payload: dict[str, Any]) -> dict[str, Any]:
     series_year = _parse_series_year(payload, required=False)
-    scoped_events = [
-        event
-        for event in document.events
-        if series_year is None or event.category.year == series_year
-    ]
+    scoped_events = [event for event in document.events if series_year is None or event.category.year == series_year]
     active = [event for event in scoped_events if event.state == RaceEventState.ACTIVE]
     review_queue = 0
     for event in active:
@@ -67,7 +71,11 @@ def get_project_state_filtered(document: ProjectDocument, payload: dict[str, Any
             "events_total": len(scoped_events),
             "events_active": len(active),
             "matching_decisions": len(
-                [d for d in document.matching_decisions if _matching_decision_in_filtered_year(document, d, series_year)]
+                [
+                    d
+                    for d in document.matching_decisions
+                    if _matching_decision_in_filtered_year(document, d, series_year)
+                ]
             ),
             "review_queue": review_queue,
         },
@@ -125,9 +133,7 @@ def get_category_current_results_table(document: ProjectDocument, payload: dict[
                     "race_event_uid": event.race_event_uid,
                     "distance_km": None if entry is None else entry.result.distance_km,
                     "points": None if entry is None else entry.result.points,
-                    "counts_toward_total": bool(
-                        row["contribution_by_race"].get(event.race_event_uid, False)
-                    ),
+                    "counts_toward_total": bool(row["contribution_by_race"].get(event.race_event_uid, False)),
                 }
             )
         response_rows.append(
@@ -249,7 +255,9 @@ def get_review_queue(document: ProjectDocument, payload: dict[str, Any]) -> dict
                 continue
             confidence_value = float(entry.match_meta.confidence or 0.0)
             entry_preview = _incoming_entry_preview(document, entry)
-            candidate_previews = [_entity_preview(document, candidate_uid) for candidate_uid in entry.match_meta.candidate_uids]
+            candidate_previews = [
+                _entity_preview(document, candidate_uid) for candidate_uid in entry.match_meta.candidate_uids
+            ]
             rows.append(
                 {
                     "race_event_uid": event.race_event_uid,
@@ -285,11 +293,7 @@ def list_categories(document: ProjectDocument, payload: dict[str, Any]) -> dict[
     items: list[dict[str, Any]] = []
     category_keys = sorted({event.category.key for event in document.events if event.category.year == series_year})
     for category_key in category_keys:
-        category_events = [
-            event
-            for event in document.events
-            if event.category.key == category_key
-        ]
+        category_events = [event for event in document.events if event.category.key == category_key]
         active_for_category = [event for event in category_events if event.state == RaceEventState.ACTIVE]
         review_queue_count = 0
         for event in active_for_category:

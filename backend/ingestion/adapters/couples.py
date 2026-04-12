@@ -6,7 +6,14 @@ from openpyxl import load_workbook
 
 from backend.domain.club import optional_club_from_cell
 from backend.domain.enums import Division, RaceDuration
-from backend.ingestion.adapters.common import PARSER_VERSION, file_sha256, imported_now_iso, parse_decimal, parse_race_no, to_text
+from backend.ingestion.adapters.common import (
+    PARSER_VERSION,
+    file_sha256,
+    imported_now_iso,
+    parse_decimal,
+    parse_race_no,
+    to_text,
+)
 from backend.ingestion.types import (
     ImportRaceContext,
     ImportRowCouples,
@@ -30,7 +37,11 @@ EXPECTED_HEADER = (
     "Punkte",
 )
 DURATION_MARKERS = {"1/2 h-Lauf": RaceDuration.HALF_HOUR, "h-Lauf": RaceDuration.HOUR}
-DIVISION_MARKERS = {"Paare Frauen": Division.COUPLES_WOMEN, "Paare Männer": Division.COUPLES_MEN, "Paare Mix": Division.COUPLES_MIXED}
+DIVISION_MARKERS = {
+    "Paare Frauen": Division.COUPLES_WOMEN,
+    "Paare Männer": Division.COUPLES_MEN,
+    "Paare Mix": Division.COUPLES_MIXED,
+}
 
 
 def parse_couples_workbook(path: Path, series_year: int, *, race_no_override: int | None = None) -> ParsedWorkbook:
@@ -128,13 +139,19 @@ def parse_couples_workbook(path: Path, series_year: int, *, race_no_override: in
                 )
             except ValueError:
                 raise ImportValidationError(
-                    (make_issue("invalid_number", "Ungültiger Zahlenwert in Paarlauf-Zeile.", ws.title, row_idx, "D/G/I/K"),)
+                    (
+                        make_issue(
+                            "invalid_number", "Ungültiger Zahlenwert in Paarlauf-Zeile.", ws.title, row_idx, "D/G/I/K"
+                        ),
+                    )
                 ) from None
             rows_buffer.append(row)
 
         flush()
         if not sections:
-            raise ImportValidationError((make_issue("no_rows", "Keine Ergebniszeilen im Paarlauf gefunden.", ws.title, 1, "A"),))
+            raise ImportValidationError(
+                (make_issue("no_rows", "Keine Ergebniszeilen im Paarlauf gefunden.", ws.title, 1, "A"),)
+            )
         fingerprint = f"{ws.title}|{'|'.join(header)}|sections={len(sections)}"
         stat = path.stat()
         meta = ImportWorkbookMeta(
