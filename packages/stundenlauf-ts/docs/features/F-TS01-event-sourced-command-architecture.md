@@ -5,7 +5,7 @@
 - Feature ID: F-TS01
 - Feature name: Event-sourced architecture for race/team/season data
 - Owner: —
-- Status: Planned
+- Status: Done
 - Related requirement(s): R1, R2, R3, R5, R7
 - Related milestone(s): M-TS1
 - Python predecessor(s): F01 (domain model & storage), parts of F02 (ingestion/matching integration), F04 (standings), F09 (identity correction workflow), and the **result-correction use cases** previously handled in parts of F16 (identity merge)

@@ -3,7 +3,10 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
 import "./theme.css";
 
-createRoot(document.getElementById("root")!).render(
+const rootEl = document.getElementById("root");
+if (rootEl == null) throw new Error("Missing #root element");
+
+createRoot(rootEl).render(
   <StrictMode>
     <App />
   </StrictMode>,

@@ -60,7 +60,7 @@ Mapped from the Python version's requirements, adapted for the static-site conte
 
 | Milestone | Description | Status |
 |---|---|---|
-| M-TS1 | Event-sourced domain foundation and storage | Planned |
+| M-TS1 | Event-sourced domain foundation and storage | In Progress |
 | M-TS2 | Excel/CSV ingestion and team/participant registration | Planned |
 | M-TS3 | Matching engine and review workflow | Planned |
 | M-TS4 | Ranking engine and standings computation | Planned |
@@ -74,7 +74,7 @@ Features are prefixed `F-TS` to distinguish from the Python version's `F` prefix
 
 | Feature | Description | Milestone | Status |
 |---|---|---|---|
-| F-TS01 | Event-sourced event architecture | M-TS1 | Planned |
+| F-TS01 | Event-sourced event architecture | M-TS1 | Done |
 | F-TS02 | Client-side Excel (.xlsx) parsing | M-TS2 | Planned |
 | F-TS03 | Fuzzy matching engine and review workflow | M-TS3 | Planned |
 | F-TS04 | Ranking engine and standings computation | M-TS4 | Planned |
@@ -191,3 +191,4 @@ TS version: UI components call domain functions directly. No serialization bound
 | 2026-04-12 | F-TS06 feature plan created | Detailed UI framework & German shell plan: full audit of all 4 screens in app.js (2762 lines), line-by-line keep/change/eliminate dispositions, dead code inventory, bridge elimination mapping, file API migration, confirmation modal migration, CSS audit, component architecture, string catalog porting plan |
 | 2026-04-12 | F-TS08 feature plan created; CSV→Excel | Detailed standings/results export plan: PDF via jsPDF+AutoTable, Excel via ExcelJS replacing CSV; projection layer port, Laufübersicht layout, dual Einzel/Paare PDF, layout presets, German formatting; updated milestone M-TS6 and tech stack |
 | 2026-04-12 | F-TS09 feature plan created | GitHub Pages deployment + PWA plan: Vite build with base path, vite-plugin-pwa for Workbox service worker with prompt-based updates, GitHub Actions CI/CD (lint/typecheck/test/build/deploy), PWA manifest with German metadata, hash routing for GH Pages, build-time version injection, coexistence with Python Windows workflow |
+| 2026-04-13 | F-TS01 implemented | Event-sourced domain foundation: 11 projection handlers, validation engine, workspace lifecycle, IndexedDB storage adapter, JSON serialization, 104 tests passing |

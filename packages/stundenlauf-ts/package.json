@@ -17,6 +17,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "idb": "^8.0.3",
     "react": "^19",
     "react-dom": "^19",
     "zustand": "^5"
@@ -31,6 +32,7 @@
     "eslint": "^9",
     "eslint-config-prettier": "^10",
     "globals": "^16",
+    "jiti": "^2.6.1",
     "jsdom": "^26",
     "prettier": "^3",
     "typescript": "~5.8",
