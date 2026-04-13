@@ -5,7 +5,7 @@
 - Feature ID: F-TS05
 - Feature name: Import orchestration workflow (parse → validate → match → review → emit)
 - Owner: —
-- Status: Planned
+- Status: Done
 - Related requirement(s): R1, R3, R4, R6, R7
 - Related milestone(s): M-TS2
 - Python predecessor(s): `backend/ingestion/service.py` (`import_excel_into_project`), `backend/ingestion/mapping.py` (section delegation), `backend/ui_api/commands.py` (`import_race`, `apply_match_decision`), `backend/ui_api/queries.py` (`get_review_queue`)
@@ -56,22 +56,22 @@ The orchestrator's job is **general orchestration flow only** — it calls into 
 
 ## Acceptance Criteria
 
-- [ ] A valid singles file with all rows auto-linked produces an event batch containing `import_batch.recorded`, the correct `person.registered` / `team.registered` events for new identities, and one `race.registered` per section with all entries carrying resolved `team_id`s.
-- [ ] A valid couples file produces the same event structure with couple teams.
-- [ ] A file whose SHA-256 matches an active import batch in the current season is rejected with a duplicate-import error.
-- [ ] A file whose SHA-256 matches only rolled-back batches is allowed (re-import after rollback).
-- [ ] A file whose parsed race-no + category collides with an existing effective race is rejected.
-- [ ] Duplicate incoming rows (same name/yob/club/startnr within a section) are rejected before matching begins.
-- [ ] Entries routed to `review` by the matching engine are held in a staging area and not included in the event batch until resolved.
-- [ ] The import blocks (returns a "pending review" status) until all review entries are resolved.
-- [ ] Review resolution with `link_existing` updates the staging entry's `team_id` and `ResolutionInfo` to `method: "manual"`.
-- [ ] Review resolution with `create_new_identity` creates new person(s) and team in the staging area and updates the entry accordingly, with `ResolutionInfo` `method: "new_identity"`.
-- [ ] After all reviews are resolved, the caller can finalize the import, producing the atomic event batch.
-- [ ] Previously-excluded `(category, team)` pairs have their exclusions cleared via `ranking.eligibility_set { eligible: true }` events in the batch.
-- [ ] Distance values are converted from `float` km to `integer` meters (rounded to nearest) before entering `RaceEntryInput.distance_m`.
-- [ ] The import report contains correct counts for auto-links, review items, new identities, conflicts, and replay overrides.
-- [ ] All orchestration logic is framework-agnostic (pure TS functions, no UI imports, no DOM access).
-- [ ] The orchestrator does not import or depend on matching internals (scoring functions, blocking indexes) — it calls the matching engine through its public API only.
+- [x] A valid singles file with all rows auto-linked produces an event batch containing `import_batch.recorded`, the correct `person.registered` / `team.registered` events for new identities, and one `race.registered` per section with all entries carrying resolved `team_id`s.
+- [x] A valid couples file produces the same event structure with couple teams.
+- [x] A file whose SHA-256 matches an active import batch in the current season is rejected with a duplicate-import error.
+- [x] A file whose SHA-256 matches only rolled-back batches is allowed (re-import after rollback).
+- [x] A file whose parsed race-no + category collides with an existing effective race is rejected.
+- [x] Duplicate incoming rows (same name/yob/club/startnr within a section) are rejected before matching begins.
+- [x] Entries routed to `review` by the matching engine are held in a staging area and not included in the event batch until resolved.
+- [x] The import blocks (returns a "pending review" status) until all review entries are resolved.
+- [x] Review resolution with `link_existing` updates the staging entry's `team_id` and `ResolutionInfo` to `method: "manual"`.
+- [x] Review resolution with `create_new_identity` creates new person(s) and team in the staging area and updates the entry accordingly, with `ResolutionInfo` `method: "new_identity"`.
+- [x] After all reviews are resolved, the caller can finalize the import, producing the atomic event batch.
+- [x] Previously-excluded `(category, team)` pairs have their exclusions cleared via `ranking.eligibility_set { eligible: true }` events in the batch.
+- [x] Distance values are converted from `float` km to `integer` meters (rounded to nearest) before entering `RaceEntryInput.distance_m`.
+- [x] The import report contains correct counts for auto-links, review items, new identities, conflicts, and replay overrides.
+- [x] All orchestration logic is framework-agnostic (pure TS functions, no UI imports, no DOM access).
+- [x] The orchestrator does not import or depend on matching internals (scoring functions, blocking indexes) — it calls the matching engine through its public API only.
 
 ---
 
@@ -443,12 +443,12 @@ All exports are pure functions (except `startImport` which is async due to file 
 
 ## Definition of Done
 
-- [ ] Code implemented in TypeScript
-- [ ] Tests added/updated and passing (Vitest)
-- [ ] Types are strict (no `any` escapes without justification)
-- [ ] Docs updated
-- [ ] Entry added to `packages/stundenlauf-ts/docs/ACCOMPLISHMENTS.md`
-- [ ] Requirement/milestone status updated in `packages/stundenlauf-ts/PROJECT_PLAN.md`
+- [x] Code implemented in TypeScript
+- [x] Tests added/updated and passing (Vitest)
+- [x] Types are strict (no `any` escapes without justification)
+- [x] Docs updated
+- [x] Entry added to `packages/stundenlauf-ts/docs/ACCOMPLISHMENTS.md`
+- [x] Requirement/milestone status updated in `packages/stundenlauf-ts/PROJECT_PLAN.md`
 
 ## Links
 

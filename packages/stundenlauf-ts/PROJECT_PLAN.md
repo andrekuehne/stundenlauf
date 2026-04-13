@@ -60,10 +60,10 @@ Mapped from the Python version's requirements, adapted for the static-site conte
 
 | Milestone | Description | Status |
 |---|---|---|
-| M-TS1 | Event-sourced domain foundation and storage | In Progress |
-| M-TS2 | Excel/CSV ingestion and team/participant registration | In Progress |
-| M-TS3 | Matching engine and review workflow | In Progress |
-| M-TS4 | Ranking engine and standings computation | In Progress |
+| M-TS1 | Event-sourced domain foundation and storage | Done |
+| M-TS2 | Excel/CSV ingestion and team/participant registration | Done |
+| M-TS3 | Matching engine and review workflow | Done |
+| M-TS4 | Ranking engine and standings computation | Done |
 | M-TS5 | German UI shell and core workflows | Planned |
 | M-TS6 | Export (PDF, Excel) and season portability | Planned |
 | M-TS7 | GitHub Pages deployment, PWA, polish | Planned |
@@ -78,7 +78,7 @@ Features are prefixed `F-TS` to distinguish from the Python version's `F` prefix
 | F-TS02 | Client-side Excel (.xlsx) parsing | M-TS2 | Done |
 | F-TS03 | Fuzzy matching engine and review workflow | M-TS3 | Done |
 | F-TS04 | Ranking engine and standings computation | M-TS4 | Done |
-| F-TS05 | Import orchestration workflow (parse → validate → match → review → emit) | M-TS2 | Planned |
+| F-TS05 | Import orchestration workflow (parse → validate → match → review → emit) | M-TS2 | Done |
 | F-TS06 | UI framework and German UI shell | M-TS5 | Planned |
 | F-TS07 | Season data portability (JSON/ZIP export and import) | M-TS6 | Planned |
 | F-TS08 | Standings and results export (PDF, Excel) | M-TS6 | Planned |
@@ -194,3 +194,4 @@ TS version: UI components call domain functions directly. No serialization bound
 | 2026-04-13 | F-TS01 implemented | Event-sourced domain foundation: 11 projection handlers, validation engine, workspace lifecycle, IndexedDB storage adapter, JSON serialization, 104 tests passing |
 | 2026-04-13 | F-TS02 implemented | Client-side Excel parsing: singles and couples parsers with state machine, SheetJS for OOXML reading, German decimal/club/YOB handling, SHA-256 dedup, 100 new tests (204 total) |
 | 2026-04-13 | F-TS04 implemented | Ranking engine: stundenlauf_v1 ruleset (top-4 aggregation), deterministic sorting, exclusion presentation, 46 new tests (409 total) |
+| 2026-04-13 | F-TS05 implemented | Import orchestration: phased pipeline (parse→validate→match→review→finalize), progressive state enrichment, review resolution, atomic event batch construction, 55 new tests (464 total); M-TS1–M-TS4 marked Done |
