@@ -1,0 +1,19 @@
+---
+description: TS port lives in packages/stundenlauf-ts — edit and cite only there unless Python parity or repo-wide change
+alwaysApply: true
+---
+
+# TypeScript port scope (`packages/stundenlauf-ts`)
+
+The main Python/pywebview app is ported to TypeScript inside **`packages/stundenlauf-ts/`**.
+
+## When the task is about the TypeScript port
+
+- **Edits and code citations**: Stay under `packages/stundenlauf-ts/` (app source, tests, package-local docs, and config files in that directory, e.g. `package.json`, `vite.config.ts`, `eslint.config.ts`).
+- **Exceptions** — use paths outside the package when:
+  - You need a **direct lookup** of current behavior in the original app (e.g. `backend/`, `frontend/`, repository root tests) for parity, migration, or clarification.
+  - You need **repo-wide or global** changes (e.g. root `.gitignore`, top-level CI, workspace layout) that are explicitly part of the request.
+
+## Planning and docs
+
+For port milestones and features, use **`packages/stundenlauf-ts/PROJECT_PLAN.md`** and **`packages/stundenlauf-ts/docs/features/`** (and the package’s **`docs/ACCOMPLISHMENTS.md`**). Follow the global project workflow rule for planning discipline; paths above replace generic `PROJECT_PLAN.md` / `docs/features/` **for port-only work**.
