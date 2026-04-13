@@ -51,3 +51,10 @@ Copy this block for each notable accomplishment:
 - Evidence: `tests/ingestion/local-excel-examples.test.ts`, `tests/ingestion/local-xlsx-fixture-discovery.ts`, `tests/data/xlsx/.gitkeep`, `scripts/dump-local-excel-fixtures.ts`, `package.json` (devDependency `@types/node`)
 - Impact: Local regression checks against organizer exports without bloating the repo or breaking automated runs.
 - Follow-up: None required; optionally add golden row-count assertions per known file if desired.
+
+### 2026-04-13 - Adversarial parity validation against Python
+- Requirement/Milestone: [M-TS3], [R4], [R6]
+- What shipped: Independently re-ran Python matching primitives on the exact golden-value cases used by TS cross-language parity tests (Ratcliff/Obershelp ratios, `parse_person_name`, `name_key`, `identity_fingerprint`, and selected `score_person_match` examples) to verify expected values were not derived from TS output.
+- Evidence: `uv run python -c "<independent parity probe>"` in repo root; outputs matched `tests/matching/cross-language-parity.test.ts` constants, including known SHA-256 fingerprints and score=1.0 clamp cases.
+- Impact: Increases confidence that parity assertions are anchored to real Python behavior and resistant to circular self-validation in TS tests.
+- Follow-up: Optional: automate this as a reproducible Python-vs-TS differential check script for future regressions.
