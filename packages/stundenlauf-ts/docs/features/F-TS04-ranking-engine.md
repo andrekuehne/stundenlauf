@@ -5,7 +5,7 @@
 - Feature ID: F-TS04
 - Feature name: Configurable ranking engine with standings computation
 - Owner: —
-- Status: Planned
+- Status: Done
 - Related requirement(s): R5
 - Related milestone(s): M-TS4
 - Python predecessor(s): F04 (ranking engine, `backend/ranking/`)
