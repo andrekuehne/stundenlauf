@@ -536,6 +536,15 @@ All exports are pure functions with no side effects, no framework dependencies, 
 - **Cross-library:**
   - If evaluating both SheetJS and ExcelJS, run the same test suite against both to verify consistent cell-value reading.
 
+- **Local `.xlsx` fixtures (optional) and manual plaintext dump:**
+  - Put real organizer files under `packages/stundenlauf-ts/tests/data/xlsx/` (any nesting; paths are scanned recursively). These files stay local because the repository root `.gitignore` ignores `*.xlsx`.
+  - **Vitest:** `tests/ingestion/local-excel-examples.test.ts` runs integration checks when fixtures match the naming rules in `tests/ingestion/local-xlsx-fixture-discovery.ts` (skipped entirely if no matching files).
+  - **Manual report:** from `packages/stundenlauf-ts/`, run `npm run inspect:excel-fixtures` (implementation: `scripts/dump-local-excel-fixtures.ts` via `vite-node`). Redirect to a file, for example:
+    ```bash
+    npm run inspect:excel-fixtures > excel-dump.txt
+    ```
+    Open the dump as **UTF-8** so German names and clubs render correctly; framing lines use ASCII so separators stay readable even with legacy editor defaults.
+
 ## Definition of Done
 
 - [ ] Code implemented in TypeScript

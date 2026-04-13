@@ -49,6 +49,31 @@ npm run dev         # Vite dev server with HMR (http://localhost:5173)
 | `npm run lint:fix` | ESLint auto-fix |
 | `npm run format` | Prettier format all source files |
 | `npm run format:check` | Prettier check (CI-friendly, no writes) |
+| `npm run inspect:excel-fixtures` | Plain-text parse report for local `.xlsx` under `tests/data/xlsx/` (see below) |
+
+### Manual Excel parse dump (local fixtures)
+
+Place organizer workbooks under `tests/data/xlsx/` in any subdirectory (recursive). Files are not committed: the repo root `.gitignore` ignores `*.xlsx`.
+
+From `packages/stundenlauf-ts/`:
+
+```bash
+npm run inspect:excel-fixtures
+```
+
+Capture output to a file (still run from the package directory):
+
+```bash
+npm run inspect:excel-fixtures > excel-dump.txt
+```
+
+The script prints **ASCII separators** so the file stays readable if an editor assumes a legacy Windows code page. Names and clubs from the sheet are still UTF-8; open `excel-dump.txt` as **UTF-8** in your editor (VS Code does this by default). On Windows PowerShell, you can also use:
+
+```powershell
+npm run inspect:excel-fixtures | Out-File -Encoding utf8 excel-dump.txt
+```
+
+Optional Vitest integration tests for the same tree are in `tests/ingestion/local-excel-examples.test.ts` (skipped when no matching files are present).
 
 ## Technology Stack
 
@@ -155,7 +180,11 @@ packages/stundenlauf-ts/
 │       ├── escape-html.ts            # HTML entity escaping
 │       └── normalization.ts          # Name/club normalization
 │
+├── scripts/                           # Dev-only CLI helpers (vite-node)
+│   └── dump-local-excel-fixtures.ts   # inspect:excel-fixtures
+│
 └── tests/                             # Test suite (mirrors src/ structure)
+    ├── data/xlsx/                     # Local .xlsx fixtures (gitignored; optional tests + manual dump)
     ├── setup.ts                       # Vitest global setup (jest-dom matchers)
     ├── domain/
     │   ├── projection.test.ts         # Projection / fold tests

@@ -37,3 +37,10 @@ Copy this block for each notable accomplishment:
 - Evidence: `src/ingestion/types.ts`, `src/ingestion/errors.ts`, `src/ingestion/constants.ts`, `src/ingestion/helpers.ts`, `src/ingestion/parse-singles.ts`, `src/ingestion/parse-couples.ts`, `src/ingestion/parse-workbook.ts`, `src/ingestion/index.ts`, `tests/ingestion/helpers.test.ts`, `tests/ingestion/constants.test.ts`, `tests/ingestion/parse-singles.test.ts`, `tests/ingestion/parse-couples.test.ts`, `tests/ingestion/parse-workbook.test.ts`
 - Impact: Excel files can now be parsed entirely in the browser with behavioral parity to the Python openpyxl-based parsers. The `ParsedWorkbook` output structure feeds directly into the import orchestration workflow (F-TS05) and matching engine (F-TS03). SheetJS (`xlsx` package) handles the OOXML reading.
 - Follow-up: Implement F-TS05 (import orchestration: parse -> validate -> match -> review -> emit) and F-TS03 (fuzzy matching engine).
+
+### 2026-04-13 - Optional local Excel fixture tests (tests/data/xlsx)
+- Requirement/Milestone: [M-TS2], [F-TS02]
+- What shipped: Vitest suites and `npm run inspect:excel-fixtures` scan `tests/data/xlsx/` recursively for `.xlsx` files when present (skipped in CI / clean checkouts). Couples fixtures match production `detectSourceType` (“paare” in basename); singles are non-paare basenames matching `MW[_\s]` (covers `Ergebnisliste MW_1.xlsx` and “MW Lauf” style names). `parseWorkbook` receives relative paths from the xlsx root. Shared discovery in `tests/ingestion/local-xlsx-fixture-discovery.ts`; tracked `tests/data/xlsx/.gitkeep`; `@types/node` for fs in tests; fixtures stay untracked via root `*.xlsx` gitignore.
+- Evidence: `tests/ingestion/local-excel-examples.test.ts`, `tests/ingestion/local-xlsx-fixture-discovery.ts`, `tests/data/xlsx/.gitkeep`, `scripts/dump-local-excel-fixtures.ts`, `package.json` (devDependency `@types/node`)
+- Impact: Local regression checks against organizer exports without bloating the repo or breaking automated runs.
+- Follow-up: None required; optionally add golden row-count assertions per known file if desired.
