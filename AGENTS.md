@@ -16,6 +16,18 @@ All Python commands must go through `uv` — see `.cursor/rules/python-uv-execut
 - **Auto-fix lint:** `uv run ruff check --fix` and `uv run ruff format`
 - **Launch GUI:** see below
 
+### TypeScript port (`packages/stundenlauf-ts`)
+
+Cloud images ship **Node.js 20+** (current VMs use **Node 22** via nvm) and **npm**. Work on the port from that package directory:
+
+- **Install deps:** `npm ci` (uses `package-lock.json`; do not use `npm install` in CI or when verifying a reproducible tree)
+- **Dev server:** `npm run dev`
+- **Production build:** `npm run build`
+- **Tests:** `npm run test`
+- **Lint / format / types:** `npm run lint`, `npm run format:check`, `npm run typecheck`
+
+Optional: if you use nvm locally, `packages/stundenlauf-ts/.nvmrc` pins the same major version as CI.
+
 ### Lint
 
 Ruff is configured in `pyproject.toml` under `[tool.ruff]`. Rule sets: `E`, `F`, `W`, `I`, `UP`, `B`, `SIM`, `RUF`. German unicode characters (RUF001-003) and line length (E501) are globally ignored. Scripts have per-file ignores for `E402` (sys.path manipulation) and `T201` (print). Always run both `ruff check` and `ruff format --check` before committing.

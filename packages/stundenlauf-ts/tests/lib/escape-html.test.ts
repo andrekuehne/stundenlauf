@@ -11,7 +11,7 @@ describe("escapeHtml", () => {
   });
 
   it("escapes quotes", () => {
-    expect(escapeHtml('"hello\'')).toBe("&quot;hello&#39;");
+    expect(escapeHtml("\"hello'")).toBe("&quot;hello&#39;");
   });
 
   it("returns plain strings unchanged", () => {

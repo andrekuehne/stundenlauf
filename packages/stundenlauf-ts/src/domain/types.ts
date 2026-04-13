@@ -8,12 +8,7 @@
 
 export type Gender = "M" | "F" | "X";
 export type RaceDuration = "half_hour" | "hour";
-export type Division =
-  | "men"
-  | "women"
-  | "couples_men"
-  | "couples_women"
-  | "couples_mixed";
+export type Division = "men" | "women" | "couples_men" | "couples_women" | "couples_mixed";
 export type RaceEventState = "active" | "rolled_back";
 export type TeamKind = "solo" | "couple";
 export type ImportBatchState = "active" | "rolled_back";
