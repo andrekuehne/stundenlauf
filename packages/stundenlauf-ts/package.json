@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -25,12 +28,14 @@
     "@eslint/js": "^9",
     "@testing-library/jest-dom": "^6",
     "@testing-library/react": "^16",
+    "@types/node": "^25.6.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^4",
     "eslint": "^9",
     "eslint-config-prettier": "^10",
     "globals": "^16",
+    "jiti": "^2.6.1",
     "jsdom": "^26",
     "prettier": "^3",
     "typescript": "~5.8",

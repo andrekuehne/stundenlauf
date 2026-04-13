@@ -1,0 +1,2 @@
+# TypeScript project references emit here (vite/vitest/eslint configs)
+.tsbuild/
