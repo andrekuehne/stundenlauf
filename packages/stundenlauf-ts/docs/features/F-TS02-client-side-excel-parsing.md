@@ -5,7 +5,7 @@
 - Feature ID: F-TS02
 - Feature name: Client-side Excel (.xlsx) parsing for race result files
 - Owner: —
-- Status: Planned
+- Status: Done
 - Related requirement(s): R1, R2, R7
 - Related milestone(s): M-TS2
 - Python predecessor(s): F02 (Excel ingestion adapters, `backend/ingestion/`)

@@ -1,7 +1,9 @@
 /**
- * Client-side Excel/CSV parsing.
+ * Re-export from the ingestion module.
  *
- * Reference: F-TS02 (Client-Side Excel Parsing)
+ * The actual parsing implementation lives in src/ingestion/ (F-TS02).
+ * This stub remains for backward compatibility with existing import paths.
  */
 
-export {};
+export { parseWorkbook } from "@/ingestion/parse-workbook";
+export type { ParseWorkbookOptions } from "@/ingestion/parse-workbook";
