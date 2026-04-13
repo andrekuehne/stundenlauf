@@ -1,7 +1,11 @@
 /**
- * Scoring functions for candidate ranking in fuzzy matching.
- *
- * Reference: F-TS03 (Fuzzy Matching Engine)
+ * Re-export from score.ts for backward compatibility.
  */
-
-export {};
+export {
+  nameSimilarity,
+  personParsed,
+  routeFromScore,
+  scorePersonMatch,
+  shouldReviewStrongCoupleYobMismatch,
+  shouldReviewStrongNameYobMismatch,
+} from "./score.ts";

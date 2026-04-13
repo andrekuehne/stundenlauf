@@ -62,7 +62,7 @@ Mapped from the Python version's requirements, adapted for the static-site conte
 |---|---|---|
 | M-TS1 | Event-sourced domain foundation and storage | In Progress |
 | M-TS2 | Excel/CSV ingestion and team/participant registration | In Progress |
-| M-TS3 | Matching engine and review workflow | Planned |
+| M-TS3 | Matching engine and review workflow | In Progress |
 | M-TS4 | Ranking engine and standings computation | Planned |
 | M-TS5 | German UI shell and core workflows | Planned |
 | M-TS6 | Export (PDF, Excel) and season portability | Planned |
@@ -76,7 +76,7 @@ Features are prefixed `F-TS` to distinguish from the Python version's `F` prefix
 |---|---|---|---|
 | F-TS01 | Event-sourced event architecture | M-TS1 | Done |
 | F-TS02 | Client-side Excel (.xlsx) parsing | M-TS2 | Done |
-| F-TS03 | Fuzzy matching engine and review workflow | M-TS3 | Planned |
+| F-TS03 | Fuzzy matching engine and review workflow | M-TS3 | Done |
 | F-TS04 | Ranking engine and standings computation | M-TS4 | Planned |
 | F-TS05 | Import orchestration workflow (parse → validate → match → review → emit) | M-TS2 | Planned |
 | F-TS06 | UI framework and German UI shell | M-TS5 | Planned |

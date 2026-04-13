@@ -1,8 +1,10 @@
 /**
- * Name and club normalization utilities.
- * Ported from the Python matching module.
- *
- * Reference: F-TS03 (Fuzzy Matching Engine)
+ * Re-export from matching/normalize.ts for backward compatibility.
  */
-
-export {};
+export {
+  normalizeClub,
+  normalizeToken,
+  normalizeWhitespace,
+  parsePersonName,
+  stripDiacritics,
+} from "@/matching/normalize.ts";
