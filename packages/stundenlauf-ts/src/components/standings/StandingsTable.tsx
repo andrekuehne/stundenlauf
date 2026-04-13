@@ -1,0 +1,5 @@
+/**
+ * Gesamtwertung standings table.
+ */
+
+export {};

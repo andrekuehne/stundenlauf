@@ -30,3 +30,9 @@ example/stundenlauf-2025.stundenlauf-season/*
 
 # Inno Setup output (local builds)
 installer/output/
+
+# Node.js / TypeScript port
+node_modules/
+packages/stundenlauf-ts/dist/
+packages/stundenlauf-ts/coverage/
+*.tsbuildinfo
