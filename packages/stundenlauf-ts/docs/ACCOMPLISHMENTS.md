@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - Viewport lock and split-panel layout parity with Python GUI
+- Requirement/Milestone: [R8], [M-TS5]
+- What shipped: Brought the TS port's layout model to parity with the Python app's fixed-viewport, independently-scrollable split-panel design. Body and shell are now locked to 100vh with no document scroll. Standings and Import views use visually distinct panel cards per column (sidebar and content), each with independent `overflow-y: auto` scrolling. History and Season views scroll within the constrained viewport. Large tables are capped at 60vh via `.table-wrap`. Responsive 1200px breakpoint degrades gracefully (columns stack, outer container scrolls).
+- Evidence: `src/theme.css`, `src/components/standings/StandingsView.tsx`, `src/components/import/ImportView.tsx`, `src/components/history/HistoryView.tsx`, `src/components/season/SeasonEntryView.tsx`
+- Impact: Eliminates the most visible UX drift from the Python app — sidebars are now visually separate cards with their own scroll, matching the desktop app's panel-based interaction model.
+- Follow-up: None immediate; further visual polish (shadows, hover states, active category highlight) can be addressed in a future pass.
+
 ### 2026-04-14 - F-TS06d Python GUI parity pass implemented
 - Requirement/Milestone: [R1], [R2], [R3], [R4], [R5], [R6], [R8], [M-TS5]
 - What shipped: Delivered a cross-referenced Python-vs-TS parity pass with shell/header alignment (season + open-review context and switch-season tab affordance), production import orchestration/review workflow in the main app (replacing placeholder import tab), targeted standings/season/history drift fixes, and centralized remaining user-facing copy in the TS string catalog.

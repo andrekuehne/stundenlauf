@@ -111,10 +111,9 @@ export function ImportView({ seasonLabel, reviewLabel }: FoundationViewProps) {
   }
 
   return (
-    <section className="foundation-view" aria-label={STR.views.import.title}>
-      <h2>{STR.views.import.title}</h2>
+    <section className="view-split" aria-label={STR.views.import.title}>
       <div className="import-view">
-        <div className="import-view__left">
+        <div className="panel-card import-view__left">
           <ImportControls
             disabled={controlsBlocked}
             fileName={selectedFileName}
@@ -145,7 +144,7 @@ export function ImportView({ seasonLabel, reviewLabel }: FoundationViewProps) {
           ) : null}
         </div>
 
-        <div className="import-view__right">
+        <div className="panel-card import-view__right">
           <ReviewPanel
             reviews={pendingReviews}
             selectedReviewEntryId={selectedReviewEntryId}
@@ -159,13 +158,13 @@ export function ImportView({ seasonLabel, reviewLabel }: FoundationViewProps) {
               void handleCreateIdentity();
             }}
           />
+          {error ? <p className="danger-text">{error}</p> : null}
+          <p className="foundation-view__meta">
+            <span>{seasonLabel}</span>
+            <span>{reviewLabel}</span>
+          </p>
         </div>
       </div>
-      {error ? <p className="danger-text">{error}</p> : null}
-      <p className="foundation-view__meta">
-        <span>{seasonLabel}</span>
-        <span>{reviewLabel}</span>
-      </p>
     </section>
   );
 }

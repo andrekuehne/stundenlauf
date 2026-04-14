@@ -24,7 +24,7 @@ export function SeasonEntryView({ seasonLabel, reviewLabel }: FoundationViewProp
   const [resetCandidate, setResetCandidate] = useState<string | null>(null);
 
   return (
-    <section className="foundation-view" aria-label={STR.views.season.title}>
+    <section className="foundation-view foundation-view--scroll" aria-label={STR.views.season.title}>
       <h2>{STR.views.season.title}</h2>
       <p>{STR.views.season.placeholder}</p>
       <div className="season-entry__create">

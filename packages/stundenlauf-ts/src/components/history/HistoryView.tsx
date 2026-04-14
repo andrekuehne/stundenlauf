@@ -24,18 +24,22 @@ export function HistoryView({ seasonLabel, reviewLabel }: FoundationViewProps) {
   const rollbackCount = importRows.find((row) => row.import_batch_id === rollbackCandidate)?.races_count ?? 0;
 
   return (
-    <section className="foundation-view" aria-label={STR.views.history.title}>
+    <section className="foundation-view foundation-view--scroll" aria-label={STR.views.history.title}>
       <h2>{STR.views.history.title}</h2>
       <h3>{STR.views.history.importHistoryTitle}</h3>
-      <ImportHistoryTable
-        rows={importRows}
-        onRollback={(batchId) => {
-          setRollbackCandidate(batchId);
-        }}
-      />
+      <div className="table-wrap">
+        <ImportHistoryTable
+          rows={importRows}
+          onRollback={(batchId) => {
+            setRollbackCandidate(batchId);
+          }}
+        />
+      </div>
 
       <h3>{STR.views.history.auditTrailTitle}</h3>
-      <AuditTrailTable rows={auditRows} />
+      <div className="table-wrap">
+        <AuditTrailTable rows={auditRows} />
+      </div>
 
       <p className="foundation-view__meta">
         <span>{seasonLabel}</span>

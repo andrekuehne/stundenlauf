@@ -68,10 +68,9 @@ export function StandingsView({ seasonLabel, reviewLabel }: FoundationViewProps)
   }, [selectedCategoryKey, categoryOptions, selectCategory]);
 
   return (
-    <section className="foundation-view" aria-label={STR.views.standings.title}>
-      <h2>{STR.views.standings.title}</h2>
+    <section className="view-split" aria-label={STR.views.standings.title}>
       <div className="standings-layout">
-        <aside className="standings-sidebar">
+        <aside className="panel-card standings-sidebar">
           <h3>{STR.views.standings.importedRunsTitle}</h3>
           <ImportedRunsMatrix rows={importedRuns} />
 
@@ -119,9 +118,11 @@ export function StandingsView({ seasonLabel, reviewLabel }: FoundationViewProps)
           </div>
         </aside>
 
-        <div className="standings-content">
+        <div className="panel-card standings-content">
           <h3>{STR.views.standings.overallTitle}</h3>
-          <StandingsTable rows={standingsRows} />
+          <div className="table-wrap">
+            <StandingsTable rows={standingsRows} />
+          </div>
 
           {mode === "correct_identity" ? (
             <div className="standings-view__mode-panel">
@@ -158,34 +159,36 @@ export function StandingsView({ seasonLabel, reviewLabel }: FoundationViewProps)
           <h3>
             {STR.views.standings.raceOverviewTitle} - {selectedCategoryDisplay}
           </h3>
-          <table className="ui-table">
-            <thead>
-              <tr>
-                <th>{STR.views.standings.team}</th>
-                {raceOverview.raceColumns.map((column) => (
-                  <th key={column}>{column.slice(0, 8)}</th>
-                ))}
-                <th>{STR.views.standings.points}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {raceOverview.rows.length > 0 ? (
-                raceOverview.rows.map((row) => (
-                  <tr key={row.team_id}>
-                    <td>{row.team_label}</td>
-                    {raceOverview.raceColumns.map((column) => (
-                      <td key={`${row.team_id}-${column}`}>{row.race_values[column] ?? "—"}</td>
-                    ))}
-                    <td>{row.total_points}</td>
-                  </tr>
-                ))
-              ) : (
+          <div className="table-wrap">
+            <table className="ui-table">
+              <thead>
                 <tr>
-                  <td colSpan={raceOverview.raceColumns.length + 2}>{STR.views.standings.noRows}</td>
+                  <th>{STR.views.standings.team}</th>
+                  {raceOverview.raceColumns.map((column) => (
+                    <th key={column}>{column.slice(0, 8)}</th>
+                  ))}
+                  <th>{STR.views.standings.points}</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {raceOverview.rows.length > 0 ? (
+                  raceOverview.rows.map((row) => (
+                    <tr key={row.team_id}>
+                      <td>{row.team_label}</td>
+                      {raceOverview.raceColumns.map((column) => (
+                        <td key={`${row.team_id}-${column}`}>{row.race_values[column] ?? "—"}</td>
+                      ))}
+                      <td>{row.total_points}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={raceOverview.raceColumns.length + 2}>{STR.views.standings.noRows}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
 
           <p className="foundation-view__meta">
             <span>{seasonLabel}</span>

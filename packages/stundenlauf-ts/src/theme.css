@@ -29,6 +29,8 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
   line-height: 1.5;
+  height: 100vh;
+  overflow: hidden;
 }
 
 button,
@@ -39,9 +41,10 @@ textarea {
 }
 
 .app-shell {
-  min-height: 100vh;
+  height: 100vh;
   display: grid;
   grid-template-rows: auto auto 1fr auto;
+  overflow: hidden;
 }
 
 .app-shell__header {
@@ -76,6 +79,8 @@ textarea {
 
 .app-shell__main {
   padding: var(--spacing-lg);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .button {
@@ -131,10 +136,37 @@ textarea {
   margin-top: 0;
 }
 
+.foundation-view--scroll {
+  max-height: 100%;
+  overflow-y: auto;
+}
+
 .foundation-view__meta {
   display: flex;
   gap: var(--spacing-lg);
   color: var(--color-text-muted);
+}
+
+.view-split {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.view-split h2 {
+  margin-top: 0;
+}
+
+.panel-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+}
+
+.table-wrap {
+  max-height: 60vh;
+  overflow: auto;
 }
 
 .ui-table {
@@ -182,12 +214,18 @@ textarea {
   grid-template-columns: minmax(290px, 380px) minmax(0, 1fr);
   gap: var(--spacing-lg);
   align-items: start;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .standings-sidebar {
   position: sticky;
-  top: var(--spacing-sm);
+  top: 0;
   align-self: start;
+  max-height: 100%;
+  overflow-y: auto;
+  padding-right: 4px;
   display: grid;
   gap: var(--spacing-md);
 }
@@ -198,6 +236,10 @@ textarea {
 
 .standings-content {
   min-width: 0;
+  align-self: stretch;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .standings-view__mode-panel {
@@ -212,6 +254,9 @@ textarea {
   display: grid;
   grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
   gap: var(--spacing-md);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .import-view__left,
@@ -223,7 +268,17 @@ textarea {
 
 .import-view__left {
   position: sticky;
-  top: var(--spacing-sm);
+  top: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.import-view__right {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .import-controls__label {
@@ -386,14 +441,23 @@ textarea {
 @media (max-width: 1200px) {
   .import-view {
     grid-template-columns: 1fr;
+    overflow-y: auto;
   }
 
   .standings-layout {
     grid-template-columns: 1fr;
+    overflow-y: auto;
   }
 
   .standings-sidebar,
   .import-view__left {
     position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
+
+  .standings-content,
+  .import-view__right {
+    overflow-y: visible;
   }
 }
