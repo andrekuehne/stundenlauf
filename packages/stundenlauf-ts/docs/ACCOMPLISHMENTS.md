@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - F-TS05 manual MW1→MW2 harness added
+- Requirement/Milestone: [R1], [R3], [R4], [R6], [M-TS2]
+- What shipped: Added a dev-only import orchestration harness (`/?harness=import`) that runs a real two-file cycle (MW1 then MW2), projects season state between files, and exposes row-level matching diagnostics (pool snapshot, route, candidates, scores, flags, placement).
+- Evidence: `src/App.tsx`, `src/devtools/ImportOrchestrationHarness.tsx`, `src/devtools/import-harness-trace.ts`, `tests/import/import-harness-trace.test.ts`, `docs/features/F-TS05-import-orchestration-workflow.md`
+- Impact: Enables high-confidence manual validation/debugging of orchestration behavior on real organizer XLSX files without waiting for the full F-TS06 GUI workflow.
+- Follow-up: If needed, extend the harness with configurable matching thresholds for side-by-side tuning sessions.
+
 ### 2026-04-12 - Project plan scaffold and F-TS01 feature spec created
 - Requirement/Milestone: [M-TS1]
 - What shipped: Created `packages/stundenlauf-ts/` planning directory with project plan, feature template, accomplishments log, and detailed F-TS01 event-sourced architecture feature plan derived from analysis of the Python backend.

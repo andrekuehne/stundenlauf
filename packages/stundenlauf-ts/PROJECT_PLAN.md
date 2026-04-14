@@ -195,3 +195,4 @@ TS version: UI components call domain functions directly. No serialization bound
 | 2026-04-13 | F-TS02 implemented | Client-side Excel parsing: singles and couples parsers with state machine, SheetJS for OOXML reading, German decimal/club/YOB handling, SHA-256 dedup, 100 new tests (204 total) |
 | 2026-04-13 | F-TS04 implemented | Ranking engine: stundenlauf_v1 ruleset (top-4 aggregation), deterministic sorting, exclusion presentation, 46 new tests (409 total) |
 | 2026-04-13 | F-TS05 implemented | Import orchestration: phased pipeline (parse→validate→match→review→finalize), progressive state enrichment, review resolution, atomic event batch construction, 55 new tests (464 total); M-TS1–M-TS4 marked Done |
+| 2026-04-14 | F-TS05 manual harness added | Dev-only interactive MW1→MW2 orchestration harness with row-level matching diagnostics for pre-GUI validation on real XLSX files |
