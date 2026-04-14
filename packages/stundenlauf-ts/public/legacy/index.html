@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stundenlauf-Auswertung</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="app" class="app">
+      <header class="app-header">
+        <h1>Stundenlauf-Auswertung</h1>
+        <div id="headerContext" class="header-context hidden">
+          <span id="seasonLabel">Saison: -</span>
+          <span id="reviewLabel">Prüfungen offen: 0</span>
+        </div>
+      </header>
+
+      <main class="app-main">
+        <section id="seasonEntryView" class="card"></section>
+
+        <section id="shellView" class="hidden">
+          <nav class="tabs">
+            <button data-view="standings" class="tab active">Aktuelle Wertung</button>
+            <button data-view="import" class="tab">Import</button>
+            <button data-view="history" class="tab">Historie & Korrektur</button>
+            <button id="switchSeasonBtn" class="tab subtle">Saison wechseln</button>
+          </nav>
+
+          <section id="globalStatus" class="status-line"></section>
+
+          <section id="viewStandings" class="view"></section>
+          <section id="viewImport" class="view hidden"></section>
+          <section id="viewHistory" class="view hidden"></section>
+        </section>
+      </main>
+
+      <div id="identityCorrectionModal" class="modal hidden" aria-hidden="true">
+        <div class="modal-backdrop" data-modal-dismiss></div>
+        <div class="modal-dialog card" role="dialog" aria-modal="true" aria-labelledby="identityModalTitle">
+          <div class="modal-header">
+            <h2 id="identityModalTitle" class="modal-title"></h2>
+            <button type="button" class="modal-icon-btn" id="identityModalClose">&times;</button>
+          </div>
+          <div id="identityModalBody" class="modal-body"></div>
+          <div class="modal-footer">
+            <button type="button" class="secondary" id="identityModalCancel"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="./strings.js"></script>
+    <script src="./bridge-stub.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

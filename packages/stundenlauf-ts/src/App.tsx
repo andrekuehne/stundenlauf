@@ -34,17 +34,18 @@ export function App() {
   if (showLegacyLayoutHarness) {
     return <LegacyLayoutParityPage />;
   }
+  const legacyUrl = `${import.meta.env.BASE_URL}legacy/index.html`;
 
   return (
-    <main id="app" style={{ padding: "16px" }}>
-      <h1>Stundenlauf TS Harness-Only Build</h1>
-      <p>Die produktive TS-Oberflaeche wurde entfernt.</p>
-      <p>Verfuegbare Dev-Harnesses:</p>
-      <ul>
-        <li>?harness=import</li>
-        <li>?harness=import-season</li>
-        <li>?harness=legacy-layout</li>
-      </ul>
-    </main>
+    <iframe
+      title="Stundenlauf Legacy Frontend"
+      src={legacyUrl}
+      style={{
+        width: "100vw",
+        height: "100vh",
+        border: "0",
+        display: "block",
+      }}
+    />
   );
 }

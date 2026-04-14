@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - Legacy frontend served in frontend-only mode
+- Requirement/Milestone: [R8], migration strategy pivot
+- What shipped: Wired the copied Python frontend assets under `public/legacy/` into the TS app default route via iframe and added a `pywebview` bridge stub so the old UI starts in browser-only mode while backend calls return a consistent unavailable error response.
+- Evidence: `public/legacy/index.html`, `public/legacy/bridge-stub.js`, `src/App.tsx`
+- Impact: Enables immediate visual/workflow parity checks on the original frontend surface while backend integration can proceed incrementally API by API.
+- Follow-up: Replace stubbed `invoke` responses with a real TS backend adapter method-by-method.
+
 ### 2026-04-14 - TS frontend reset to harness-only baseline
 - Requirement/Milestone: [M-TS5], migration strategy pivot
 - What shipped: Removed the production TS UI shell/views/components and related UI tests, and switched `App.tsx` to a harness-only launcher that preserves only the dev harness entry points (`?harness=import`, `?harness=import-season`, `?harness=legacy-layout`).
