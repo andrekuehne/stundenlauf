@@ -62,13 +62,18 @@ function applyLinkExisting(
   const candidate = reviewEntry.review_item.candidates.find(
     (c) => c.team_id === teamId,
   );
+  if (!candidate) {
+    throw new Error(
+      `Review link rejected: team "${teamId}" is not a candidate for entry "${reviewEntry.entry_id}".`,
+    );
+  }
 
   const updatedStaged: StagedEntry = {
     ...getStagedEntry(session, reviewEntry),
     team_id: teamId,
     resolution: {
       method: "manual",
-      confidence: candidate?.score ?? reviewEntry.review_item.confidence,
+      confidence: candidate.score,
       candidate_count: reviewEntry.review_item.candidates.length,
     },
   };

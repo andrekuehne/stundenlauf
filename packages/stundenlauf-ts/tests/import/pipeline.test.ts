@@ -256,6 +256,8 @@ describe("import with review", () => {
     if (matched.phase === "reviewing") {
       const queue = getReviewQueue(matched);
       expect(queue.length).toBeGreaterThan(0);
+      expect(queue[0]!.review_item.candidates[0]!.team_id).toBe(teamId);
+      expect(queue[0]!.review_item.candidates[0]!.team_id).not.toBe(personId);
 
       let resolved = matched;
       for (const entry of queue) {

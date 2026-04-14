@@ -90,7 +90,7 @@ Hardening work is prefixed `H-TS` and tracks cross-cutting reliability, architec
 
 | Hardening | Description | Supports | Status |
 |---|---|---|---|
-| H-TS01 | Team-first matching identity unification (single + couple review candidates always carry `team_id`) | R3, R4, R6 | Planned |
+| H-TS01 | Team-first matching identity unification (single + couple review candidates always carry `team_id`) | R3, R4, R6 | Done |
 | H-TS02 | Central event validation write barrier (reject invalid events before persistence/projection) | R1, R3, R5, R7 | Planned |
 
 ## Mapping from Python Features
@@ -209,3 +209,4 @@ TS version: UI components call domain functions directly. No serialization bound
 | 2026-04-14 | Canonical display identity consistency (person+club) | Extended F-TS01 contracts with canonical `display_name` + `name_normalized`, enforced dual-write invariants in validation/projection, aligned import/matching/review consumers, and added replay-compat coverage for legacy person events |
 | 2026-04-14 | Added `H-TSxx` hardening planning lane | Separate architecture/reliability enhancements from user-facing features; seeded H-TS01 for team-first matching identity unification |
 | 2026-04-14 | Added H-TS02 hardening plan seed | Captured the need for a central validation write barrier so invalid event batches are rejected before persistence/projection |
+| 2026-04-14 | H-TS01 implemented | Unified singles matching/review identity flow to team-first semantics (`team_id` only), removed person-id fallback seams, added review linking guardrails, and expanded regression coverage; hardening inventory status updated to Done |

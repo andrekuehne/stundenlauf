@@ -11,6 +11,7 @@ import type { PersonIdentity, SeasonState, Team } from "@/domain/types.ts";
 import type { ParsedSectionCouples, ParsedSectionSingles } from "@/ingestion/types.ts";
 import type { MatchingConfig } from "./config.ts";
 import {
+  buildSoloTeamIdByPersonId,
   buildFingerprintReplayIndex,
   emptyRunStats,
   genderForDivision,
@@ -31,43 +32,24 @@ function buildReviewItemForSingles(
   teams: ReadonlyMap<string, Team>,
 ): ReviewItem | null {
   if (entry.route !== "review") return null;
-  const soloTeamIdByPersonId = new Map<string, string>();
-  for (const team of teams.values()) {
-    if (team.team_kind !== "solo") continue;
-    const personId = team.member_person_ids[0];
-    if (!personId) continue;
-    if (!soloTeamIdByPersonId.has(personId)) {
-      soloTeamIdByPersonId.set(personId, team.team_id);
-    }
-  }
-  const candidates = entry.candidate_uids.map((uid, i) => {
-    const mappedTeamId = teams.has(uid)
-      ? uid
-      : (soloTeamIdByPersonId.get(uid) ?? uid);
-    // Find person from teams or persons map
-    let displayName = uid;
+  const candidates = entry.candidate_uids.map((teamId, i) => {
+    let displayName = teamId;
     let candYob = 0;
     let candClub: string | null = null;
-    for (const team of teams.values()) {
-      if (team.team_kind === "solo" && team.member_person_ids.includes(uid)) {
-        const person = persons.get(uid);
+    const team = teams.get(teamId);
+    if (team?.team_kind === "solo") {
+      const personId = team.member_person_ids[0];
+      if (personId) {
+        const person = persons.get(personId);
         if (person) {
           displayName = person.display_name;
           candYob = person.yob;
           candClub = person.club;
         }
-        break;
       }
     }
-    // Also try direct person lookup (uid might be person_id)
-    const person = persons.get(uid);
-    if (person) {
-      displayName = person.display_name;
-      candYob = person.yob;
-      candClub = person.club;
-    }
     return {
-      team_id: mappedTeamId,
+      team_id: teamId,
       score: entry.candidate_confidences[i] ?? 0,
       features: entry.features,
       display_name: displayName,
@@ -96,7 +78,7 @@ export async function processSinglesSection(
 ): Promise<SectionMatchResult> {
   const replayIndex = await buildFingerprintReplayIndex(state);
   const stats = emptyRunStats();
-  const usedCandidateUids = new Map<string, string>();
+  const usedTeamIds = new Map<string, string>();
 
   const gender = genderForDivision(section.context.division);
 
@@ -119,7 +101,10 @@ export async function processSinglesSection(
     }
   }
 
-  const candidatePeople = [...state.persons.values()];
+  const soloTeamIdByPersonId = buildSoloTeamIdByPersonId(state.teams);
+  const candidatePeople = [...soloTeamIdByPersonId.keys()]
+    .map((personId) => state.persons.get(personId))
+    .filter((person): person is PersonIdentity => person != null);
   const resolvedEntries: SectionMatchResult["resolved_entries"] = [];
   const reviewItems: ReviewItem[] = [];
   const newPersonPayloads: SectionMatchResult["new_person_payloads"] = [];
@@ -134,11 +119,10 @@ export async function processSinglesSection(
       gender,
       candidatePeople,
       replayIndex,
-      usedCandidateUids,
+      usedTeamIds,
       config,
       entryId,
       stats,
-      persons: state.persons,
       teams: state.teams,
     });
 

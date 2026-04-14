@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - H-TS01 team-first matching identity unification implemented
+- Requirement/Milestone: [R3], [R4], [R6], [M-TS3]
+- What shipped: Completed H-TS01 by making the singles matching/review path team-centric end-to-end (`team_id` for candidate lists, top-candidate identity, conflict tracking, and staged resolution), removing the person-id fallback seam, and adding review guardrails that reject `link_existing` targets outside the candidate set.
+- Evidence: `src/matching/resolve.ts`, `src/matching/workflow.ts`, `src/import/review.ts`, `tests/matching/resolve.test.ts`, `tests/matching/workflow.test.ts`, `tests/import/review.test.ts`, `tests/import/pipeline.test.ts`
+- Impact: Eliminates the UUID-row bug class caused by leaking `person_id` into team-linking fields, strengthens referential integrity before finalize/commit, and aligns runtime behavior with the universal team-domain model.
+- Follow-up: Implement H-TS02 central write-barrier validation to enforce semantic event integrity at append time.
+
 ### 2026-04-14 - H-TS02 hardening seed for validation write barrier
 - Requirement/Milestone: [R1], [R3], [R5], [R7], [M-TS1]
 - What shipped: Added a second hardening plan (`H-TS02`) for a central event validation write barrier so invalid event batches are rejected before persistence/projection, and registered it in the project hardening inventory.

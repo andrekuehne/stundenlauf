@@ -180,6 +180,21 @@ export function emptyRunStats(): RunStats {
   };
 }
 
+export function buildSoloTeamIdByPersonId(
+  teams: ReadonlyMap<string, Team>,
+): Map<string, string> {
+  const soloTeamIdByPersonId = new Map<string, string>();
+  for (const team of teams.values()) {
+    if (team.team_kind !== "solo") continue;
+    const personId = team.member_person_ids[0];
+    if (!personId) continue;
+    if (!soloTeamIdByPersonId.has(personId)) {
+      soloTeamIdByPersonId.set(personId, team.team_id);
+    }
+  }
+  return soloTeamIdByPersonId;
+}
+
 function computeCandidateConfidences(
   scored: { person_id: string; score: number }[],
   candidateUids: string[],
@@ -197,12 +212,10 @@ export async function resolvePerson(opts: {
   gender: Gender;
   candidatePeople: PersonIdentity[];
   replayIndex: Map<string, string>;
-  usedCandidateUids: Map<string, string>;
+  usedTeamIds: Map<string, string>;
   config: MatchingConfig;
   entryId: string;
   stats: RunStats;
-  /** persons map for team lookup */
-  persons: ReadonlyMap<string, PersonIdentity>;
   /** teams map for replay validation */
   teams: ReadonlyMap<string, Team>;
 }): Promise<ResolvedEntry> {
@@ -213,7 +226,7 @@ export async function resolvePerson(opts: {
     gender,
     candidatePeople,
     replayIndex,
-    usedCandidateUids,
+    usedTeamIds,
     config,
     entryId,
     stats,
@@ -223,6 +236,7 @@ export async function resolvePerson(opts: {
   const parsed = parsePersonName(rawName);
   const clubNorm = normalizeClub(clubRaw);
   const fp = await identityFingerprint(parsed, yob, gender);
+  const soloTeamIdByPersonId = buildSoloTeamIdByPersonId(teams);
 
   // 1. REPLAY CHECK
   const replayTarget = replayIndex.get(fp);
@@ -249,10 +263,12 @@ export async function resolvePerson(opts: {
   // 2. CANDIDATE SCORING
   const blockIndex = buildPersonBlockIndex(candidatePeople, gender);
   const candidates = gatherCandidates(parsed, yob, gender, blockIndex, config);
-  const scored: { person_id: string; score: number; features: MatchingFeatures }[] = [];
+  const scored: { team_id: string; score: number; features: MatchingFeatures }[] = [];
   for (const cand of candidates) {
+    const teamId = soloTeamIdByPersonId.get(cand.person_id);
+    if (!teamId) continue;
     const [score, feats] = scorePersonMatch(parsed, yob, clubNorm, cand, config);
-    scored.push({ person_id: cand.person_id, score, features: feats });
+    scored.push({ team_id: teamId, score, features: feats });
   }
   scored.sort((a, b) => b.score - a.score);
   stats.candidate_counts.push(scored.length);
@@ -260,7 +276,7 @@ export async function resolvePerson(opts: {
   let top = scored.length > 0 ? scored[0] : null;
   let topScore = top?.score ?? 0.0;
   let topFeats: MatchingFeatures = top ? { ...top.features } : {};
-  let candidateUids = scored.slice(0, 5).map((s) => s.person_id);
+  let candidateUids = scored.slice(0, 5).map((s) => s.team_id);
 
   // 3. STRICT MODE OVERLAY
   let strictHits: PersonIdentity[] = [];
@@ -280,26 +296,36 @@ export async function resolvePerson(opts: {
     if (strictHits.length === 1) {
       const hit = strictHits[0];
       if (hit) {
-        top = { person_id: hit.person_id, score: 1.0, features: { strict_identity_auto: 1.0, total: 1.0 } };
+        const hitTeamId = soloTeamIdByPersonId.get(hit.person_id);
+        if (!hitTeamId) {
+          throw new Error(
+            `Strict identity matched person "${hit.person_id}" without solo team.`,
+          );
+        }
+        top = { team_id: hitTeamId, score: 1.0, features: { strict_identity_auto: 1.0, total: 1.0 } };
         topScore = 1.0;
         topFeats = { strict_identity_auto: 1.0, total: 1.0 };
-        const mergedUids = [hit.person_id, ...candidateUids.filter((u) => u !== hit.person_id)];
+        const mergedUids = [hitTeamId, ...candidateUids.filter((u) => u !== hitTeamId)];
         candidateUids = mergedUids.slice(0, 5);
       }
     } else if (strictHits.length > 1) {
       strictMultiReview = true;
-      const mergedUids = strictHits.map((p) => p.person_id);
+      const mergedUids = strictHits
+        .map((p) => soloTeamIdByPersonId.get(p.person_id))
+        .filter((id): id is string => id != null);
       for (const uid of candidateUids) {
         if (!mergedUids.includes(uid)) mergedUids.push(uid);
         if (mergedUids.length >= 5) break;
       }
       candidateUids = mergedUids.slice(0, 5);
-      const scoreByUid = new Map(scored.map((s) => [s.person_id, s]));
+      const scoreByUid = new Map(scored.map((s) => [s.team_id, s]));
       let bestP: PersonIdentity | undefined = strictHits[0];
       let bestSc = -1.0;
       let bestFt: MatchingFeatures = {};
       for (const p of strictHits) {
-        const s = scoreByUid.get(p.person_id);
+        const teamId = soloTeamIdByPersonId.get(p.person_id);
+        if (!teamId) continue;
+        const s = scoreByUid.get(teamId);
         const sc = s?.score ?? 0.0;
         if (sc > bestSc) {
           bestSc = sc;
@@ -308,7 +334,13 @@ export async function resolvePerson(opts: {
         }
       }
       if (bestP) {
-        top = { person_id: bestP.person_id, score: bestSc >= 0 ? bestSc : 0.0, features: bestFt };
+        const bestTeamId = soloTeamIdByPersonId.get(bestP.person_id);
+        if (!bestTeamId) {
+          throw new Error(
+            `Strict identity winner "${bestP.person_id}" has no solo team.`,
+          );
+        }
+        top = { team_id: bestTeamId, score: bestSc >= 0 ? bestSc : 0.0, features: bestFt };
         topScore = top.score;
         topFeats = bestFt;
       }
@@ -340,18 +372,18 @@ export async function resolvePerson(opts: {
   // Same-race candidate reuse -> review
   const conflictFlags: string[] = [];
   if (top != null && metaRoute === "auto") {
-    const prevEntry = usedCandidateUids.get(top.person_id);
+    const prevEntry = usedTeamIds.get(top.team_id);
     if (prevEntry != null) {
-      conflictFlags.push(`candidate_reused:${top.person_id}`);
+      conflictFlags.push(`candidate_reused:${top.team_id}`);
       stats.conflicts += 1;
       metaRoute = "review";
     } else {
-      usedCandidateUids.set(top.person_id, entryId);
+      usedTeamIds.set(top.team_id, entryId);
     }
   }
 
   const candidateConfidences = computeCandidateConfidences(
-    scored.map((s) => ({ person_id: s.person_id, score: s.score })),
+    scored.map((s) => ({ person_id: s.team_id, score: s.score })),
     candidateUids,
   );
 
@@ -366,7 +398,7 @@ export async function resolvePerson(opts: {
       route: "new_identity",
       confidence: topScore,
       candidate_count: scored.length,
-      top_candidate_uid: top?.person_id ?? null,
+      top_candidate_uid: top?.team_id ?? null,
       candidate_uids: candidateUids,
       candidate_confidences: candidateConfidences,
       features: topFeats,
@@ -394,26 +426,15 @@ export async function resolvePerson(opts: {
     };
   }
 
-  // Find the team_id for the matched person
-  let matchedTeamId: string | null = null;
-  for (const team of teams.values()) {
-    if (team.team_kind === "solo" && team.member_person_ids.includes(top.person_id)) {
-      matchedTeamId = team.team_id;
-      break;
-    }
-  }
-  // Fallback: use person_id as team reference if no team found
-  if (!matchedTeamId) matchedTeamId = top.person_id;
-
   if (metaRoute === "auto") stats.auto_links += 1;
   else stats.review_queue += 1;
 
   return {
-    team_id: matchedTeamId,
+    team_id: top.team_id,
     route: metaRoute,
     confidence: topScore,
     candidate_count: scored.length,
-    top_candidate_uid: top.person_id,
+    top_candidate_uid: top.team_id,
     candidate_uids: candidateUids,
     candidate_confidences: candidateConfidences,
     features: topFeats,

@@ -5,7 +5,7 @@
 - Hardening ID: H-TS01
 - Hardening name: Team-first matching identity unification
 - Owner: TBD
-- Status: Planned
+- Status: Done
 - Related requirement(s): R3, R4, R6
 - Related milestone(s): M-TS3
 - Related feature(s): F-TS03, F-TS05
@@ -39,11 +39,11 @@ The domain model is team-centric (a single runner is a solo team), but the singl
 
 ## Acceptance Criteria
 
-- [ ] Singles and couples review candidates both use `team_id` identity end-to-end.
-- [ ] No code path in matching/review writes a raw `person_id` into team-linking fields.
-- [ ] Referential-integrity checks show zero missing team references after multi-file import sequences.
-- [ ] Regression tests cover the previously failing scenario (singles review candidate selected -> committed race entry).
-- [ ] Existing matching outcomes remain behaviorally stable aside from bug fix.
+- [x] Singles and couples review candidates both use `team_id` identity end-to-end.
+- [x] No code path in matching/review writes a raw `person_id` into team-linking fields.
+- [x] Referential-integrity checks show zero missing team references after multi-file import sequences.
+- [x] Regression tests cover the previously failing scenario (singles review candidate selected -> committed race entry).
+- [x] Existing matching outcomes remain behaviorally stable aside from bug fix.
 
 ## Technical Plan
 
@@ -103,12 +103,12 @@ The domain model is team-centric (a single runner is a solo team), but the singl
 
 ## Definition of Done
 
-- [ ] Code implemented in TypeScript
-- [ ] Tests added/updated and passing (Vitest)
-- [ ] Types are strict (no `any` escapes without justification)
-- [ ] Docs updated
-- [ ] Entry added to `packages/stundenlauf-ts/docs/ACCOMPLISHMENTS.md`
-- [ ] Requirement/milestone status updated in `packages/stundenlauf-ts/PROJECT_PLAN.md` where applicable
+- [x] Code implemented in TypeScript
+- [x] Tests added/updated and passing (Vitest)
+- [x] Types are strict (no `any` escapes without justification)
+- [x] Docs updated
+- [x] Entry added to `packages/stundenlauf-ts/docs/ACCOMPLISHMENTS.md`
+- [x] Requirement/milestone status updated in `packages/stundenlauf-ts/PROJECT_PLAN.md` where applicable
 
 ## Links
 
