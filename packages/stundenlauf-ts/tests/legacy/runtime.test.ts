@@ -1,5 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it } from "vitest";
-import { EXPECTED_HEADER_SINGLES } from "@/ingestion/constants";
+import { EXPECTED_HEADER_COUPLES, EXPECTED_HEADER_SINGLES } from "@/ingestion/constants";
 import type { DomainEvent } from "@/domain/events.ts";
 import type { SeasonDescriptor } from "@/domain/types.ts";
 import { LegacyApiRuntime } from "@/legacy/api/runtime.ts";
@@ -86,6 +86,20 @@ function expectOk(response: LegacyApiResponse): Record<string, unknown> {
 function buildSinglesImportFile(
   rows: unknown[][],
   name = "Ergebnisliste MW Lauf 2.xlsx",
+): File {
+  const buffer = buildXlsx(rows);
+  const file = new File([buffer], name, {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  Object.defineProperty(file, "arrayBuffer", {
+    value: async () => buffer.slice(0),
+  });
+  return file;
+}
+
+function buildCouplesImportFile(
+  rows: unknown[][],
+  name = "Ergebnisliste MW_Paare Lauf 2.xlsx",
 ): File {
   const buffer = buildXlsx(rows);
   const file = new File([buffer], name, {
@@ -400,5 +414,97 @@ describe("LegacyApiRuntime staged import review flow", () => {
     expect(rowsAfter).toHaveLength(1);
     expect(rowsAfter[0]?.display_name).toBe("Max Müller");
     expect(rowsAfter[0]?.punkte_gesamt).toBe(17);
+  });
+
+  it("flags couple member YOB diffs in candidate review displays", async () => {
+    const runtime = new LegacyApiRuntime();
+    expectOk(await invoke(runtime, "create_series_year", { series_year: 2028 }));
+    expectOk(await invoke(runtime, "open_series_year", { series_year: 2028 }));
+
+    const repo = await getSeasonRepository();
+    const seasonId = (await repo.listSeasons())[0]!.season_id;
+    await repo.appendEvents(seasonId, [
+      importBatchRecorded({
+        import_batch_id: "seed-couples-batch",
+        source_sha256: "seed-couples-sha",
+        source_file: "seed-couples.xlsx",
+      }),
+      personRegistered({
+        person_id: "c-person-a",
+        given_name: "Anna",
+        family_name: "Meyer",
+        display_name: "Anna Meyer",
+        gender: "F",
+        yob: 1991,
+        club: "LG A",
+        club_normalized: "lg a",
+      }),
+      personRegistered({
+        person_id: "c-person-b",
+        given_name: "Berta",
+        family_name: "Schulz",
+        display_name: "Berta Schulz",
+        gender: "F",
+        yob: 1992,
+        club: "LG A",
+        club_normalized: "lg a",
+      }),
+      teamRegistered({
+        team_id: "c-team-existing",
+        member_person_ids: ["c-person-a", "c-person-b"],
+        team_kind: "couple",
+      }),
+      raceRegistered({
+        race_event_id: "seed-couples-race",
+        import_batch_id: "seed-couples-batch",
+        category: { duration: "half_hour", division: "couples_women" },
+        race_no: 1,
+        entries: [
+          defaultEntry({
+            entry_id: "seed-couples-entry",
+            team_id: "c-team-existing",
+            points: 8,
+            distance_m: 8200,
+          }),
+        ],
+      }),
+    ]);
+    expectOk(
+      await invoke(runtime, "set_matching_config", {
+        auto_min: 1.1,
+        review_min: 0.0,
+        auto_merge_enabled: false,
+        perfect_match_auto_merge: false,
+      }),
+    );
+
+    const rows = [
+      [...EXPECTED_HEADER_COUPLES],
+      ["1/2 h-Lauf", "", "", "", "", "", "", "", "", "", ""],
+      ["Paare Frauen", "", "", "", "", "", "", "", "", "", ""],
+      [1, "22", "Anna Meyer", 1990, "LG A", "Berta Schulz", 1993, "LG A", "8,2", "", "9"],
+    ];
+    const filePath = runtime.seedSelectedFileForTests(buildCouplesImportFile(rows));
+
+    const imported = expectOk(
+      await invoke(runtime, "import_race", {
+        series_year: 2028,
+        file_path: filePath,
+        source_type: "couples",
+        race_no: 2,
+      }),
+    );
+    expect(imported.review_queue_count).toBe(1);
+
+    const queue = expectOk(await invoke(runtime, "get_review_queue"));
+    const items = queue.items as Array<Record<string, unknown>>;
+    expect(items).toHaveLength(1);
+    const displays =
+      (items[0]?.candidate_review_displays as Array<Record<string, unknown> | null>) ?? [];
+    const firstDisplay = displays[0] as Record<string, unknown>;
+    const lines = (firstDisplay.lines as Array<Record<string, unknown>>) ?? [];
+    expect(lines).toHaveLength(2);
+    expect((lines[0]?.yob as Record<string, unknown>)?.diff).toBe(true);
+    expect((lines[1]?.yob as Record<string, unknown>)?.diff).toBe(true);
   });
 });

@@ -6,8 +6,10 @@
  * `window.pywebview.api.invoke`.
  */
 (function bootstrapLegacyFrontend() {
-  const bridgeReady = import("/src/legacy/bridge-entry.ts").catch(() =>
-    import("../assets/legacy-bridge.js"),
+  // Prefer the production bundle first. In Vite preview/static hosting,
+  // importing /src/*.ts is blocked by MIME checks and can break bridge boot.
+  const bridgeReady = import("../assets/legacy-bridge.js").catch(() =>
+    import("/src/legacy/bridge-entry.ts"),
   );
 
   function installFallbackBridge() {

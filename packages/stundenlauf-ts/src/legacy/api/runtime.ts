@@ -1305,6 +1305,7 @@ export class LegacyApiRuntime {
   private reviewCandidatePayloads(
     review: OrchestratedReviewEntry,
     state: SeasonState,
+    incomingTeamYobText: string | null,
   ): {
     candidate_uids: string[];
     top_candidate_uid: string | null;
@@ -1323,7 +1324,7 @@ export class LegacyApiRuntime {
       display_name: review.review_item.incoming_display_name,
       yob:
         review.review_item.incoming_kind === "team"
-          ? null
+          ? incomingTeamYobText
           : review.review_item.incoming_yob,
       club: review.review_item.incoming_club,
     };
@@ -1386,7 +1387,11 @@ export class LegacyApiRuntime {
             : review.review_item.incoming_yob,
         club: review.review_item.incoming_club,
       };
-      const candidates = this.reviewCandidatePayloads(review, snapshot.seasonState);
+      const candidates = this.reviewCandidatePayloads(
+        review,
+        snapshot.seasonState,
+        staged?.incoming.yob_text ?? null,
+      );
       return {
         race_event_uid: `pending:${this.pendingImport?.session.session_id}:${review.section_index}`,
         entry_uid: review.entry_id,
