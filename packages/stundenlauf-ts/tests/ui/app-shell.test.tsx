@@ -1,11 +1,47 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { App } from "@/App.tsx";
 import { STR } from "@/strings.ts";
+import { setSeasonRepositoryForTests } from "@/services/season-repository.ts";
+import { useSeasonStore } from "@/stores/season.ts";
+import { useStatusStore } from "@/stores/status.ts";
 
 describe("App shell", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
+    setSeasonRepositoryForTests({
+      listSeasons: () => Promise.resolve([]),
+      createSeason: () =>
+        Promise.resolve({
+        season_id: "s1",
+        label: "Test",
+        created_at: new Date().toISOString(),
+      }),
+      deleteSeason: () => Promise.resolve(),
+      getEventLog: () => Promise.resolve([]),
+      appendEvents: () => Promise.resolve(),
+      clearEventLog: () => Promise.resolve(),
+    });
+    useSeasonStore.setState({
+      seasons: [],
+      activeSeasonId: null,
+      eventLog: [],
+      seasonState: {
+        season_id: "no-season",
+        persons: new Map(),
+        teams: new Map(),
+        import_batches: new Map(),
+        race_events: new Map(),
+        exclusions: new Map(),
+      },
+      loading: false,
+      error: null,
+    });
+    useStatusStore.setState({ current: null });
+  });
+
+  afterEach(() => {
+    setSeasonRepositoryForTests(null);
   });
 
   it("renders all top-level tabs in German", () => {
@@ -18,9 +54,11 @@ describe("App shell", () => {
     expect(screen.getByRole("tab", { name: STR.shell.tabs.season })).toBeInTheDocument();
   });
 
-  it("switches the active view when clicking tabs", () => {
+  it("switches the active view when clicking tabs", async () => {
     render(<App />);
-    expect(screen.getByText(STR.views.standings.placeholder)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText(STR.views.standings.noCategory)).toBeInTheDocument(),
+    );
 
     fireEvent.click(screen.getByRole("tab", { name: STR.shell.tabs.import }));
     expect(screen.getByText(STR.views.import.placeholder)).toBeInTheDocument();

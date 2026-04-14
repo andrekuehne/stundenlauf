@@ -122,6 +122,90 @@ textarea {
   color: var(--color-text-muted);
 }
 
+.ui-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: var(--spacing-md);
+}
+
+.ui-table th,
+.ui-table td {
+  border: 1px solid var(--color-border);
+  padding: var(--spacing-sm);
+  text-align: left;
+  vertical-align: top;
+}
+
+.ui-table th {
+  background: color-mix(in srgb, var(--color-surface) 85%, var(--color-bg) 15%);
+}
+
+.category-grid {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.standings-view__toolbar {
+  display: grid;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.standings-view__modes {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.standings-view__mode-panel {
+  margin: var(--spacing-md) 0;
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  align-items: end;
+}
+
+.season-entry__create {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: end;
+  margin-bottom: var(--spacing-md);
+}
+
+.season-entry__list {
+  display: grid;
+  gap: var(--spacing-sm);
+}
+
+.season-entry__item {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-sm);
+  background: var(--color-surface);
+}
+
+.season-entry__active {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.season-entry__actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  margin-top: var(--spacing-sm);
+}
+
+.season-entry__deferred {
+  margin: var(--spacing-md) 0;
+}
+
+.form-grid {
+  display: grid;
+  gap: var(--spacing-sm);
+}
+
 .status-bar {
   display: flex;
   gap: var(--spacing-sm);

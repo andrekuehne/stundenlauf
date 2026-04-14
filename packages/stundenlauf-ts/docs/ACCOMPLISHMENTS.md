@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - F-TS06b season/standings/history workflows implemented
+- Requirement/Milestone: [R2], [R5], [R8], [M-TS5]
+- What shipped: Implemented F-TS06b end-to-end with IndexedDB-backed season lifecycle management (list/create/open/reset/delete), live standings surfaces (category quick-select, imported-run matrix, Gesamtwertung and Laufübersicht), correction and duplicate-merge modal flows, and history/audit screens with per-batch rollback confirmations.
+- Evidence: `src/services/season-repository.ts`, `src/stores/season.ts`, `src/stores/standings.ts`, `src/components/season/SeasonEntryView.tsx`, `src/components/standings/{adapters.ts,StandingsView.tsx,StandingsTable.tsx,IdentityModal.tsx}`, `src/components/shared/{CategoryGrid.tsx,ImportedRunsMatrix.tsx}`, `src/components/history/{adapters.ts,HistoryView.tsx,ImportHistoryTable.tsx,AuditTrailTable.tsx}`, `src/components/import/MergeCorrectModal.tsx`, `src/theme.css`, `tests/standings/adapters.test.ts`, `tests/history/adapters.test.ts`, `tests/ui/{app-shell.test.tsx,season-entry-view.test.tsx,standings-view.test.tsx,history-view.test.tsx}`
+- Impact: Moves M-TS5 substantially forward by replacing 06a placeholders with operational German workflows over the real event log/projection pipeline while keeping import-review orchestration cleanly scoped to F-TS06c.
+- Follow-up: Implement F-TS06c import orchestration + matching review GUI and then mark the umbrella F-TS06 complete.
+
 ### 2026-04-14 - F-TS06a UI foundation implemented
 - Requirement/Milestone: [R8], [M-TS5]
 - What shipped: Implemented F-TS06a end-to-end with a production `App.tsx` shell (German tab navigation + status surface), typed string catalog and format helpers, reusable `StatusBar`/`ConfirmModal` primitives, placeholder view roots for 06b/06c, and reduced-motion baseline styling.

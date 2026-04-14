@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { seasonLabel, reviewOpenCount } from "@/format.ts";
 import { SHELL_TABS, STR, type ShellTab } from "@/strings.ts";
 import { ImportView } from "@/components/import/ImportView.tsx";
@@ -6,6 +6,8 @@ import { HistoryView } from "@/components/history/HistoryView.tsx";
 import { SeasonEntryView } from "@/components/season/SeasonEntryView.tsx";
 import { StandingsView } from "@/components/standings/StandingsView.tsx";
 import { StatusBar } from "@/components/shared/StatusBar.tsx";
+import { useSeasonStore } from "@/stores/season.ts";
+import { useStatusStore } from "@/stores/status.ts";
 import { ImportOrchestrationHarness } from "./devtools/ImportOrchestrationHarness.tsx";
 import { ImportSeasonWalkthroughHarness } from "./devtools/ImportSeasonWalkthroughHarness.tsx";
 
@@ -23,21 +25,40 @@ function shouldShowImportSeasonHarness(): boolean {
 
 export function App() {
   const [activeTab, setActiveTab] = useState<ShellTab>("standings");
+  const bootstrapWorkspace = useSeasonStore((state) => state.bootstrapWorkspace);
+  const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
+  const seasonError = useSeasonStore((state) => state.error);
+  const setStatus = useStatusStore((state) => state.setStatus);
+  const showImportSeasonHarness = shouldShowImportSeasonHarness();
+  const showImportHarness = shouldShowImportHarness();
 
-  if (shouldShowImportSeasonHarness()) {
-    return <ImportSeasonWalkthroughHarness />;
-  }
-  if (shouldShowImportHarness()) {
-    return <ImportOrchestrationHarness />;
-  }
+  useEffect(() => {
+    void bootstrapWorkspace();
+  }, [bootstrapWorkspace]);
+
+  useEffect(() => {
+    if (!seasonError) return;
+    setStatus({
+      message: seasonError,
+      severity: "error",
+      source: "season-store",
+    });
+  }, [seasonError, setStatus]);
 
   const viewProps = useMemo(
     () => ({
-      seasonLabel: seasonLabel("-"),
+      seasonLabel: seasonLabel(activeSeasonId ?? "-"),
       reviewLabel: reviewOpenCount(0),
     }),
-    [],
+    [activeSeasonId],
   );
+
+  if (showImportSeasonHarness) {
+    return <ImportSeasonWalkthroughHarness />;
+  }
+  if (showImportHarness) {
+    return <ImportOrchestrationHarness />;
+  }
 
   const activeView = (() => {
     switch (activeTab) {

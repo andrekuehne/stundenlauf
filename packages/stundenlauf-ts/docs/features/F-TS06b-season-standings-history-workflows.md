@@ -4,7 +4,7 @@
 
 - Feature ID: F-TS06b
 - Parent feature: F-TS06
-- Status: Planned
+- Status: Done
 - Related requirement(s): R2, R5, R8
 - Related milestone(s): M-TS5
 - Depends on: F-TS06a, F-TS01, F-TS04, F-TS05
@@ -46,13 +46,44 @@ This slice is intentionally focused on season/standings/history so import-review
 
 ## Acceptance criteria
 
-- [ ] Season list/create/open/reset/delete flows work from UI with clear German status feedback.
-- [ ] Standings screen displays category grid, imported run matrix, standings table, and per-race table from live domain projections.
-- [ ] Identity correction modal edits and persists expected fields.
-- [ ] Duplicate merge flow supports pick survivor/pick absorbed/confirm execute.
-- [ ] History screen shows grouped imports and audit rows with readable detail formatting.
-- [ ] Rollback per source batch is available with confirmation modal and updates tables after completion.
-- [ ] No `window.confirm()` / `window.prompt()` calls in these workflows.
+- [x] Season list/create/open/reset/delete flows work from UI with clear German status feedback.
+- [x] Standings screen displays category grid, imported run matrix, standings table, and per-race table from live domain projections.
+- [x] Identity correction modal edits and persists expected fields.
+- [x] Duplicate merge flow supports pick survivor/pick absorbed/confirm execute.
+- [x] History screen shows grouped imports and audit rows with readable detail formatting.
+- [x] Rollback per source batch is available with confirmation modal and updates tables after completion.
+- [x] No `window.confirm()` / `window.prompt()` calls in these workflows.
+
+## Implementation notes
+
+- Activated season lifecycle persistence for the production UI via a dedicated repository/store layer:
+  - `src/services/season-repository.ts`
+  - `src/stores/season.ts`
+  - `src/App.tsx` bootstrap + live season label wiring
+- Implemented full Saison wechseln workflow:
+  - `src/components/season/SeasonEntryView.tsx`
+  - `src/components/shared/ConfirmModal.tsx` reuse for reset/delete
+- Implemented standings adapters + UI surfaces:
+  - `src/components/standings/adapters.ts`
+  - `src/components/shared/CategoryGrid.tsx`
+  - `src/components/shared/ImportedRunsMatrix.tsx`
+  - `src/components/standings/StandingsTable.tsx`
+  - `src/components/standings/StandingsView.tsx`
+- Implemented correction and merge modals:
+  - `src/components/standings/IdentityModal.tsx`
+  - `src/components/import/MergeCorrectModal.tsx` (reused in standings context)
+- Implemented history + rollback surfaces:
+  - `src/components/history/adapters.ts`
+  - `src/components/history/ImportHistoryTable.tsx`
+  - `src/components/history/AuditTrailTable.tsx`
+  - `src/components/history/HistoryView.tsx`
+- Expanded TS06b-focused coverage:
+  - `tests/standings/adapters.test.ts`
+  - `tests/history/adapters.test.ts`
+  - `tests/ui/season-entry-view.test.tsx`
+  - `tests/ui/standings-view.test.tsx`
+  - `tests/ui/history-view.test.tsx`
+  - updated `tests/ui/app-shell.test.tsx`
 
 ## Architectural notes
 
@@ -91,6 +122,6 @@ This slice is intentionally focused on season/standings/history so import-review
 
 ## Definition of done
 
-- [ ] All season/standings/history workflows in this plan are functional and tested.
-- [ ] Status/error paths are clear and German-localized.
-- [ ] Import workflow remains delegated to F-TS06c (no scope creep).
+- [x] All season/standings/history workflows in this plan are functional and tested.
+- [x] Status/error paths are clear and German-localized.
+- [x] Import workflow remains delegated to F-TS06c (no scope creep).
