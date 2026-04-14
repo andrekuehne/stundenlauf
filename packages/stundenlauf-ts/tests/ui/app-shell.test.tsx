@@ -74,4 +74,17 @@ describe("App shell", () => {
     expect(screen.getAllByText("Saison: 2026").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Prüfungen offen: 0").length).toBeGreaterThan(0);
   });
+
+  it("renders dev-only legacy layout harness page", () => {
+    window.history.replaceState({}, "", "/?harness=legacy-layout");
+    render(<App />);
+
+    expect(
+      screen.getByRole("heading", { name: STR.shell.appTitle, level: 1 }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: STR.shell.tabs.standings })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: STR.shell.tabs.import })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: STR.shell.tabs.history })).toBeInTheDocument();
+    expect(screen.getByText("Saison öffnen oder neu anlegen")).toBeInTheDocument();
+  });
 });

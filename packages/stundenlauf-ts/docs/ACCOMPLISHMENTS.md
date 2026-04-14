@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - F-TS06e dev-only legacy layout parity page implemented
+- Requirement/Milestone: [R8], [M-TS5]
+- What shipped: Added a dedicated dev harness page (`/?harness=legacy-layout`) that mirrors the legacy Python shell/container layout with static placeholders and namespaced parity CSS, including header context, tab affordances, status placement, and season/standings/import/history container scaffolding.
+- Evidence: `src/App.tsx`, `src/devtools/LegacyLayoutParityPage.tsx`, `src/theme.css`, `tests/ui/app-shell.test.tsx`, `docs/features/F-TS06e-legacy-layout-parity-page-dev.md`, `docs/features/F-TS06-ui-framework-german-shell.md`, `PROJECT_PLAN.md`
+- Impact: Provides a safe visual parity sandbox to validate spacing, typography, and overlap behavior against `frontend/` without disturbing the production UI flows.
+- Follow-up: Wire real view data/actions into this structure in a later pass once layout fidelity is accepted.
+
 ### 2026-04-14 - Viewport lock and split-panel layout parity with Python GUI
 - Requirement/Milestone: [R8], [M-TS5]
 - What shipped: Brought the TS port's layout model to parity with the Python app's fixed-viewport, independently-scrollable split-panel design. Body and shell are now locked to 100vh with no document scroll. Standings and Import views use visually distinct panel cards per column (sidebar and content), each with independent `overflow-y: auto` scrolling. History and Season views scroll within the constrained viewport. Large tables are capped at 60vh via `.table-wrap`. Responsive 1200px breakpoint degrades gracefully (columns stack, outer container scrolls).

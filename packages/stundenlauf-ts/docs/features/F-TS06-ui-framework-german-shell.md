@@ -57,6 +57,15 @@ Focus:
 - Correct shell/layout/workflow drift with explicit `MATCH` / `DRIFT` / `DEFER` mapping.
 - Land parity-sensitive tests and outcome tracking updates after implementation.
 
+### F-TS06e — Legacy layout parity page (dev-only)
+
+File: `packages/stundenlauf-ts/docs/features/F-TS06e-legacy-layout-parity-page-dev.md`
+
+Focus:
+- Add a dedicated dev-only parity page (`?harness=legacy-layout`) separate from production navigation.
+- Mirror legacy shell/container layout and visual rhythm (header, tabs, status line, major view containers).
+- Provide a stable visual sandbox for overlap/typography/spacing checks before deeper workflow wiring.
+
 ## Shared constraints across 06a/06b/06c
 
 - Keep all user-facing text in German (R8).

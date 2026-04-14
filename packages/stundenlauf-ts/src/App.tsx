@@ -11,6 +11,7 @@ import { useSeasonStore } from "@/stores/season.ts";
 import { useStatusStore } from "@/stores/status.ts";
 import { ImportOrchestrationHarness } from "./devtools/ImportOrchestrationHarness.tsx";
 import { ImportSeasonWalkthroughHarness } from "./devtools/ImportSeasonWalkthroughHarness.tsx";
+import { LegacyLayoutParityPage } from "./devtools/LegacyLayoutParityPage.tsx";
 
 function shouldShowImportHarness(): boolean {
   if (!import.meta.env.DEV) return false;
@@ -24,6 +25,12 @@ function shouldShowImportSeasonHarness(): boolean {
   return params.get("harness") === "import-season";
 }
 
+function shouldShowLegacyLayoutHarness(): boolean {
+  if (!import.meta.env.DEV) return false;
+  const params = new URLSearchParams(window.location.search);
+  return params.get("harness") === "legacy-layout";
+}
+
 export function App() {
   const [activeTab, setActiveTab] = useState<ShellTab>("standings");
   const bootstrapWorkspace = useSeasonStore((state) => state.bootstrapWorkspace);
@@ -34,6 +41,7 @@ export function App() {
   const setStatus = useStatusStore((state) => state.setStatus);
   const showImportSeasonHarness = shouldShowImportSeasonHarness();
   const showImportHarness = shouldShowImportHarness();
+  const showLegacyLayoutHarness = shouldShowLegacyLayoutHarness();
 
   useEffect(() => {
     void bootstrapWorkspace();
@@ -63,6 +71,9 @@ export function App() {
   }
   if (showImportHarness) {
     return <ImportOrchestrationHarness />;
+  }
+  if (showLegacyLayoutHarness) {
+    return <LegacyLayoutParityPage />;
   }
 
   const activeView = (() => {
