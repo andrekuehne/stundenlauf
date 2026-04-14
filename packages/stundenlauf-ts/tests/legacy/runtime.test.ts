@@ -413,6 +413,110 @@ describe("LegacyApiRuntime season portability compatibility flows", () => {
     }
   });
 
+  it("lists PDF layout presets and exports standings PDFs through the save-target wrapper", async () => {
+    const runtime = new LegacyApiRuntime();
+    expectOk(
+      await invoke(runtime, "create_series_year", {
+        series_year: 2029,
+        display_name: "Saison 2029",
+      }),
+    );
+    expectOk(await invoke(runtime, "open_series_year", { series_year: 2029 }));
+
+    const repo = await getSeasonRepository();
+    const season = (await repo.listSeasons())[0]!;
+    await repo.appendEvents(season.season_id, [
+      personRegistered({
+        person_id: "person-export",
+        given_name: "Anna",
+        family_name: "Alpha",
+        display_name: "Anna Alpha",
+        name_normalized: "anna alpha",
+        club: "Club A",
+        club_normalized: "club a",
+      }),
+      teamRegistered({
+        team_id: "team-export",
+        member_person_ids: ["person-export"],
+        team_kind: "solo",
+      }),
+      importBatchRecorded({
+        import_batch_id: "batch-export-pdf",
+        source_sha256: "sha-export-pdf",
+        source_file: "lauf-1.xlsx",
+      }),
+      raceRegistered({
+        race_event_id: "race-export-1",
+        import_batch_id: "batch-export-pdf",
+        category: { duration: "hour", division: "men" },
+        race_no: 1,
+        entries: [
+          defaultEntry({
+            entry_id: "entry-export-1",
+            team_id: "team-export",
+            points: 15,
+            distance_m: 5000,
+          }),
+        ],
+      }),
+    ]);
+
+    if (!("createObjectURL" in URL)) {
+      Object.defineProperty(URL, "createObjectURL", {
+        value: () => "blob:pdf-export-test",
+        configurable: true,
+        writable: true,
+      });
+    }
+    if (!("revokeObjectURL" in URL)) {
+      Object.defineProperty(URL, "revokeObjectURL", {
+        value: () => undefined,
+        configurable: true,
+        writable: true,
+      });
+    }
+    const createObjectUrl = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:pdf-export-test");
+    const revokeObjectUrl = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function noop(this: HTMLAnchorElement) {
+        void this;
+      });
+
+    try {
+      const presets = expectOk(await invoke(runtime, "list_pdf_export_layout_presets"));
+      expect(presets.presets).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: "default" }),
+          expect.objectContaining({ id: "compact" }),
+        ]),
+      );
+
+      const picked = expectOk(
+        await invoke(runtime, "pick_save_file", {
+          suggested_name: "stundenlauf-2029-laufuebersicht.pdf",
+          dialog_kind: "pdf",
+        }),
+      );
+      const exported = expectOk(
+        await invoke(runtime, "export_standings_pdf", {
+          destination_path: picked.file_path,
+          layout_preset: "compact",
+        }),
+      );
+
+      expect(exported.series_year).toBe(2029);
+      expect(exported.export_files).toEqual(["stundenlauf-2029-laufuebersicht_einzel.pdf"]);
+      expect((exported.bytes_written as number) > 0).toBe(true);
+      expect(clickSpy).toHaveBeenCalledTimes(1);
+      expect(createObjectUrl).toHaveBeenCalledTimes(1);
+    } finally {
+      clickSpy.mockRestore();
+      revokeObjectUrl.mockRestore();
+      createObjectUrl.mockRestore();
+    }
+  });
+
   it("imports a generic named season while treating the requested year as an alias only", async () => {
     const runtime = new LegacyApiRuntime();
     const sourceRepo = new InMemorySeasonRepository();

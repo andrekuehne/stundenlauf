@@ -17,6 +17,20 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - F-TS08 PDF first-page notice layout corrected
+- Requirement/Milestone: [R5], [R8], [M-TS6], [F-TS08]
+- What shipped: Moved the Laufübersicht `Hinweis:` content from a dedicated cover page onto the first content page above the first table and removed the manual underline stroke that could render as a solid black block in generated PDFs.
+- Evidence: `src/export/pdf.ts`, `tests/export/pdf-export.test.ts`, `docs/features/F-TS08-standings-results-export.md`, `PROJECT_PLAN.md`
+- Impact: Exported PDFs now match the expected organizer flow more closely by keeping the introductory note with the first standings table, and the note heading renders cleanly across PDF viewers.
+- Follow-up: Re-check the compact preset visually once more real-world exports with long notice text are available.
+
+### 2026-04-14 - F-TS08 PDF export path implemented
+- Requirement/Milestone: [R5], [R7], [M-TS6], [F-TS08], [F-TS10]
+- What shipped: Added a config-driven client-side PDF export stack for standings with Python-style Laufübersicht rendering (cover page, 3-row merged header, compact preset, zebra/podium styling, semantic rule metadata, and dual Einzel/Paare downloads) and wired the legacy frontend's PDF export controls to the real TS implementation.
+- Evidence: `src/export/`, `src/legacy/api/runtime.ts`, `tests/export/pdf-export.test.ts`, `tests/legacy/runtime.test.ts`, `PROJECT_PLAN.md`, `docs/features/F-TS08-standings-results-export.md`
+- Impact: The reused legacy standings screen can now produce organizer-ready PDF exports directly in the browser without a backend, while the new semantic projection/spec split keeps layout tuning configurable and less renderer-coupled than the Python implementation.
+- Follow-up: Implement the remaining Excel (`.xlsx`) branch of F-TS08 on top of the same shared projection contract.
+
 ### 2026-04-14 - Legacy frontend wired to F-TS07 season portability flow
 - Requirement/Milestone: [R7], [M-TS6], [F-TS07], [F-TS10]
 - What shipped: Connected the reused legacy season screen to the real TS archive import/export flow with label-aware suggested export filenames, structured season-conflict responses, and an import-as-new prompt that collects both the legacy alias year and the target season name.

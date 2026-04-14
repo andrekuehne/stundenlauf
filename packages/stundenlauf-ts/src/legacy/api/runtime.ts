@@ -30,9 +30,11 @@ import {
   type ImportSeasonOptions,
   type ImportSeasonResult,
 } from "@/portability/index.ts";
+import { triggerDownload } from "@/portability/download.ts";
 import { applyExclusions, computeStandings, exclusionsForCategory, markExclusions } from "@/ranking/index.ts";
 import { getSeasonRepository, type SeasonRepository } from "@/services/season-repository.ts";
 import { EventAppendValidationError } from "@/storage/event-store.ts";
+import { exportLaufuebersichtDualPdfs, pdfLayoutPresetCatalog } from "@/export/index.ts";
 import type { LegacyApiErrorResponse, LegacyApiResponse } from "./types.ts";
 
 const ADAPTER_APP_VERSION = "stundenlauf-ts-legacy-adapter-0.1.0";
@@ -504,17 +506,13 @@ export class LegacyApiRuntime {
         case "apply_match_decision":
           return ok(requestId, await this.applyMatchDecision(payload));
         case "list_pdf_export_layout_presets":
-          return ok(requestId, { presets: [] });
+          return ok(requestId, { presets: this.listPdfExportLayoutPresets() });
         case "export_series_year":
           return ok(requestId, await this.exportSeriesYear(payload));
         case "import_series_year":
           return ok(requestId, await this.importSeriesYear(payload));
         case "export_standings_pdf":
-          return errorResponse(
-            requestId,
-            "NOT_IMPLEMENTED",
-            "Diese Funktion ist im TypeScript-Port noch nicht implementiert.",
-          );
+          return ok(requestId, await this.exportStandingsPdf(payload));
         default:
           return errorResponse(
             requestId,
@@ -1315,6 +1313,13 @@ export class LegacyApiRuntime {
     return this.saveTargets.get(token) ?? null;
   }
 
+  private listPdfExportLayoutPresets(): Array<Record<string, string>> {
+    return pdfLayoutPresetCatalog().map((preset) => ({
+      id: preset.id,
+      label_de: preset.label_de,
+    }));
+  }
+
   seedSelectedFileForTests(file: File): string {
     const token = crypto.randomUUID();
     this.selectedFiles.set(token, file);
@@ -1343,6 +1348,43 @@ export class LegacyApiRuntime {
       bytes_written: exported.bytes_written,
       events_total: exported.events_total,
       sha256_eventlog: exported.sha256_eventlog,
+    };
+  }
+
+  private async exportStandingsPdf(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const destinationPath = asString(payload.destination_path).trim();
+    if (!destinationPath) {
+      throw new Error("Bitte einen Speicherort für den PDF-Export wählen.");
+    }
+
+    const snapshot = await this.getSnapshotFromPayload(payload);
+    const repo = await this.repository();
+    const seasons = await repo.listSeasons();
+    const aliases = this.ensureAliases(seasons);
+    const seasonYear =
+      asInteger(payload.series_year) ??
+      aliases[snapshot.descriptor.season_id] ??
+      extractYearCandidate(snapshot.descriptor.label, snapshot.descriptor.created_at);
+    const saveTarget = this.resolveSaveTarget(destinationPath);
+    const baseName = (saveTarget?.suggestedName ?? `stundenlauf-${seasonYear}-laufuebersicht`).replace(
+      /\.pdf$/i,
+      "",
+    );
+    const layoutPreset = asOptionalString(payload.layout_preset);
+    const artifacts = exportLaufuebersichtDualPdfs(snapshot.seasonState, {
+      seasonYear,
+      filenameBase: baseName,
+      layoutPreset,
+    });
+
+    for (const artifact of artifacts) {
+      triggerDownload(artifact.blob, artifact.filename);
+    }
+
+    return {
+      series_year: seasonYear,
+      export_files: artifacts.map((artifact) => artifact.filename),
+      bytes_written: artifacts.reduce((sum, artifact) => sum + artifact.blob.size, 0),
     };
   }
 

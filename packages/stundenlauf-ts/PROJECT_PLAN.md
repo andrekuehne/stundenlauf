@@ -65,7 +65,7 @@ Mapped from the Python version's requirements, adapted for the static-site conte
 | M-TS3 | Matching engine and review workflow | Done |
 | M-TS4 | Ranking engine and standings computation | Done |
 | M-TS5 | German UI shell and core workflows | Planned |
-| M-TS6 | Export (PDF, Excel) and season portability | Planned |
+| M-TS6 | Export (PDF, Excel) and season portability | In progress |
 | M-TS7 | GitHub Pages deployment, PWA, polish | Planned |
 
 ## Feature Inventory
@@ -86,7 +86,7 @@ Features are prefixed `F-TS` to distinguish from the Python version's `F` prefix
 | F-TS06d | Python GUI parity pass (layout + workflow drift correction) | M-TS5 | Done |
 | F-TS06e | Legacy layout parity page (dev-only) | M-TS5 | Done |
 | F-TS07 | Season data portability (JSON/ZIP export and import) | M-TS6 | Done |
-| F-TS08 | Standings and results export (PDF, Excel) | M-TS6 | Planned |
+| F-TS08 | Standings and results export (PDF, Excel) | M-TS6 | In progress (PDF path shipped; Excel pending) |
 | F-TS09 | GitHub Pages deployment and PWA | M-TS7 | Planned |
 | F-TS10 | Legacy frontend API compatibility adapter | M-TS5 | Planned |
 
@@ -199,6 +199,8 @@ TS version: UI components call domain functions directly. No serialization bound
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-04-14 | F-TS08 PDF first-page notice layout fix | Moved the Laufübersicht `Hinweis` block onto page 1 above the first table and removed the manual underline that rendered as a black artifact in some viewers |
+| 2026-04-14 | F-TS08 PDF export path implemented | Added config-driven browser PDF export with Python-style Laufübersicht layout, compact preset support, semantic projection metadata, and legacy adapter wiring; M-TS6/F-TS08 now in progress while Excel remains pending |
 | 2026-04-14 | Legacy frontend wired to F-TS07 portability UX | Connected the copied frontend's season import/export controls to the real TS archive workflow with structured conflict handling, label-aware import-as-new prompts, and season-name-based status copy |
 | 2026-04-14 | Shared matching defaults restored to 50% review baseline | Preserve the legacy frontend's intended fuzzy-default behavior (perfect-only auto acceptance with a 50% review/display threshold) for fresh sessions without requiring persisted browser config |
 | 2026-04-14 | F-TS07 implemented | Added browser-local season archive export/import with manifest + SHA-256 integrity checks, atomic IndexedDB replace/create writes, generic season-name-based conflict handling, and legacy adapter wrappers over browser download/upload |

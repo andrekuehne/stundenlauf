@@ -5,7 +5,7 @@
 - Feature ID: F-TS08
 - Feature name: Client-side PDF and Excel export for standings and results
 - Owner: —
-- Status: Planned
+- Status: In progress (PDF path implemented; Excel pending)
 - Related requirement(s): R5 (rankings as durable artifacts), R7 (portable data — export without cloud)
 - Related milestone(s): M-TS6
 - Python predecessor(s): F20 (standings multi-format export), `backend/export/` package (spec, projection, pdf_renderer, csv_renderer, gui_pdf_spec, gui_dual_pdf_export, registry)
@@ -36,7 +36,7 @@ The TS port replaces ReportLab with a client-side PDF library and replaces CSV w
 - **German formatting**: decimal comma for distances (`1,234` not `1.234`), German column headers, em-dash for empty cells.
 - **Category sort order**: preserve the Python export ordering (Halbstundenlauf W/M, Stundenlauf W/M, then Paare by duration).
 - **Footer**: organizer line, season year, category name, export timestamp — matching the Python PDF footer.
-- **Cover page** for Laufübersicht PDFs: season year in blue, "Hinweis:" notice paragraph.
+- **First-page intro block** for Laufübersicht PDFs: season year in blue plus the "Hinweis:" notice above the first table on page 1.
 - Framework-agnostic export functions (pure TS + browser APIs); UI integration points defined for F-TS06.
 
 ### Out of Scope
@@ -51,22 +51,23 @@ The TS port replaces ReportLab with a client-side PDF library and replaces CSV w
 
 ## Acceptance Criteria
 
-- [ ] PDF export produces a downloadable `.pdf` file from the current season's standings.
-- [ ] Laufübersicht PDF layout matches Python version's structure: 3-row merged header, per-race Str./Pkt. columns, Gesamt columns, cover page, section titles, footers.
-- [ ] Flat PDF layout produces a simple table with configurable columns (minimal, official_board, debug_uid presets).
+- [x] PDF export produces a downloadable `.pdf` file from the current season's standings.
+- [x] Laufübersicht PDF layout matches Python version's structure: 3-row merged header, per-race Str./Pkt. columns, Gesamt columns, first-page intro notice, section titles, footers.
+- [x] Flat PDF layout produces a simple table with configurable columns (minimal, official_board, debug_uid presets).
 - [ ] Excel export produces a downloadable `.xlsx` file with one worksheet per category section.
 - [ ] Excel worksheets have: bold header row(s), auto-fitted column widths, German decimal comma formatting for distances, zebra-banded rows.
-- [ ] Layout presets `default` and `compact` produce visually distinct output matching their Python equivalents in intent (exact pixel parity is not required).
-- [ ] Dual PDF export (Einzel + Paare) triggers two separate downloads with continuous section numbering.
-- [ ] Category sort order matches Python: Halbstundenlauf W, M → Stundenlauf W, M → Paare W, M, Mixed per duration.
-- [ ] German headers: Platz, Name, Verein, Laufstr., Wertung, (km), (Punkte), Gesamt.
-- [ ] Em-dash (—) for missing race results; decimal comma for distances; bold points values in PDF.
-- [ ] Team/couple rows render correctly: two rows per team with merged Platz and numeric columns in PDF; duplicated numeric values per partner row in Excel.
-- [ ] Podium rows (places 1–3) get a light-blue tint in PDF.
-- [ ] Footer renders on every PDF page: organizer, season year, category, export timestamp.
-- [ ] Eligibility filtering works: `eligible_only` (default) excludes außer Wertung participants; `full_grid` includes all.
-- [ ] All export logic is framework-agnostic (no React/UI imports in export modules).
-- [ ] Export functions are tested with Vitest using fixture data.
+- [x] Layout presets `default` and `compact` produce visually distinct output matching their Python equivalents in intent (exact pixel parity is not required).
+- [x] Dual PDF export (Einzel + Paare) triggers two separate downloads with continuous section numbering.
+- [x] Category sort order matches Python: Halbstundenlauf W, M → Stundenlauf W, M → Paare W, M, Mixed per duration.
+- [x] German headers: Platz, Name, Verein, Laufstr., Wertung, (km), (Punkte), Gesamt.
+- [x] Em-dash (—) for missing race results; decimal comma for distances; bold points values in PDF.
+- [x] Team/couple rows render correctly in PDF: two rows per team with merged Platz and numeric columns.
+- [ ] Excel duplicates numeric values per partner row instead of vertical merges.
+- [x] Podium rows (places 1–3) get a light-blue tint in PDF.
+- [x] Footer renders on every PDF page: organizer, season year, category, export timestamp.
+- [x] Eligibility filtering works: `eligible_only` (default) excludes außer Wertung participants; `full_grid` includes all.
+- [x] All export logic is framework-agnostic (no React/UI imports in export modules).
+- [x] Export functions are tested with Vitest using fixture data.
 
 ---
 
@@ -241,11 +242,11 @@ function createPdfDocument(style: PdfStyleSpec): jsPDF {
 }
 ```
 
-#### 5.2 Cover Page (Laufübersicht)
+#### 5.2 First-Page Intro (Laufübersicht)
 
 - Large blue year text (Helvetica-Bold, 26 pt default, `#1565C0`).
-- "Hinweis:" underlined + notice body paragraph (Helvetica, 10 pt default).
-- Page break after cover.
+- Bold "Hinweis:" label plus notice body paragraph (Helvetica, 10 pt default).
+- Rendered above the first category section so page 1 contains both the note and the first table.
 
 #### 5.3 Section Rendering
 
@@ -546,7 +547,7 @@ These pure functions port with minimal adaptation:
 3. **Port export spec** — `ExportSpec`, `PdfStyleSpec`, column presets, layout presets, validation. Unit-test validation logic.
 4. **Port projection layer** — `buildExportSections` for both flat and Laufübersicht layouts. Unit-test with fixture standings data (construct minimal `SeasonState` → verify `ExportSection` structure, header rows, body rows, spans, banding).
 5. **Implement PDF renderer (flat layout)** — simple table with grid, zebra banding, configurable columns. Verify with snapshot test (generate PDF → check text extraction or byte-stable output).
-6. **Implement PDF renderer (Laufübersicht layout)** — cover page, 3-row merged header, per-cell styling, vertical rules, footer. Test with multi-page fixture.
+6. **Implement PDF renderer (Laufübersicht layout)** — first-page intro block, 3-row merged header, per-cell styling, vertical rules, footer. Test with multi-page fixture.
 7. **Implement Excel renderer (flat layout)** — single worksheet per category, bold header, zebra banding, auto-filter. Verify generated `.xlsx` opens correctly.
 8. **Implement Excel renderer (Laufübersicht layout)** — 3-row header with merged cells, freeze panes, team two-row layout, podium tinting.
 9. **Port GUI spec functions** — `buildLaufuebersichtGuiSpec`, `exportLaufuebersichtDualPdfs`. Unit-test spec construction.
