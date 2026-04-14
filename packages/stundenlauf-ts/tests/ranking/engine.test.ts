@@ -113,26 +113,26 @@ describe("computeStandings", () => {
     expect(snap.calculated_at).toBe(FIXED_TS);
     expect(snap.category_tables).toHaveLength(1);
 
-    const table = snap.category_tables[0];
+    const table = snap.category_tables[0]!;
     expect(table.category_key).toBe("hour:men");
     expect(table.rows).toHaveLength(3);
 
     // team-a: 10+12+8 = 30 pts, 15000m
-    expect(table.rows[0].team_id).toBe("team-a");
-    expect(table.rows[0].total_points).toBe(30);
-    expect(table.rows[0].total_distance_m).toBe(15000);
-    expect(table.rows[0].rank).toBe(1);
+    expect(table.rows[0]!.team_id).toBe("team-a");
+    expect(table.rows[0]!.total_points).toBe(30);
+    expect(table.rows[0]!.total_distance_m).toBe(15000);
+    expect(table.rows[0]!.rank).toBe(1);
 
     // team-b: 8+10+12 = 30 pts, 15000m — same as team-a, tie-break by team_id
-    expect(table.rows[1].team_id).toBe("team-b");
-    expect(table.rows[1].total_points).toBe(30);
-    expect(table.rows[1].rank).toBe(2);
+    expect(table.rows[1]!.team_id).toBe("team-b");
+    expect(table.rows[1]!.total_points).toBe(30);
+    expect(table.rows[1]!.rank).toBe(2);
 
     // team-c: 6+8+10 = 24 pts, 12000m
-    expect(table.rows[2].team_id).toBe("team-c");
-    expect(table.rows[2].total_points).toBe(24);
-    expect(table.rows[2].total_distance_m).toBe(12000);
-    expect(table.rows[2].rank).toBe(3);
+    expect(table.rows[2]!.team_id).toBe("team-c");
+    expect(table.rows[2]!.total_points).toBe(24);
+    expect(table.rows[2]!.total_distance_m).toBe(12000);
+    expect(table.rows[2]!.rank).toBe(3);
   });
 
   it("breaks points tie by distance (higher distance wins)", () => {
@@ -154,12 +154,12 @@ describe("computeStandings", () => {
 
     const state = buildState(events);
     const snap = computeStandings(state, RULESET_STUNDENLAUF_V1, FIXED_TS);
-    const rows = snap.category_tables[0].rows;
+    const rows = snap.category_tables[0]!.rows;
 
-    expect(rows[0].team_id).toBe("team-b");
-    expect(rows[0].rank).toBe(1);
-    expect(rows[1].team_id).toBe("team-a");
-    expect(rows[1].rank).toBe(2);
+    expect(rows[0]!.team_id).toBe("team-b");
+    expect(rows[0]!.rank).toBe(1);
+    expect(rows[1]!.team_id).toBe("team-a");
+    expect(rows[1]!.rank).toBe(2);
   });
 
   it("breaks full tie (same points + distance) by team_id ascending", () => {
@@ -181,12 +181,12 @@ describe("computeStandings", () => {
 
     const state = buildState(events);
     const snap = computeStandings(state, RULESET_STUNDENLAUF_V1, FIXED_TS);
-    const rows = snap.category_tables[0].rows;
+    const rows = snap.category_tables[0]!.rows;
 
-    expect(rows[0].team_id).toBe("team-a");
-    expect(rows[0].rank).toBe(1);
-    expect(rows[1].team_id).toBe("team-b");
-    expect(rows[1].rank).toBe(2);
+    expect(rows[0]!.team_id).toBe("team-a");
+    expect(rows[0]!.rank).toBe(1);
+    expect(rows[1]!.team_id).toBe("team-b");
+    expect(rows[1]!.rank).toBe(2);
   });
 
   it("produces separate tables for two categories", () => {
@@ -221,11 +221,11 @@ describe("computeStandings", () => {
 
     const menTable = snap.category_tables.find((t) => t.category_key === "hour:men")!;
     expect(menTable.rows).toHaveLength(1);
-    expect(menTable.rows[0].team_id).toBe("team-m");
+    expect(menTable.rows[0]!.team_id).toBe("team-m");
 
     const womenTable = snap.category_tables.find((t) => t.category_key === "hour:women")!;
     expect(womenTable.rows).toHaveLength(1);
-    expect(womenTable.rows[0].team_id).toBe("team-w");
+    expect(womenTable.rows[0]!.team_id).toBe("team-w");
   });
 
   it("selects top 4 when a team has >4 races", () => {
@@ -245,8 +245,8 @@ describe("computeStandings", () => {
             {
               entryId: `e${i}`,
               teamId: "team-a",
-              points: points[i],
-              distance_m: points[i] * 500,
+              points: points[i]!,
+              distance_m: points[i]! * 500,
             },
           ],
         }),
@@ -255,7 +255,7 @@ describe("computeStandings", () => {
 
     const state = buildState(events);
     const snap = computeStandings(state, RULESET_STUNDENLAUF_V1, FIXED_TS);
-    const row = snap.category_tables[0].rows[0];
+    const row = snap.category_tables[0]!.rows[0]!;
 
     // Top 4: 14 + 12 + 10 + 8 = 44
     expect(row.total_points).toBe(44);
@@ -263,7 +263,7 @@ describe("computeStandings", () => {
 
     const dropped = row.race_contributions.filter((c) => !c.counts_toward_total);
     expect(dropped).toHaveLength(1);
-    expect(dropped[0].points).toBe(6);
+    expect(dropped[0]!.points).toBe(6);
 
     const counted = row.race_contributions.filter((c) => c.counts_toward_total);
     expect(counted).toHaveLength(4);
@@ -292,7 +292,7 @@ describe("computeStandings", () => {
 
     const state = buildState(events);
     const snap = computeStandings(state, RULESET_STUNDENLAUF_V1, FIXED_TS);
-    const row = snap.category_tables[0].rows[0];
+    const row = snap.category_tables[0]!.rows[0]!;
 
     expect(row.total_points).toBe(10);
     expect(row.total_distance_m).toBe(5000);
@@ -324,7 +324,7 @@ describe("computeStandings", () => {
     const snap = computeStandings(state, RULESET_STUNDENLAUF_V1, FIXED_TS);
 
     expect(snap.category_tables).toHaveLength(1);
-    const row = snap.category_tables[0].rows[0];
+    const row = snap.category_tables[0]!.rows[0]!;
     expect(row.total_points).toBe(10);
     expect(row.race_contributions).toHaveLength(1);
   });
@@ -350,7 +350,7 @@ describe("computeStandings", () => {
 
     const state = buildState(events);
     const snap = computeStandings(state, RULESET_STUNDENLAUF_V1, FIXED_TS);
-    const row = snap.category_tables[0].rows[0];
+    const row = snap.category_tables[0]!.rows[0]!;
 
     expect(row.total_points).toBe(15);
     expect(row.total_distance_m).toBe(7500);
@@ -383,12 +383,13 @@ describe("computeStandings", () => {
 
     const state = buildState(events);
     const snap = computeStandings(state, RULESET_STUNDENLAUF_V1, FIXED_TS);
-    const rows = snap.category_tables[0].rows;
+    const rows = snap.category_tables[0]!.rows;
 
     // team-b now has both entries: 10 + 8 = 18
-    const teamB = rows.find((r) => r.team_id === "team-b")!;
-    expect(teamB.total_points).toBe(18);
-    expect(teamB.race_contributions).toHaveLength(2);
+    const teamB = rows.find((r) => r.team_id === "team-b");
+    expect(teamB).toBeDefined();
+    expect(teamB!.total_points).toBe(18);
+    expect(teamB!.race_contributions).toHaveLength(2);
 
     // team-a has no entries left, should not appear
     expect(rows.find((r) => r.team_id === "team-a")).toBeUndefined();
@@ -472,7 +473,7 @@ describe("computeStandings", () => {
 
     const state = buildState(events);
     const snap = computeStandings(state, RULESET_STUNDENLAUF_V1, FIXED_TS);
-    const contribs = snap.category_tables[0].rows[0].race_contributions;
+    const contribs = snap.category_tables[0]!.rows[0]!.race_contributions;
 
     expect(contribs.map((c) => c.race_event_id)).toEqual(["race-a", "race-b", "race-c"]);
   });

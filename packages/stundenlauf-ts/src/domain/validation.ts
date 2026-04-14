@@ -153,7 +153,7 @@ function validatePersonRegistered(
   }
   const canonicalNames = canonicalizePersonNames(event.payload);
   const club = event.payload.club == null ? null : event.payload.club.trim();
-  const clubNormalized = (event.payload.club_normalized ?? "").trim();
+  const clubNormalized = event.payload.club_normalized.trim();
   const nameErrors = validatePersonNameConsistency(canonicalNames);
   const expectedClubNormalized = normalizeClub(club);
   const clubErrors =

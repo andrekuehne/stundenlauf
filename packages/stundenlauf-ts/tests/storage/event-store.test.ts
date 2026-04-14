@@ -21,31 +21,34 @@ type EventLogRecord = {
 class InMemoryEventDb {
   readonly eventLogs = new Map<string, EventLogRecord>();
 
-  async get(storeName: string, key: string): Promise<EventLogRecord | undefined> {
-    if (storeName !== "event_logs") return undefined;
-    return this.eventLogs.get(key);
+  get(storeName: string, key: string): Promise<EventLogRecord | undefined> {
+    if (storeName !== "event_logs") return Promise.resolve(undefined);
+    return Promise.resolve(this.eventLogs.get(key));
   }
 
-  async put(storeName: string, value: EventLogRecord): Promise<void> {
-    if (storeName !== "event_logs") return;
+  put(storeName: string, value: EventLogRecord): Promise<void> {
+    if (storeName !== "event_logs") return Promise.resolve();
     this.eventLogs.set(value.season_id, {
       season_id: value.season_id,
       events: [...value.events],
     });
+    return Promise.resolve();
   }
 
   transaction(storeName: string, _mode: "readwrite") {
     if (storeName !== "event_logs") {
       throw new Error(`Unsupported store: ${storeName}`);
     }
+    void _mode;
     return {
       objectStore: () => ({
-        get: async (key: string) => this.eventLogs.get(key),
-        put: async (value: EventLogRecord) => {
+        get: (key: string) => Promise.resolve(this.eventLogs.get(key)),
+        put: (value: EventLogRecord) => {
           this.eventLogs.set(value.season_id, {
             season_id: value.season_id,
             events: [...value.events],
           });
+          return Promise.resolve();
         },
       }),
       done: Promise.resolve(),

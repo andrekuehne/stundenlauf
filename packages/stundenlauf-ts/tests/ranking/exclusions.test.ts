@@ -47,12 +47,12 @@ describe("applyExclusions", () => {
     const result = applyExclusions(table, new Set(["team-b"]));
 
     expect(result.rows).toHaveLength(3);
-    expect(result.rows[0].team_id).toBe("team-a");
-    expect(result.rows[0].rank).toBe(1);
-    expect(result.rows[1].team_id).toBe("team-c");
-    expect(result.rows[1].rank).toBe(2);
-    expect(result.rows[2].team_id).toBe("team-d");
-    expect(result.rows[2].rank).toBe(3);
+    expect(result.rows[0]!.team_id).toBe("team-a");
+    expect(result.rows[0]!.rank).toBe(1);
+    expect(result.rows[1]!.team_id).toBe("team-c");
+    expect(result.rows[1]!.rank).toBe(2);
+    expect(result.rows[2]!.team_id).toBe("team-d");
+    expect(result.rows[2]!.rank).toBe(3);
   });
 
   it("returns unchanged table when no exclusions", () => {
@@ -61,10 +61,10 @@ describe("applyExclusions", () => {
     const result = applyExclusions(table, new Set());
 
     expect(result.rows).toHaveLength(2);
-    expect(result.rows[0].rank).toBe(1);
-    expect(result.rows[1].rank).toBe(2);
-    expect(result.rows[0].team_id).toBe("team-a");
-    expect(result.rows[1].team_id).toBe("team-b");
+    expect(result.rows[0]!.rank).toBe(1);
+    expect(result.rows[1]!.rank).toBe(2);
+    expect(result.rows[0]!.team_id).toBe("team-a");
+    expect(result.rows[1]!.team_id).toBe("team-b");
   });
 
   it("handles multiple exclusions", () => {
@@ -78,10 +78,10 @@ describe("applyExclusions", () => {
     const result = applyExclusions(table, new Set(["team-a", "team-c"]));
 
     expect(result.rows).toHaveLength(2);
-    expect(result.rows[0].team_id).toBe("team-b");
-    expect(result.rows[0].rank).toBe(1);
-    expect(result.rows[1].team_id).toBe("team-d");
-    expect(result.rows[1].rank).toBe(2);
+    expect(result.rows[0]!.team_id).toBe("team-b");
+    expect(result.rows[0]!.rank).toBe(1);
+    expect(result.rows[1]!.team_id).toBe("team-d");
+    expect(result.rows[1]!.rank).toBe(2);
   });
 
   it("returns empty rows when all teams are excluded", () => {
@@ -112,17 +112,17 @@ describe("markExclusions", () => {
 
     expect(result.rows).toHaveLength(3);
 
-    expect(result.rows[0].team_id).toBe("team-a");
-    expect(result.rows[0].excluded).toBe(false);
-    expect(result.rows[0].rank).toBe(1);
+    expect(result.rows[0]!.team_id).toBe("team-a");
+    expect(result.rows[0]!.excluded).toBe(false);
+    expect(result.rows[0]!.rank).toBe(1);
 
-    expect(result.rows[1].team_id).toBe("team-b");
-    expect(result.rows[1].excluded).toBe(true);
-    expect(result.rows[1].rank).toBeNull();
+    expect(result.rows[1]!.team_id).toBe("team-b");
+    expect(result.rows[1]!.excluded).toBe(true);
+    expect(result.rows[1]!.rank).toBeNull();
 
-    expect(result.rows[2].team_id).toBe("team-c");
-    expect(result.rows[2].excluded).toBe(false);
-    expect(result.rows[2].rank).toBe(2);
+    expect(result.rows[2]!.team_id).toBe("team-c");
+    expect(result.rows[2]!.excluded).toBe(false);
+    expect(result.rows[2]!.rank).toBe(2);
   });
 
   it("handles no exclusions — all eligible", () => {
@@ -130,10 +130,10 @@ describe("markExclusions", () => {
 
     const result = markExclusions(table, new Set());
 
-    expect(result.rows[0].excluded).toBe(false);
-    expect(result.rows[0].rank).toBe(1);
-    expect(result.rows[1].excluded).toBe(false);
-    expect(result.rows[1].rank).toBe(2);
+    expect(result.rows[0]!.excluded).toBe(false);
+    expect(result.rows[0]!.rank).toBe(1);
+    expect(result.rows[1]!.excluded).toBe(false);
+    expect(result.rows[1]!.rank).toBe(2);
   });
 
   it("handles multiple exclusions with correct renumbering", () => {
@@ -147,11 +147,11 @@ describe("markExclusions", () => {
 
     const result = markExclusions(table, new Set(["team-b", "team-d"]));
 
-    expect(result.rows[0]).toMatchObject({ team_id: "team-a", rank: 1, excluded: false });
-    expect(result.rows[1]).toMatchObject({ team_id: "team-b", rank: null, excluded: true });
-    expect(result.rows[2]).toMatchObject({ team_id: "team-c", rank: 2, excluded: false });
-    expect(result.rows[3]).toMatchObject({ team_id: "team-d", rank: null, excluded: true });
-    expect(result.rows[4]).toMatchObject({ team_id: "team-e", rank: 3, excluded: false });
+    expect(result.rows[0]!).toMatchObject({ team_id: "team-a", rank: 1, excluded: false });
+    expect(result.rows[1]!).toMatchObject({ team_id: "team-b", rank: null, excluded: true });
+    expect(result.rows[2]!).toMatchObject({ team_id: "team-c", rank: 2, excluded: false });
+    expect(result.rows[3]!).toMatchObject({ team_id: "team-d", rank: null, excluded: true });
+    expect(result.rows[4]!).toMatchObject({ team_id: "team-e", rank: 3, excluded: false });
   });
 
   it("preserves category_key", () => {

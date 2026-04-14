@@ -36,7 +36,6 @@ const annaTeam: Team = {
   team_kind: "solo",
 };
 
-const persons = new Map([["p-anna", anna]]);
 const teams = new Map([["t-anna", annaTeam]]);
 
 describe("resolvePerson", () => {

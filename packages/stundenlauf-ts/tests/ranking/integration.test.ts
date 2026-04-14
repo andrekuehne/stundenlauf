@@ -114,7 +114,7 @@ describe("integration: realistic season", () => {
     ];
 
     for (let i = 0; i < raceData.length; i++) {
-      const rd = raceData[i];
+      const rd = raceData[i]!;
       events.push(importBatchRecorded({ import_batch_id: rd.batchId }));
       events.push(
         raceRegistered({
@@ -155,7 +155,7 @@ describe("integration: realistic season", () => {
     const snap = computeStandings(state, RULESET_STUNDENLAUF_V1, FIXED_TS);
 
     expect(snap.category_tables).toHaveLength(1);
-    const table = snap.category_tables[0];
+    const table = snap.category_tables[0]!;
     expect(table.rows).toHaveLength(3);
 
     // All three have 44 points. Tie-break by distance:
@@ -169,24 +169,24 @@ describe("integration: realistic season", () => {
       expect(row.total_points).toBe(44);
     }
 
-    expect(table.rows[0].team_id).toBe("team-carol");
-    expect(table.rows[0].total_distance_m).toBe(23000);
-    expect(table.rows[0].rank).toBe(1);
+    expect(table.rows[0]!.team_id).toBe("team-carol");
+    expect(table.rows[0]!.total_distance_m).toBe(23000);
+    expect(table.rows[0]!.rank).toBe(1);
 
-    expect(table.rows[1].team_id).toBe("team-alice");
-    expect(table.rows[1].total_distance_m).toBe(22600);
-    expect(table.rows[1].rank).toBe(2);
+    expect(table.rows[1]!.team_id).toBe("team-alice");
+    expect(table.rows[1]!.total_distance_m).toBe(22600);
+    expect(table.rows[1]!.rank).toBe(2);
 
-    expect(table.rows[2].team_id).toBe("team-bob");
-    expect(table.rows[2].total_distance_m).toBe(22600);
-    expect(table.rows[2].rank).toBe(3);
+    expect(table.rows[2]!.team_id).toBe("team-bob");
+    expect(table.rows[2]!.total_distance_m).toBe(22600);
+    expect(table.rows[2]!.rank).toBe(3);
 
     // Each runner should have 1 dropped race
     for (const row of table.rows) {
       expect(row.race_contributions).toHaveLength(5);
       const dropped = row.race_contributions.filter((c) => !c.counts_toward_total);
       expect(dropped).toHaveLength(1);
-      expect(dropped[0].points).toBe(6);
+      expect(dropped[0]!.points).toBe(6);
     }
   });
 
@@ -194,28 +194,28 @@ describe("integration: realistic season", () => {
     const events = buildRealisticEvents();
     const state = projectState(SEASON_ID, events);
     const snap = computeStandings(state, RULESET_STUNDENLAUF_V1, FIXED_TS);
-    const table = snap.category_tables[0];
+    const table = snap.category_tables[0]!;
 
     const eligible = applyExclusions(table, new Set(["team-carol"]));
     expect(eligible.rows).toHaveLength(2);
-    expect(eligible.rows[0].team_id).toBe("team-alice");
-    expect(eligible.rows[0].rank).toBe(1);
-    expect(eligible.rows[1].team_id).toBe("team-bob");
-    expect(eligible.rows[1].rank).toBe(2);
+    expect(eligible.rows[0]!.team_id).toBe("team-alice");
+    expect(eligible.rows[0]!.rank).toBe(1);
+    expect(eligible.rows[1]!.team_id).toBe("team-bob");
+    expect(eligible.rows[1]!.rank).toBe(2);
   });
 
   it("marks exclusions in full standings view", () => {
     const events = buildRealisticEvents();
     const state = projectState(SEASON_ID, events);
     const snap = computeStandings(state, RULESET_STUNDENLAUF_V1, FIXED_TS);
-    const table = snap.category_tables[0];
+    const table = snap.category_tables[0]!;
 
     const marked = markExclusions(table, new Set(["team-carol"]));
     expect(marked.rows).toHaveLength(3);
 
-    expect(marked.rows[0]).toMatchObject({ team_id: "team-carol", excluded: true, rank: null });
-    expect(marked.rows[1]).toMatchObject({ team_id: "team-alice", excluded: false, rank: 1 });
-    expect(marked.rows[2]).toMatchObject({ team_id: "team-bob", excluded: false, rank: 2 });
+    expect(marked.rows[0]!).toMatchObject({ team_id: "team-carol", excluded: true, rank: null });
+    expect(marked.rows[1]!).toMatchObject({ team_id: "team-alice", excluded: false, rank: 1 });
+    expect(marked.rows[2]!).toMatchObject({ team_id: "team-bob", excluded: false, rank: 2 });
   });
 
   it("exclusionsForCategory integrates with event-projected state", () => {
@@ -233,7 +233,7 @@ describe("integration: realistic season", () => {
     expect(excluded).toEqual(new Set(["team-bob"]));
 
     const snap = computeStandings(state, RULESET_STUNDENLAUF_V1, FIXED_TS);
-    const eligible = applyExclusions(snap.category_tables[0], excluded);
+    const eligible = applyExclusions(snap.category_tables[0]!, excluded);
 
     expect(eligible.rows).toHaveLength(2);
     expect(eligible.rows.find((r) => r.team_id === "team-bob")).toBeUndefined();
@@ -252,16 +252,16 @@ describe("integration: realistic season", () => {
     state = applyEvent(state, rollbackEvent);
 
     const snapAfter = computeStandings(state, RULESET_STUNDENLAUF_V1, FIXED_TS);
-    const table = snapAfter.category_tables[0];
+    const table = snapAfter.category_tables[0]!;
 
-    expect(table.rows[0].team_id).toBe("team-carol");
-    expect(table.rows[0].total_points).toBe(44);
+    expect(table.rows[0]!.team_id).toBe("team-carol");
+    expect(table.rows[0]!.total_points).toBe(44);
 
-    expect(table.rows[1].team_id).toBe("team-alice");
-    expect(table.rows[1].total_points).toBe(38);
+    expect(table.rows[1]!.team_id).toBe("team-alice");
+    expect(table.rows[1]!.total_points).toBe(38);
 
-    expect(table.rows[2].team_id).toBe("team-bob");
-    expect(table.rows[2].total_points).toBe(36);
+    expect(table.rows[2]!.team_id).toBe("team-bob");
+    expect(table.rows[2]!.total_points).toBe(36);
 
     // Verify no contributions from r2
     for (const row of table.rows) {
@@ -269,8 +269,8 @@ describe("integration: realistic season", () => {
     }
 
     // Verify before had more contributions
-    expect(snapBefore.category_tables[0].rows[0].race_contributions).toHaveLength(5);
-    expect(table.rows[0].race_contributions).toHaveLength(4);
+    expect(snapBefore.category_tables[0]!.rows[0]!.race_contributions).toHaveLength(5);
+    expect(table.rows[0]!.race_contributions).toHaveLength(4);
   });
 });
 
@@ -306,7 +306,7 @@ describe("cross-version parity", () => {
     ];
 
     for (let i = 0; i < races.length; i++) {
-      const r = races[i];
+      const r = races[i]!;
       const batchId = `batch_${i}`;
       events.push(importBatchRecorded({ import_batch_id: batchId }));
       events.push(
@@ -326,7 +326,7 @@ describe("cross-version parity", () => {
     const snap = computeStandings(state, RULESET_STUNDENLAUF_V1, FIXED_TS);
 
     expect(snap.category_tables).toHaveLength(1);
-    const row = snap.category_tables[0].rows[0];
+    const row = snap.category_tables[0]!.rows[0]!;
 
     // Python: 45.0 points, 22.5 km = 22500 m
     expect(row.total_points).toBe(45);
@@ -343,7 +343,7 @@ describe("cross-version parity", () => {
 
     const dropped = row.race_contributions.filter((c) => !c.counts_toward_total);
     expect(dropped).toHaveLength(1);
-    expect(dropped[0].race_event_id).toBe("race_5");
+    expect(dropped[0]!.race_event_id).toBe("race_5");
   });
 
   it("matches Python sort order: points desc, distance desc, entity_id asc", () => {
@@ -371,7 +371,7 @@ describe("cross-version parity", () => {
 
     const state = projectState(SEASON_ID, events);
     const snap = computeStandings(state, RULESET_STUNDENLAUF_V1, FIXED_TS);
-    const ids = snap.category_tables[0].rows.map((r) => r.team_id);
+    const ids = snap.category_tables[0]!.rows.map((r) => r.team_id);
 
     // All same points + distance → alphabetical team_id
     expect(ids).toEqual(["team-a", "team-m", "team-z"]);
