@@ -17,6 +17,20 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - Full-season import walkthrough harness added
+- Requirement/Milestone: [R1], [R3], [R4], [R6], [M-TS2]
+- What shipped: Added a second dev harness (`/?harness=import-season`) for practical season-by-season import validation: sequential file loading, review queue decisions via simple radio buttons, cumulative season state projection across imports, and an accumulated points-descending ranking table.
+- Evidence: `src/App.tsx`, `src/devtools/ImportSeasonWalkthroughHarness.tsx`, `docs/features/F-TS05-import-orchestration-workflow.md`
+- Impact: Enables direct end-to-end manual comparison against the Python import workflow over many race files without needing the future full GUI.
+- Follow-up: Add optional export/import of harness session state for long parity runs across multiple days.
+
+### 2026-04-14 - Harness matching modes and thresholds exposed
+- Requirement/Milestone: [R4], [R6], [M-TS2]
+- What shipped: Extended the F-TS05 manual import harness with Python-comparable matching controls (Strikt / Fuzzy-Automatik / Manuell) plus live auto/review threshold sliders, and wired these settings into both trace generation and orchestration matching runs.
+- Evidence: `src/devtools/ImportOrchestrationHarness.tsx`, `docs/features/F-TS05-import-orchestration-workflow.md`
+- Impact: Enables direct, repeatable manual parity comparisons against the current Python GUI matching behavior during MW1→MW2 harness sessions.
+- Follow-up: Add a compact per-cycle diff view to compare route changes when only thresholds/mode change.
+
 ### 2026-04-14 - Canonical person/club display invariants added
 - Requirement/Milestone: [R3], [R4], [R8], [M-TS1]
 - What shipped: Extended person identity contracts with canonical display name fields (`display_name`, `name_normalized`), enforced dual-write consistency (split name, display name, normalized key, and club pair) in event validation/projection, and aligned import/review/matching consumers to use canonical display values.

@@ -450,7 +450,13 @@ A minimal, dev-only interactive harness is available for manual MW1 → MW2 vali
 before the full GUI workflow.
 
 - **Entry:** run `npm run dev` and open `/?harness=import`.
+- **Season walkthrough harness:** run `npm run dev` and open `/?harness=import-season`
+  for a pragmatic full-season loop (file-by-file import with manual review radio picks and
+  accumulated ranking view).
 - **Input mode:** file picker (local `.xlsx` files, no fixture hosting required).
+- **Matching controls:** choose `Strikt`, `Fuzzy-Automatik`, or `Manuell` and tune the
+  auto/review threshold sliders before each import cycle for direct parity checks
+  against the Python app behavior.
 - **Cycle:** load MW1 (empty season baseline) then load MW2 (state projected from MW1 events).
 - **Displayed debug context:**
   - participant/team pool snapshot before each section,
@@ -463,6 +469,7 @@ before the full GUI workflow.
 
 Implementation files:
 - `src/devtools/ImportOrchestrationHarness.tsx`
+- `src/devtools/ImportSeasonWalkthroughHarness.tsx`
 - `src/devtools/import-harness-trace.ts`
 - `tests/import/import-harness-trace.test.ts`
 

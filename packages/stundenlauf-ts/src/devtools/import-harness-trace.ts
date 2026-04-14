@@ -61,6 +61,8 @@ export interface HarnessRowTrace {
   features: Record<string, number>;
   new_person_ids: string[];
   new_team_ids: string[];
+  new_person_labels: string[];
+  new_team_labels: string[];
 }
 
 export interface HarnessSectionTrace {
@@ -145,6 +147,22 @@ function mapSinglesRow(
   resolved: ResolvedEntry,
   rowIndex: number,
 ): HarnessRowTrace {
+  const newPersonLabels = resolved.new_persons.map((entry) => {
+    const names = canonicalizePersonNames(entry);
+    return `${names.display_name} (${entry.person_id})`;
+  });
+  const personLabelById = new Map(
+    resolved.new_persons.map((entry) => {
+      const names = canonicalizePersonNames(entry);
+      return [entry.person_id, names.display_name] as const;
+    }),
+  );
+  const newTeamLabels = resolved.new_teams.map((team) => {
+    const memberLabels = team.member_person_ids.map(
+      (personId) => personLabelById.get(personId) ?? personId,
+    );
+    return `${memberLabels.join(" / ")} (${team.team_id})`;
+  });
   return {
     row_index: rowIndex,
     startnr: row.startnr,
@@ -165,6 +183,8 @@ function mapSinglesRow(
     features: { ...resolved.features },
     new_person_ids: resolved.new_persons.map((entry) => entry.person_id),
     new_team_ids: resolved.new_teams.map((entry) => entry.team_id),
+    new_person_labels: newPersonLabels,
+    new_team_labels: newTeamLabels,
   };
 }
 
@@ -173,6 +193,22 @@ function mapCouplesRow(
   resolved: ResolvedEntry,
   rowIndex: number,
 ): HarnessRowTrace {
+  const newPersonLabels = resolved.new_persons.map((entry) => {
+    const names = canonicalizePersonNames(entry);
+    return `${names.display_name} (${entry.person_id})`;
+  });
+  const personLabelById = new Map(
+    resolved.new_persons.map((entry) => {
+      const names = canonicalizePersonNames(entry);
+      return [entry.person_id, names.display_name] as const;
+    }),
+  );
+  const newTeamLabels = resolved.new_teams.map((team) => {
+    const memberLabels = team.member_person_ids.map(
+      (personId) => personLabelById.get(personId) ?? personId,
+    );
+    return `${memberLabels.join(" / ")} (${team.team_id})`;
+  });
   return {
     row_index: rowIndex,
     startnr: row.startnr,
@@ -193,6 +229,8 @@ function mapCouplesRow(
     features: { ...resolved.features },
     new_person_ids: resolved.new_persons.map((entry) => entry.person_id),
     new_team_ids: resolved.new_teams.map((entry) => entry.team_id),
+    new_person_labels: newPersonLabels,
+    new_team_labels: newTeamLabels,
   };
 }
 

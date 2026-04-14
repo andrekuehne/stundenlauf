@@ -31,7 +31,19 @@ function buildReviewItemForSingles(
   teams: ReadonlyMap<string, Team>,
 ): ReviewItem | null {
   if (entry.route !== "review") return null;
+  const soloTeamIdByPersonId = new Map<string, string>();
+  for (const team of teams.values()) {
+    if (team.team_kind !== "solo") continue;
+    const personId = team.member_person_ids[0];
+    if (!personId) continue;
+    if (!soloTeamIdByPersonId.has(personId)) {
+      soloTeamIdByPersonId.set(personId, team.team_id);
+    }
+  }
   const candidates = entry.candidate_uids.map((uid, i) => {
+    const mappedTeamId = teams.has(uid)
+      ? uid
+      : (soloTeamIdByPersonId.get(uid) ?? uid);
     // Find person from teams or persons map
     let displayName = uid;
     let candYob = 0;
@@ -55,7 +67,7 @@ function buildReviewItemForSingles(
       candClub = person.club;
     }
     return {
-      team_id: uid,
+      team_id: mappedTeamId,
       score: entry.candidate_confidences[i] ?? 0,
       features: entry.features,
       display_name: displayName,
