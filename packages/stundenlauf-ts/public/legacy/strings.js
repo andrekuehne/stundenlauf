@@ -116,19 +116,21 @@
       openFailed: "Saison konnte nicht geöffnet werden.",
       exportPickFailed: "Zielpfad für den Export konnte nicht gewählt werden.",
       exportFailed: "Saison konnte nicht exportiert werden.",
-      exportDone: (year, path) => `Saison ${year} wurde exportiert: ${path}`,
+      exportDone: (seasonName, year, path) =>
+        `Saison "${seasonName || year}"${Number.isInteger(year) ? ` (${year})` : ""} wurde exportiert: ${path}`,
       importPickFailed: "Saison-Exportdatei konnte nicht ausgewählt werden.",
       importFailed: "Saison konnte nicht importiert werden.",
-      importDone: (year) => `Saison ${year} wurde importiert.`,
+      importDone: (seasonName, year) =>
+        `Saison "${seasonName || year}"${Number.isInteger(year) ? ` (${year})` : ""} wurde importiert.`,
       importCancelled: "Import abgebrochen.",
-      importConflictAskNewYear:
-        "Für dieses Jahr existiert bereits eine Saison.\n\nMöchten Sie den Import als neues Jahr anlegen?",
+      importConflictAskNewName:
+        "Es gibt bereits eine Saison mit dieser Identität oder diesem Namen.\n\nMöchten Sie den Import unter einem neuen Saisonnamen anlegen?",
       importConflictAskReplace:
-        "Möchten Sie stattdessen eine bestehende Saison ersetzen?\n\nJa = ersetzen, Nein = Import abbrechen",
-      importConflictNewYearPrompt: "Bitte neues Zieljahr eingeben:",
-      importConflictReplaceYearPrompt: "Bitte das zu ersetzende Jahr eingeben:",
-      importConflictReplaceConfirmPrompt: (year) =>
-        `Sicherheitsabfrage: Bitte ${year} eingeben, um das Ersetzen zu bestätigen.`,
+        "Möchten Sie stattdessen eine bestehende Saison anhand ihres Saisonnamens ersetzen?\n\nJa = ersetzen, Nein = Import abbrechen",
+      importConflictNewNamePrompt: "Bitte einen Saisonnamen für die importierte Saison eingeben:",
+      importConflictReplaceNamePrompt: "Bitte den Namen der zu ersetzenden Saison eingeben:",
+      importConflictReplaceConfirmPrompt: (seasonName) =>
+        `Sicherheitsabfrage: Bitte "${seasonName}" eingeben, um das Ersetzen zu bestätigen.`,
     },
     overview: {
       loadFailed: "Übersicht konnte nicht geladen werden.",

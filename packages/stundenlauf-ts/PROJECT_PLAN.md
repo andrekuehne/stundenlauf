@@ -199,6 +199,7 @@ TS version: UI components call domain functions directly. No serialization bound
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-04-14 | Legacy frontend wired to F-TS07 portability UX | Connected the copied frontend's season import/export controls to the real TS archive workflow with structured conflict handling, label-aware import-as-new prompts, and season-name-based status copy |
 | 2026-04-14 | Shared matching defaults restored to 50% review baseline | Preserve the legacy frontend's intended fuzzy-default behavior (perfect-only auto acceptance with a 50% review/display threshold) for fresh sessions without requiring persisted browser config |
 | 2026-04-14 | F-TS07 implemented | Added browser-local season archive export/import with manifest + SHA-256 integrity checks, atomic IndexedDB replace/create writes, generic season-name-based conflict handling, and legacy adapter wrappers over browser download/upload |
 | 2026-04-14 | Legacy season entry switched to name-first create/confirm flow | Removed frontend year-first coupling by requiring a non-empty season name for creation, using season name confirmations for reset/delete, and keeping `series_year` aliases internal for compatibility while backend season identity remains label-based |

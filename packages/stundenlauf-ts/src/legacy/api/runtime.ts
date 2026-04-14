@@ -28,6 +28,7 @@ import {
   exportSeason as exportSeasonArchive,
   importSeason as importSeasonArchive,
   type ImportSeasonOptions,
+  type ImportSeasonResult,
 } from "@/portability/index.ts";
 import { applyExclusions, computeStandings, exclusionsForCategory, markExclusions } from "@/ranking/index.ts";
 import { getSeasonRepository, type SeasonRepository } from "@/services/season-repository.ts";
@@ -81,6 +82,18 @@ interface LegacyEntityPreview {
 interface PendingImportState {
   seasonId: string;
   session: ImportSession;
+}
+
+class LegacyAdapterError extends Error {
+  readonly code: string;
+  readonly details: Record<string, unknown>;
+
+  constructor(code: string, message: string, details: Record<string, unknown> = {}) {
+    super(message);
+    this.name = "LegacyAdapterError";
+    this.code = code;
+    this.details = details;
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -158,6 +171,15 @@ function asNumber(value: unknown): number | null {
     if (Number.isFinite(parsed)) return parsed;
   }
   return null;
+}
+
+function firstQuotedValue(message: string): string | null {
+  const match = message.match(/"([^"]+)"/);
+  return match?.[1] ?? null;
+}
+
+function normalizeSeasonLabel(label: string): string {
+  return label.trim().toLocaleLowerCase("de");
 }
 
 function parseCategoryKeyValue(key: string): RaceCategory | null {
@@ -1333,6 +1355,7 @@ export class LegacyApiRuntime {
     const replaceExisting = Boolean(payload.replace_existing);
     const options: ImportSeasonOptions = {};
     const displayName = asOptionalString(payload.display_name);
+    const confirmReplaceDisplayName = asOptionalString(payload.confirm_replace_display_name);
     if (displayName) {
       options.targetLabel = displayName;
     }
@@ -1342,8 +1365,15 @@ export class LegacyApiRuntime {
         Object.entries(aliases).find(([, year]) => year === targetYear)?.[0] ?? null;
       if (existingSeasonId) {
         if (!replaceExisting) {
-          throw new Error(
+          throw new LegacyAdapterError(
+            "SEASON_IMPORT_CONFLICT",
             `Season alias "${targetYear}" already exists. Use replace_existing=true to overwrite.`,
+            {
+              conflict_type: "series_year_alias",
+              target_series_year: targetYear,
+              season_id: existingSeasonId,
+              ...(displayName ? { suggested_display_name: displayName } : {}),
+            },
           );
         }
         const confirmYear = asInteger(payload.confirm_replace_series_year);
@@ -1359,9 +1389,49 @@ export class LegacyApiRuntime {
         }
         options.targetSeasonId = crypto.randomUUID();
       }
+    } else if (displayName) {
+      const existingByLabel =
+        seasons.find((season) => normalizeSeasonLabel(season.label) === normalizeSeasonLabel(displayName)) ??
+        null;
+      if (replaceExisting) {
+        if (!existingByLabel) {
+          throw new Error(`Saison "${displayName}" wurde nicht gefunden.`);
+        }
+        if (confirmReplaceDisplayName !== existingByLabel.label) {
+          throw new Error("Saison-Ersetzung nicht bestätigt.");
+        }
+        options.targetSeasonId = existingByLabel.season_id;
+        options.targetLabel = existingByLabel.label;
+        options.replaceExisting = true;
+        options.confirmSeasonId = existingByLabel.season_id;
+      } else {
+        options.targetSeasonId = crypto.randomUUID();
+      }
     }
 
-    const imported = await importSeasonArchive(repo, file, options);
+    let imported: ImportSeasonResult;
+    try {
+      imported = await importSeasonArchive(repo, file, options);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message.includes("already exists") ||
+          error.message.includes("Choose another season name"))
+      ) {
+        throw new LegacyAdapterError("SEASON_IMPORT_CONFLICT", error.message, {
+          conflict_type: error.message.startsWith('Season name "')
+            ? "season_label"
+            : "season_identity",
+          ...(targetYear != null ? { target_series_year: targetYear } : {}),
+          ...(displayName
+            ? { suggested_display_name: displayName }
+            : firstQuotedValue(error.message)
+              ? { suggested_display_name: firstQuotedValue(error.message) }
+              : {}),
+        });
+      }
+      throw error;
+    }
     const seasonsAfter = await repo.listSeasons();
     const nextAliases = this.ensureAliases(seasonsAfter);
     if (targetYear != null) {
@@ -1572,6 +1642,9 @@ export class LegacyApiRuntime {
   }
 
   private mapError(requestId: string, error: unknown): LegacyApiErrorResponse {
+    if (error instanceof LegacyAdapterError) {
+      return errorResponse(requestId, error.code, error.message, error.details);
+    }
     if (error instanceof EventAppendValidationError) {
       return errorResponse(
         requestId,

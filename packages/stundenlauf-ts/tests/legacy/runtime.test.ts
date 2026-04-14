@@ -439,6 +439,93 @@ describe("LegacyApiRuntime season portability compatibility flows", () => {
     expect(await repo.getEventLog(seasons[0]!.season_id)).toHaveLength(1);
   });
 
+  it("imports into a new alias slot when the frontend supplies a new season name", async () => {
+    const runtime = new LegacyApiRuntime();
+    expectOk(
+      await invoke(runtime, "create_series_year", {
+        series_year: 2030,
+        display_name: "Trainingsblock Alpha",
+      }),
+    );
+
+    const sourceRepo = new InMemorySeasonRepository();
+    const sourceSeason = await sourceRepo.createSeason("Trainingsblock Alpha");
+    await sourceRepo.appendEvents(sourceSeason.season_id, [
+      importBatchRecorded({ import_batch_id: "batch-import-copy" }),
+    ]);
+
+    const archiveFile = await buildSeasonArchiveFile(sourceRepo, sourceSeason.season_id);
+    const filePath = runtime.seedSelectedFileForTests(archiveFile);
+    const imported = expectOk(
+      await invoke(runtime, "import_series_year", {
+        file_path: filePath,
+        target_series_year: 2034,
+        display_name: "Trainingsblock Alpha Kopie",
+      }),
+    );
+
+    const repo = await getSeasonRepository();
+    const seasons = await repo.listSeasons();
+    const listed = expectOk(await invoke(runtime, "list_series_years"));
+    expect(imported.series_year).toBe(2034);
+    expect(imported.display_name).toBe("Trainingsblock Alpha Kopie");
+    expect(seasons).toHaveLength(2);
+    expect(seasons.map((season) => season.label).sort()).toEqual([
+      "Trainingsblock Alpha",
+      "Trainingsblock Alpha Kopie",
+    ]);
+    expect(listed.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          series_year: 2030,
+          display_name: "Trainingsblock Alpha",
+        }),
+        expect.objectContaining({
+          series_year: 2034,
+          display_name: "Trainingsblock Alpha Kopie",
+        }),
+      ]),
+    );
+  });
+
+  it("imports as a new season when the frontend supplies only a new season name", async () => {
+    const runtime = new LegacyApiRuntime();
+    expectOk(
+      await invoke(runtime, "create_series_year", {
+        series_year: 2035,
+        display_name: "Trainingsblock Alpha",
+      }),
+    );
+
+    const sourceRepo = new InMemorySeasonRepository();
+    const sourceSeason = await sourceRepo.createSeason("Trainingsblock Alpha");
+    await sourceRepo.appendEvents(sourceSeason.season_id, [
+      importBatchRecorded({ import_batch_id: "batch-import-copy-name-only" }),
+    ]);
+
+    const archiveFile = await buildSeasonArchiveFile(sourceRepo, sourceSeason.season_id);
+    const filePath = runtime.seedSelectedFileForTests(archiveFile);
+    const imported = expectOk(
+      await invoke(runtime, "import_series_year", {
+        file_path: filePath,
+        display_name: "Trainingsblock Alpha Kopie",
+      }),
+    );
+
+    const listed = expectOk(await invoke(runtime, "list_series_years"));
+    expect(imported.display_name).toBe("Trainingsblock Alpha Kopie");
+    expect(listed.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          display_name: "Trainingsblock Alpha",
+        }),
+        expect.objectContaining({
+          display_name: "Trainingsblock Alpha Kopie",
+        }),
+      ]),
+    );
+  });
+
   it("replaces an aliased target season but keeps the imported generic season label", async () => {
     const runtime = new LegacyApiRuntime();
     expectOk(
@@ -473,6 +560,41 @@ describe("LegacyApiRuntime season portability compatibility flows", () => {
     expect(seasons[0]?.label).toBe("Herbstserie Beta");
   });
 
+  it("replaces an existing season when the frontend targets it by season name", async () => {
+    const runtime = new LegacyApiRuntime();
+    expectOk(
+      await invoke(runtime, "create_series_year", {
+        series_year: 2036,
+        display_name: "Lokale Saison",
+      }),
+    );
+
+    const sourceRepo = new InMemorySeasonRepository();
+    const sourceSeason = await sourceRepo.createSeason("Herbstserie Beta");
+    await sourceRepo.appendEvents(sourceSeason.season_id, [
+      importBatchRecorded({ import_batch_id: "batch-replace-name-only" }),
+    ]);
+
+    const archiveFile = await buildSeasonArchiveFile(sourceRepo, sourceSeason.season_id);
+    const filePath = runtime.seedSelectedFileForTests(archiveFile);
+    const imported = expectOk(
+      await invoke(runtime, "import_series_year", {
+        file_path: filePath,
+        display_name: "Lokale Saison",
+        replace_existing: true,
+        confirm_replace_display_name: "Lokale Saison",
+      }),
+    );
+
+    const repo = await getSeasonRepository();
+    const seasons = await repo.listSeasons();
+    expect(imported.replaced_existing).toBe(true);
+    expect(imported.display_name).toBe("Lokale Saison");
+    expect(seasons).toHaveLength(1);
+    expect(seasons[0]?.label).toBe("Lokale Saison");
+    expect(await repo.getEventLog(seasons[0]!.season_id)).toHaveLength(1);
+  });
+
   it("rejects alias collisions unless replace mode is requested", async () => {
     const runtime = new LegacyApiRuntime();
     expectOk(
@@ -493,7 +615,9 @@ describe("LegacyApiRuntime season portability compatibility flows", () => {
 
     expect(response.status).toBe("error");
     if (response.status === "error") {
+      expect(response.error.code).toBe("SEASON_IMPORT_CONFLICT");
       expect(response.error.message).toContain("already exists");
+      expect(response.error.details.target_series_year).toBe(2033);
     }
   });
 });

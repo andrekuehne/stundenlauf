@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - Legacy frontend wired to F-TS07 season portability flow
+- Requirement/Milestone: [R7], [M-TS6], [F-TS07], [F-TS10]
+- What shipped: Connected the reused legacy season screen to the real TS archive import/export flow with label-aware suggested export filenames, structured season-conflict responses, and an import-as-new prompt that collects both the legacy alias year and the target season name.
+- Evidence: `public/legacy/app.js`, `public/legacy/strings.js`, `src/legacy/api/runtime.ts`, `tests/legacy/runtime.test.ts`
+- Impact: The shipped frontend can now complete the portability workflow against the browser-local TS implementation without depending on brittle English error-text parsing or failing when archive labels collide.
+- Follow-up: Reuse the same conflict contract if/when a dedicated non-legacy React season management UI replaces the copied frontend.
+
 ### 2026-04-14 - Shared matching defaults restored to legacy-friendly review thresholds
 - Requirement/Milestone: [R4], [R6], [M-TS3], [F-TS10]
 - What shipped: Restored the shared matching config defaults to `auto_min = 0.50` and `review_min = 0.50`, while keeping fuzzy mode's perfect-only auto-accept semantics driven by `perfect_match_auto_merge`.

@@ -245,6 +245,26 @@
     return (error && error.details && error.details.message) || fallbackMessage;
   }
 
+  function isSeasonImportConflict(response) {
+    return Boolean(
+      response &&
+        response.status === "error" &&
+        response.error &&
+        response.error.code === "SEASON_IMPORT_CONFLICT"
+    );
+  }
+
+  function seasonArchiveSuggestedName(seasonName, year) {
+    const fallback = `stundenlauf-${year}`;
+    const rawBase = String(seasonName || "").trim() || fallback;
+    const normalized = rawBase.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const safeBase = normalized
+      .replace(/[^a-zA-Z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .toLowerCase();
+    return `${safeBase || fallback}.stundenlauf-season.zip`;
+  }
+
   function renderSeasonEntry(items) {
     const se = STR.seasonEntry;
     const normalizeCoverage = (raceCoverage) => {
@@ -285,7 +305,7 @@
             <td>
               <div class="row">
                 <button class="secondary" data-open-year="${item.series_year}">${se.openSeason}</button>
-                <button class="secondary" data-export-year="${item.series_year}">⇪ ${se.exportSeason}</button>
+                <button class="secondary" data-export-year="${item.series_year}" data-season-name="${escapeHtml(item.display_name || String(item.series_year))}">⇪ ${se.exportSeason}</button>
                 <button class="secondary" data-reset-year="${item.series_year}" data-season-name="${escapeHtml(item.display_name || String(item.series_year))}" title="${se.resetSeasonTitle}">↺ ${se.resetSeason}</button>
                 <button class="danger" data-delete-year="${item.series_year}" data-season-name="${escapeHtml(item.display_name || String(item.series_year))}" title="${se.deleteSeasonTitle}">🗑 ${se.deleteSeason}</button>
               </div>
@@ -390,7 +410,8 @@
     for (const button of seasonEntryView.querySelectorAll("button[data-export-year]")) {
       button.addEventListener("click", async () => {
         const year = Number(button.getAttribute("data-export-year"));
-        const suggestedName = `stundenlauf-${year}.stundenlauf-season.zip`;
+        const seasonName = String(button.getAttribute("data-season-name") || year).trim();
+        const suggestedName = seasonArchiveSuggestedName(seasonName, year);
         const picked = await api("pick_save_file", { suggested_name: suggestedName, dialog_kind: "season_zip" });
         if (picked.status !== "ok") {
           setStatus(se.exportPickFailed, true);
@@ -408,7 +429,14 @@
           setStatus(exported.error.details.message || se.exportFailed, true);
           return;
         }
-        setStatus(se.exportDone(year, exported.payload.export_file), false);
+        setStatus(
+          se.exportDone(
+            String(exported.payload.display_name || seasonName || year),
+            year,
+            exported.payload.export_file
+          ),
+          false
+        );
       });
     }
     document.getElementById("createSeasonBtn").addEventListener("click", async () => {
@@ -443,61 +471,69 @@
         return;
       }
       let imported = await api("import_series_year", { file_path: filePath });
-      if (imported.status === "error" && imported.error.code === "VALIDATION_ERROR") {
-        const detailsMessage = (imported.error.details && imported.error.details.message) || "";
-        if (detailsMessage.includes("already exists")) {
-          const importAsNewYear = window.confirm(se.importConflictAskNewYear);
-          if (importAsNewYear) {
-            const yearRaw = window.prompt(se.importConflictNewYearPrompt, "");
-            if (yearRaw === null) {
-              setStatus(se.importCancelled, false);
-              return;
-            }
-            const targetYear = Number(String(yearRaw).trim());
-            if (!Number.isInteger(targetYear)) {
-              setStatus(se.invalidYear, true);
-              return;
-            }
-            imported = await api("import_series_year", {
-              file_path: filePath,
-              target_series_year: targetYear,
-            });
-          } else {
-            const replaceExisting = window.confirm(se.importConflictAskReplace);
-            if (!replaceExisting) {
-              setStatus(se.importCancelled, false);
-              return;
-            }
-            const yearRaw = window.prompt(se.importConflictReplaceYearPrompt, "");
-            if (yearRaw === null) {
-              setStatus(se.importCancelled, false);
-              return;
-            }
-            const targetYear = Number(String(yearRaw).trim());
-            if (!Number.isInteger(targetYear)) {
-              setStatus(se.invalidYear, true);
-              return;
-            }
-            const confirmTyped = window.prompt(se.importConflictReplaceConfirmPrompt(targetYear), "");
-            if (confirmTyped === null) {
-              setStatus(se.importCancelled, false);
-              return;
-            }
-            imported = await api("import_series_year", {
-              file_path: filePath,
-              target_series_year: targetYear,
-              replace_existing: true,
-              confirm_replace_series_year: Number(String(confirmTyped).trim()),
-            });
+      if (isSeasonImportConflict(imported)) {
+        const importAsNewSeason = window.confirm(se.importConflictAskNewName);
+        if (importAsNewSeason) {
+          const suggestedDisplayName =
+            (imported.error &&
+              imported.error.details &&
+              String(imported.error.details.suggested_display_name || "").trim()) ||
+            "";
+          const displayNameRaw = window.prompt(se.importConflictNewNamePrompt, suggestedDisplayName);
+          if (displayNameRaw === null) {
+            setStatus(se.importCancelled, false);
+            return;
           }
+          const displayName = String(displayNameRaw).trim();
+          if (!displayName) {
+            setStatus(se.invalidSeasonName, true);
+            return;
+          }
+          imported = await api("import_series_year", {
+            file_path: filePath,
+            display_name: displayName,
+          });
+        } else {
+          const replaceExisting = window.confirm(se.importConflictAskReplace);
+          if (!replaceExisting) {
+            setStatus(se.importCancelled, false);
+            return;
+          }
+          const targetNameRaw = window.prompt(se.importConflictReplaceNamePrompt, "");
+          if (targetNameRaw === null) {
+            setStatus(se.importCancelled, false);
+            return;
+          }
+          const targetName = String(targetNameRaw).trim();
+          if (!targetName) {
+            setStatus(se.invalidSeasonName, true);
+            return;
+          }
+          const confirmTyped = window.prompt(se.importConflictReplaceConfirmPrompt(targetName), "");
+          if (confirmTyped === null) {
+            setStatus(se.importCancelled, false);
+            return;
+          }
+          imported = await api("import_series_year", {
+            file_path: filePath,
+            display_name: targetName,
+            replace_existing: true,
+            confirm_replace_display_name: String(confirmTyped).trim(),
+          });
         }
       }
       if (imported.status === "error") {
-        setStatus((imported.error.details && imported.error.details.message) || se.importFailed, true);
+        setStatus(getApiErrorMessage(imported.error, se.importFailed), true);
         return;
       }
       const importedYear = Number(imported.payload.series_year);
-      setStatus(se.importDone(importedYear), false);
+      setStatus(
+        se.importDone(
+          String(imported.payload.display_name || "").trim(),
+          Number.isInteger(importedYear) ? importedYear : null
+        ),
+        false
+      );
       await showSeasonEntry();
     });
   }
