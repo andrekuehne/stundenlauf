@@ -548,6 +548,11 @@ th {
 .merge-review-table .merge-diff-part {
   background: #fff0f0;
   color: #c0392b;
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  font-weight: 600;
+  padding: 0 2px;
 }
 
 .merge-actions-row {

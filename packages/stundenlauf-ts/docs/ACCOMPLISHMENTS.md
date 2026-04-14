@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - F-TS10 legacy frontend API adapter plan created
+- Requirement/Milestone: [R1], [R3], [R5], [R6], [R7], [R8], [M-TS5]
+- What shipped: Added a dedicated feature plan for rewiring the copied legacy frontend onto the TS port through a browser-local compatibility adapter, including a complete live API inventory from `public/legacy/app.js`, phased rollout order, `series_year` aliasing over canonical `season_id`, staged import-review mapping, and explicit treatment of result reassignment and event-sourced history differences.
+- Evidence: `docs/features/F-TS10-legacy-frontend-api-compatibility-adapter.md`, `PROJECT_PLAN.md`
+- Impact: Turns the current frontend-only legacy mount into an execution plan for method-by-method backend restoration without regressing the TS event-sourced architecture or reintroducing year-keyed season identity.
+- Follow-up: Implement the adapter foundation and wire the season entry / overview methods first.
+
 ### 2026-04-14 - Legacy frontend served in frontend-only mode
 - Requirement/Milestone: [R8], migration strategy pivot
 - What shipped: Wired the copied Python frontend assets under `public/legacy/` into the TS app default route via iframe and added a `pywebview` bridge stub so the old UI starts in browser-only mode while backend calls return a consistent unavailable error response.

@@ -1,27 +1,50 @@
 /**
- * Dev/browser bridge shim for the legacy pywebview frontend.
- * The TS port can serve the old frontend before backend wiring exists.
+ * Legacy bridge bootstrapper.
+ *
+ * Load the real TypeScript compatibility adapter first, then execute the
+ * copied legacy frontend script so startup never races against a stubbed
+ * `window.pywebview.api.invoke`.
  */
-(function (global) {
-  function buildUnavailableResponse(request) {
-    return Promise.resolve({
-      status: "error",
-      request_id: request && typeof request.request_id === "string" ? request.request_id : "legacy_stub",
-      error: {
-        code: "backend_unavailable",
-        message:
-          "TS backend wiring is not active yet. This legacy frontend runs in frontend-only mode.",
-      },
-    });
+(function bootstrapLegacyFrontend() {
+  const bridgeReady = import("/src/legacy/bridge-entry.ts").catch(() =>
+    import("../assets/legacy-bridge.js"),
+  );
+
+  function installFallbackBridge() {
+    if (!window.pywebview) {
+      window.pywebview = {};
+    }
+    if (!window.pywebview.api) {
+      window.pywebview.api = {};
+    }
+    window.pywebview.api.invoke = function invokeUnavailable(request) {
+      return Promise.resolve({
+        status: "error",
+        request_id:
+          request && typeof request.request_id === "string"
+            ? request.request_id
+            : "legacy_stub",
+        error: {
+          code: "backend_unavailable",
+          message: "TS backend wiring is not active yet.",
+          details: {
+            message: "TS backend wiring is not active yet.",
+          },
+        },
+      });
+    };
+    window.dispatchEvent(new Event("pywebviewready"));
   }
 
-  if (!global.pywebview) {
-    global.pywebview = {};
+  function loadApp() {
+    const script = document.createElement("script");
+    script.src = "./app.js";
+    document.body.appendChild(script);
   }
-  if (!global.pywebview.api) {
-    global.pywebview.api = {};
-  }
-  if (typeof global.pywebview.api.invoke !== "function") {
-    global.pywebview.api.invoke = buildUnavailableResponse;
-  }
-})(window);
+
+  bridgeReady.then(loadApp).catch((error) => {
+    console.error("Failed to load legacy bridge entry.", error);
+    installFallbackBridge();
+    loadApp();
+  });
+})();

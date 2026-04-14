@@ -2553,6 +2553,9 @@
       if (item.kind === "identity_merge") {
         return fallbackMerge();
       }
+      if (item.kind === "result_reassignment") {
+        return fallbackMerge();
+      }
       if (item.kind === "identity_correction") {
         return fallbackCorrection();
       }
@@ -2594,6 +2597,19 @@
       return `<div class="history-audit-detail">${parts.join("")}</div>`;
     }
 
+    if (it.kind === "result_reassignment") {
+      const parts = [];
+      if (it.category_key) {
+        parts.push(`<div class="history-audit-meta">${esc(hi.auditCategory)}: ${esc(String(it.category_key))}</div>`);
+      }
+      parts.push(actorHtml(hi.auditReassignmentTarget, it.survivor));
+      parts.push(actorHtml(hi.auditReassignmentSource, it.absorbed));
+      if (it.rationale) {
+        parts.push(`<div class="history-audit-meta">${esc(String(it.rationale))}</div>`);
+      }
+      return `<div class="history-audit-detail">${parts.join("")}</div>`;
+    }
+
     if (it.kind === "identity_correction") {
       const parts = [];
       if (it.team_display_name) {
@@ -2621,6 +2637,9 @@
     }
 
     if (item.kind === "identity_merge") {
+      return fallbackMerge();
+    }
+    if (item.kind === "result_reassignment") {
       return fallbackMerge();
     }
     if (item.kind === "identity_correction") {
@@ -2691,13 +2710,21 @@
       if (kind === "identity_merge") {
         return hi.kindIdentityMerge;
       }
+      if (kind === "result_reassignment") {
+        return hi.kindResultReassignment;
+      }
       if (kind === "identity_correction") {
         return hi.kindIdentityCorrection;
       }
       return hi.kindMatchingOther;
     };
     const auditRows = auditItems
-      .filter((item) => item.kind === "identity_merge" || item.kind === "identity_correction")
+      .filter(
+        (item) =>
+          item.kind === "identity_merge" ||
+          item.kind === "identity_correction" ||
+          item.kind === "result_reassignment"
+      )
       .map((item) => {
         const detail = formatHistoryAuditDetail(item, hi);
         return `<tr>
