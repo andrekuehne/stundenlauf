@@ -1,20 +1,15 @@
 import { legacyApiRuntime } from "./api/runtime.ts";
-import type { LegacyApiBridge, LegacyApiRequest } from "./api/types.ts";
+import type { LegacyApiBridge } from "./api/types.ts";
+
+function missingBridge(): never {
+  throw new Error("Legacy bridge has not been installed.");
+}
 
 function ensurePywebview(): LegacyApiBridge {
-  if (!window.pywebview) {
+  if (!window.pywebview?.api) {
     window.pywebview = {
       api: {
-        invoke: (_request: LegacyApiRequest) => {
-          throw new Error("Legacy bridge has not been installed.");
-        },
-      },
-    };
-  }
-  if (!window.pywebview.api) {
-    window.pywebview.api = {
-      invoke: (_request: LegacyApiRequest) => {
-        throw new Error("Legacy bridge has not been installed.");
+        invoke: missingBridge,
       },
     };
   }

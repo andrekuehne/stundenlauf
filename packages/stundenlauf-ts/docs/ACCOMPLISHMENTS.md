@@ -17,6 +17,20 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - Shared matching defaults restored to legacy-friendly review thresholds
+- Requirement/Milestone: [R4], [R6], [M-TS3], [F-TS10]
+- What shipped: Restored the shared matching config defaults to `auto_min = 0.50` and `review_min = 0.50`, while keeping fuzzy mode's perfect-only auto-accept semantics driven by `perfect_match_auto_merge`.
+- Evidence: `src/matching/config.ts`, `tests/matching/score.test.ts`, `src/legacy/api/runtime.ts`, `frontend/app.js`, `docs/features/F-TS03-fuzzy-matching-engine.md`
+- Impact: Fresh legacy-frontend sessions now keep the intended "100% auto, 50% display/review" behavior without relying on persisted browser state, and engine tests now distinguish shared defaults from stricter scenario-specific thresholds.
+- Follow-up: If we later want Python-tuned stricter presets, expose them as named UI presets rather than changing the shared engine baseline.
+
+### 2026-04-14 - F-TS07 season archive portability implemented
+- Requirement/Milestone: [R7], [M-TS6], [F-TS07]
+- What shipped: Added browser-side season archive export/import with `manifest.json` + `eventlog.json`, SHA-256 integrity checks, atomic IndexedDB import/replace writes, and legacy adapter wrappers that keep `series_year` as a compatibility alias while preserving generic season names as canonical identity.
+- Evidence: `src/portability/`, `src/storage/event-store.ts`, `src/services/season-repository.ts`, `src/legacy/api/runtime.ts`, `tests/portability/`, `tests/legacy/runtime.test.ts`, `PROJECT_PLAN.md`, `docs/features/F-TS07-season-data-portability.md`
+- Impact: Users can now back up, move, and restore seasons outside browser storage without reintroducing year-keyed identity into the TS domain model, and imports fail safely on checksum, format, or conflict errors.
+- Follow-up: Reuse the new portability core when the non-legacy TS UI grows dedicated export/import controls.
+
 ### 2026-04-14 - Legacy season UX decoupled from year input
 - Requirement/Milestone: [R8], [M-TS5], [F-TS10]
 - What shipped: Updated the legacy frontend season entry workflow to require a single non-empty season name on create (no separate year/secondary label field), display season names in the list, and require typing that season name for reset/delete confirmation.

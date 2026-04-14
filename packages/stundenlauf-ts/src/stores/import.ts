@@ -9,7 +9,13 @@ import type { SeasonState } from "@/domain/types.ts";
 import { finalizeImport, getReviewQueue, resolveReviewEntry, runMatching, startImport } from "@/import/orchestrator.ts";
 import type { ImportSession, OrchestratedReviewEntry, ReviewAction } from "@/import/types.ts";
 import { detectSourceType, parseRaceNo } from "@/ingestion/helpers.ts";
-import { defaultMatchingConfig, effectiveAutoMin, type MatchingConfig } from "@/matching/config.ts";
+import {
+  DEFAULT_AUTO_MIN,
+  DEFAULT_REVIEW_MIN,
+  defaultMatchingConfig,
+  effectiveAutoMin,
+  type MatchingConfig,
+} from "@/matching/config.ts";
 
 type SourceType = "singles" | "couples";
 type MatchingMode = "strict" | "fuzzy_automatik" | "manuell";
@@ -108,8 +114,8 @@ export const useImportStore = create<ImportStoreState>((set, get) => ({
   sourceType: "singles",
   raceNo: null,
   matchingMode: "fuzzy_automatik",
-  autoThreshold: 0.5,
-  reviewThreshold: 0.5,
+  autoThreshold: DEFAULT_AUTO_MIN,
+  reviewThreshold: DEFAULT_REVIEW_MIN,
   settingsExpanded: true,
   busy: false,
   error: null,
@@ -279,8 +285,8 @@ export const useImportStore = create<ImportStoreState>((set, get) => ({
       sourceType: "singles",
       raceNo: null,
       matchingMode: "fuzzy_automatik",
-      autoThreshold: 0.5,
-      reviewThreshold: 0.5,
+      autoThreshold: DEFAULT_AUTO_MIN,
+      reviewThreshold: DEFAULT_REVIEW_MIN,
       settingsExpanded: true,
       error: null,
     });

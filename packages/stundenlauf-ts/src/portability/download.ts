@@ -1,0 +1,15 @@
+export function triggerDownload(blob: Blob, filename: string): void {
+  if (typeof document === "undefined") {
+    throw new Error("Download ist in dieser Umgebung nicht verfügbar.");
+  }
+
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.style.display = "none";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}

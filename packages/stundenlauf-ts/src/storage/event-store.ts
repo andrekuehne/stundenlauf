@@ -44,6 +44,11 @@ export interface EventStore {
   deleteEventLog(seasonId: string): Promise<void>;
   getWorkspaceSeasons(): Promise<Map<string, SeasonDescriptor>>;
   saveWorkspaceSeasons(seasons: Map<string, SeasonDescriptor>): Promise<void>;
+  saveWorkspaceSeasonsAndEventLog(
+    seasons: Map<string, SeasonDescriptor>,
+    seasonId: string,
+    events: DomainEvent[],
+  ): Promise<void>;
 }
 
 export function createEventStore(db: IDBPDatabase<StundenlaufDB>): EventStore {
@@ -132,6 +137,28 @@ export function createEventStore(db: IDBPDatabase<StundenlaufDB>): EventStore {
         obj[id] = desc;
       }
       await db.put("workspace", { key: "singleton", seasons: obj });
+    },
+
+    async saveWorkspaceSeasonsAndEventLog(
+      seasons: Map<string, SeasonDescriptor>,
+      seasonId: string,
+      events: DomainEvent[],
+    ): Promise<void> {
+      const workspaceRecord: Record<string, SeasonDescriptor> = {};
+      for (const [id, desc] of seasons) {
+        workspaceRecord[id] = desc;
+      }
+
+      const tx = db.transaction(["workspace", "event_logs"], "readwrite");
+      await tx.objectStore("workspace").put({
+        key: "singleton",
+        seasons: workspaceRecord,
+      });
+      await tx.objectStore("event_logs").put({
+        season_id: seasonId,
+        events: [...events],
+      });
+      await tx.done;
     },
   };
 }

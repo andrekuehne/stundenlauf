@@ -5,7 +5,7 @@
 - Feature ID: F-TS07
 - Feature name: Season data portability — export and import of season archives
 - Owner: —
-- Status: Planned
+- Status: Done
 - Related requirement(s): R7 (portable data with browser-local storage and file-based import/export)
 - Related milestone(s): M-TS6
 - Python predecessor(s): F12 (season import/export), `backend/ui_api/workspace.py` (`export_series_year`, `import_series_year`)
@@ -50,19 +50,19 @@ Additionally, the TS port runs entirely in the browser — there are no filesyst
 
 ## Acceptance Criteria
 
-- [ ] `exportSeason(seasonId)` produces a valid `.stundenlauf-season.zip` containing exactly `manifest.json` and `eventlog.json`, triggering a browser download.
-- [ ] The exported `eventlog.json` matches the JSON format defined in F-TS01 Section 7 (`format`, `format_version`, `season_id`, `label`, `events`).
-- [ ] The manifest contains: `format_version`, `exported_at`, `app_version`, `eventlog_format_version`, `season_id`, `label`, `events_total`, `last_event_seq`, `sha256_eventlog`.
-- [ ] `importSeason(file)` validates: ZIP structure (exactly two expected files), manifest schema, `format_version` compatibility, `eventlog_format_version` compatibility, SHA-256 integrity, event log JSON parsability, and `season_id` / `label` presence.
-- [ ] Import with no conflicting season in the workspace succeeds and the season appears in the workspace registry immediately.
-- [ ] Import where the `season_id` already exists in the workspace is rejected by default, with a clear error indicating the conflict.
-- [ ] Import with `replace_existing: true` and `confirm_season_id` matching the target replaces the existing season's event log atomically.
-- [ ] Import into a different season slot (new `season_id` + custom `label`) is supported via an override option.
-- [ ] Failed import never leaves partial data — the existing season (if any) is unchanged, and no orphaned IndexedDB entries are created.
-- [ ] A round-trip test (export → import into empty workspace → replay → compare projected state) produces identical `SeasonState` for all tested scenarios.
-- [ ] Unknown `format_version` or `eventlog_format_version` in the manifest produces an explicit, actionable error (not a silent failure).
-- [ ] All export/import functions are framework-agnostic (pure TS, no React/Zustand imports).
-- [ ] ZIP entries at non-root paths or unexpected filenames are rejected (zip-slip / path-traversal mitigation).
+- [x] `exportSeason(seasonId)` produces a valid `.stundenlauf-season.zip` containing exactly `manifest.json` and `eventlog.json`, triggering a browser download.
+- [x] The exported `eventlog.json` matches the JSON format defined in F-TS01 Section 7 (`format`, `format_version`, `season_id`, `label`, `events`).
+- [x] The manifest contains: `format_version`, `exported_at`, `app_version`, `eventlog_format_version`, `season_id`, `label`, `events_total`, `last_event_seq`, `sha256_eventlog`.
+- [x] `importSeason(file)` validates: ZIP structure (exactly two expected files), manifest schema, `format_version` compatibility, `eventlog_format_version` compatibility, SHA-256 integrity, event log JSON parsability, and `season_id` / `label` presence.
+- [x] Import with no conflicting season in the workspace succeeds and the season appears in the workspace registry immediately.
+- [x] Import where the `season_id` already exists in the workspace is rejected by default, with a clear error indicating the conflict.
+- [x] Import with `replace_existing: true` and `confirm_season_id` matching the target replaces the existing season's event log atomically.
+- [x] Import into a different season slot (new `season_id` + custom `label`) is supported via an override option.
+- [x] Failed import never leaves partial data — the existing season (if any) is unchanged, and no orphaned IndexedDB entries are created.
+- [x] A round-trip test (export → import into empty workspace → replay → compare projected state) produces identical `SeasonState` for all tested scenarios.
+- [x] Unknown `format_version` or `eventlog_format_version` in the manifest produces an explicit, actionable error (not a silent failure).
+- [x] All export/import functions are framework-agnostic (pure TS, no React/Zustand imports).
+- [x] ZIP entries at non-root paths or unexpected filenames are rejected (zip-slip / path-traversal mitigation).
 
 ---
 
@@ -443,12 +443,12 @@ All exports are pure async functions (except `triggerDownload` which touches the
 
 ## Definition of Done
 
-- [ ] Code implemented in TypeScript
-- [ ] Tests added/updated and passing (Vitest)
-- [ ] Types are strict (no `any` escapes without justification)
-- [ ] Docs updated
-- [ ] Entry added to `packages/stundenlauf-ts/docs/ACCOMPLISHMENTS.md`
-- [ ] Requirement/milestone status updated in `packages/stundenlauf-ts/PROJECT_PLAN.md`
+- [x] Code implemented in TypeScript
+- [x] Tests added/updated and passing (Vitest)
+- [x] Types are strict (no `any` escapes without justification)
+- [x] Docs updated
+- [x] Entry added to `packages/stundenlauf-ts/docs/ACCOMPLISHMENTS.md`
+- [x] Requirement/milestone status updated in `packages/stundenlauf-ts/PROJECT_PLAN.md`
 
 ## Links
 

@@ -1,9 +1,10 @@
-import { beforeEach, afterEach, describe, expect, it } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { EXPECTED_HEADER_COUPLES, EXPECTED_HEADER_SINGLES } from "@/ingestion/constants";
 import type { DomainEvent } from "@/domain/events.ts";
 import type { SeasonDescriptor } from "@/domain/types.ts";
 import { LegacyApiRuntime } from "@/legacy/api/runtime.ts";
 import type { LegacyApiRequest, LegacyApiResponse } from "@/legacy/api/types.ts";
+import { buildSeasonArchive } from "@/portability/export-season.ts";
 import {
   getSeasonRepository,
   setSeasonRepositoryForTests,
@@ -24,11 +25,11 @@ class InMemorySeasonRepository implements SeasonRepository {
   private readonly eventLogs = new Map<string, DomainEvent[]>();
   private counter = 0;
 
-  async listSeasons(): Promise<SeasonDescriptor[]> {
-    return [...this.seasons.values()];
+  listSeasons(): Promise<SeasonDescriptor[]> {
+    return Promise.resolve([...this.seasons.values()]);
   }
 
-  async createSeason(label: string): Promise<SeasonDescriptor> {
+  createSeason(label: string): Promise<SeasonDescriptor> {
     const season: SeasonDescriptor = {
       season_id: `season-${++this.counter}`,
       label,
@@ -36,25 +37,38 @@ class InMemorySeasonRepository implements SeasonRepository {
     };
     this.seasons.set(season.season_id, season);
     this.eventLogs.set(season.season_id, []);
-    return season;
+    return Promise.resolve(season);
   }
 
-  async deleteSeason(seasonId: string): Promise<void> {
+  getSeason(seasonId: string): Promise<SeasonDescriptor | null> {
+    return Promise.resolve(this.seasons.get(seasonId) ?? null);
+  }
+
+  deleteSeason(seasonId: string): Promise<void> {
     this.seasons.delete(seasonId);
     this.eventLogs.delete(seasonId);
+    return Promise.resolve();
   }
 
-  async getEventLog(seasonId: string): Promise<DomainEvent[]> {
-    return [...(this.eventLogs.get(seasonId) ?? [])];
+  getEventLog(seasonId: string): Promise<DomainEvent[]> {
+    return Promise.resolve([...(this.eventLogs.get(seasonId) ?? [])]);
   }
 
-  async appendEvents(seasonId: string, events: DomainEvent[]): Promise<void> {
+  appendEvents(seasonId: string, events: DomainEvent[]): Promise<void> {
     const current = this.eventLogs.get(seasonId) ?? [];
     this.eventLogs.set(seasonId, [...current, ...events]);
+    return Promise.resolve();
   }
 
-  async clearEventLog(seasonId: string): Promise<void> {
+  clearEventLog(seasonId: string): Promise<void> {
     this.eventLogs.set(seasonId, []);
+    return Promise.resolve();
+  }
+
+  saveImportedSeason(season: SeasonDescriptor, events: DomainEvent[]): Promise<void> {
+    this.seasons.set(season.season_id, season);
+    this.eventLogs.set(season.season_id, [...events]);
+    return Promise.resolve();
   }
 }
 
@@ -92,7 +106,7 @@ function buildSinglesImportFile(
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
   Object.defineProperty(file, "arrayBuffer", {
-    value: async () => buffer.slice(0),
+    value: () => Promise.resolve(buffer.slice(0)),
   });
   return file;
 }
@@ -106,7 +120,21 @@ function buildCouplesImportFile(
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
   Object.defineProperty(file, "arrayBuffer", {
-    value: async () => buffer.slice(0),
+    value: () => Promise.resolve(buffer.slice(0)),
+  });
+  return file;
+}
+
+async function buildSeasonArchiveFile(
+  repo: SeasonRepository,
+  seasonId: string,
+  name = "season-import.stundenlauf-season.zip",
+): Promise<File> {
+  const archive = await buildSeasonArchive(repo, seasonId, { filename: name });
+  const buffer = archive.zip_bytes.buffer.slice(0);
+  const file = new File([buffer], name, { type: "application/zip" });
+  Object.defineProperty(file, "arrayBuffer", {
+    value: () => Promise.resolve(buffer.slice(0)),
   });
   return file;
 }
@@ -321,6 +349,155 @@ describe("LegacyApiRuntime standings, correction, reassignment, and timeline flo
   });
 });
 
+describe("LegacyApiRuntime season portability compatibility flows", () => {
+  it("exports a season archive through the legacy save-target wrapper", async () => {
+    const runtime = new LegacyApiRuntime();
+    expectOk(
+      await invoke(runtime, "create_series_year", {
+        series_year: 2028,
+        display_name: "Sommerblock A",
+      }),
+    );
+
+    const repo = await getSeasonRepository();
+    const season = (await repo.listSeasons())[0]!;
+    await repo.appendEvents(season.season_id, [importBatchRecorded({ import_batch_id: "batch-export" })]);
+
+    if (!("createObjectURL" in URL)) {
+      Object.defineProperty(URL, "createObjectURL", {
+        value: () => "blob:season-export-test",
+        configurable: true,
+        writable: true,
+      });
+    }
+    if (!("revokeObjectURL" in URL)) {
+      Object.defineProperty(URL, "revokeObjectURL", {
+        value: () => undefined,
+        configurable: true,
+        writable: true,
+      });
+    }
+    const createObjectUrl = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValue("blob:season-export-test");
+    const revokeObjectUrl = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function noop(this: HTMLAnchorElement) {
+        void this;
+      });
+
+    try {
+      const picked = expectOk(
+        await invoke(runtime, "pick_save_file", {
+          suggested_name: "sommerblock-a.stundenlauf-season.zip",
+          dialog_kind: "season_zip",
+        }),
+      );
+      const exported = expectOk(
+        await invoke(runtime, "export_series_year", {
+          series_year: 2028,
+          destination_path: picked.file_path,
+        }),
+      );
+
+      expect(exported.display_name).toBe("Sommerblock A");
+      expect(exported.export_file).toBe("sommerblock-a.stundenlauf-season.zip");
+      expect(exported.events_total).toBe(1);
+      expect(exported.sha256_eventlog).toMatch(/^[0-9a-f]{64}$/);
+      expect(clickSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      clickSpy.mockRestore();
+      revokeObjectUrl.mockRestore();
+      createObjectUrl.mockRestore();
+    }
+  });
+
+  it("imports a generic named season while treating the requested year as an alias only", async () => {
+    const runtime = new LegacyApiRuntime();
+    const sourceRepo = new InMemorySeasonRepository();
+    const sourceSeason = await sourceRepo.createSeason("Trainingsblock Alpha");
+    await sourceRepo.appendEvents(sourceSeason.season_id, [
+      importBatchRecorded({ import_batch_id: "batch-imported" }),
+    ]);
+
+    const archiveFile = await buildSeasonArchiveFile(sourceRepo, sourceSeason.season_id);
+    const filePath = runtime.seedSelectedFileForTests(archiveFile);
+    const imported = expectOk(
+      await invoke(runtime, "import_series_year", {
+        file_path: filePath,
+        target_series_year: 2031,
+      }),
+    );
+
+    const repo = await getSeasonRepository();
+    const seasons = await repo.listSeasons();
+    expect(imported.series_year).toBe(2031);
+    expect(imported.display_name).toBe("Trainingsblock Alpha");
+    expect(seasons).toHaveLength(1);
+    expect(seasons[0]?.label).toBe("Trainingsblock Alpha");
+    expect(await repo.getEventLog(seasons[0]!.season_id)).toHaveLength(1);
+  });
+
+  it("replaces an aliased target season but keeps the imported generic season label", async () => {
+    const runtime = new LegacyApiRuntime();
+    expectOk(
+      await invoke(runtime, "create_series_year", {
+        series_year: 2032,
+        display_name: "Lokale Saison",
+      }),
+    );
+
+    const sourceRepo = new InMemorySeasonRepository();
+    const sourceSeason = await sourceRepo.createSeason("Herbstserie Beta");
+    await sourceRepo.appendEvents(sourceSeason.season_id, [
+      importBatchRecorded({ import_batch_id: "batch-replace" }),
+    ]);
+
+    const archiveFile = await buildSeasonArchiveFile(sourceRepo, sourceSeason.season_id);
+    const filePath = runtime.seedSelectedFileForTests(archiveFile);
+    const imported = expectOk(
+      await invoke(runtime, "import_series_year", {
+        file_path: filePath,
+        target_series_year: 2032,
+        replace_existing: true,
+        confirm_replace_series_year: 2032,
+      }),
+    );
+
+    const repo = await getSeasonRepository();
+    const seasons = await repo.listSeasons();
+    expect(imported.replaced_existing).toBe(true);
+    expect(imported.display_name).toBe("Herbstserie Beta");
+    expect(seasons).toHaveLength(1);
+    expect(seasons[0]?.label).toBe("Herbstserie Beta");
+  });
+
+  it("rejects alias collisions unless replace mode is requested", async () => {
+    const runtime = new LegacyApiRuntime();
+    expectOk(
+      await invoke(runtime, "create_series_year", {
+        series_year: 2033,
+        display_name: "Bestehende Saison",
+      }),
+    );
+
+    const sourceRepo = new InMemorySeasonRepository();
+    const sourceSeason = await sourceRepo.createSeason("Importierte Saison");
+    const archiveFile = await buildSeasonArchiveFile(sourceRepo, sourceSeason.season_id);
+    const filePath = runtime.seedSelectedFileForTests(archiveFile);
+    const response = await invoke(runtime, "import_series_year", {
+      file_path: filePath,
+      target_series_year: 2033,
+    });
+
+    expect(response.status).toBe("error");
+    if (response.status === "error") {
+      expect(response.error.message).toContain("already exists");
+    }
+  });
+});
+
 describe("LegacyApiRuntime staged import review flow", () => {
   it("runs import_race through get_review_queue and apply_match_decision", async () => {
     const runtime = new LegacyApiRuntime();
@@ -516,12 +693,11 @@ describe("LegacyApiRuntime staged import review flow", () => {
     const queue = expectOk(await invoke(runtime, "get_review_queue"));
     const items = queue.items as Array<Record<string, unknown>>;
     expect(items).toHaveLength(1);
-    const displays =
-      (items[0]?.candidate_review_displays as Array<Record<string, unknown> | null>) ?? [];
+    const displays = items[0]!.candidate_review_displays as Array<Record<string, unknown> | null>;
     const firstDisplay = displays[0] as Record<string, unknown>;
-    const lines = (firstDisplay.lines as Array<Record<string, unknown>>) ?? [];
+    const lines = firstDisplay.lines as Array<Record<string, unknown>>;
     expect(lines).toHaveLength(2);
-    expect((lines[0]?.yob as Record<string, unknown>)?.diff).toBe(true);
-    expect((lines[1]?.yob as Record<string, unknown>)?.diff).toBe(true);
+    expect((lines[0]!.yob as Record<string, unknown>).diff).toBe(true);
+    expect((lines[1]!.yob as Record<string, unknown>).diff).toBe(true);
   });
 });

@@ -225,7 +225,7 @@ score ≥ review_min → "review"
 else              → "new_identity"
 ```
 
-Default thresholds: `auto_min = 0.88`, `review_min = 0.72`.
+Default thresholds: `auto_min = 0.50`, `review_min = 0.50`.
 
 ### 5. Scoring: Couples
 
@@ -464,8 +464,8 @@ interface MatchingConfig {
   strict_normalized_auto_only: boolean; // false — "Strikt" mode active
 
   // Thresholds (auto_min is user-facing via slider; review_min is user-facing)
-  auto_min: number;                  // 0.88 — user slider value (only active when auto_merge_enabled)
-  review_min: number;                // 0.72
+  auto_min: number;                  // 0.50 — user slider value (only active when auto_merge_enabled)
+  review_min: number;                // 0.50
 
   // Scoring weights (internal tuning constants)
   yob_match_bonus: number;           // 0.10

@@ -29,7 +29,7 @@ Mapped from the Python version's requirements, adapted for the static-site conte
 - [ ] R4: Implement robust participant/team matching with typo tolerance and configurable thresholds.
 - [ ] R5: Compute cumulative distance/points and produce ranking tables using configurable rules.
 - [ ] R6: Provide interactive review and override for suggested matches before merge.
-- [ ] R7: Keep data portable with browser-local storage and file-based import/export.
+- [x] R7: Keep data portable with browser-local storage and file-based import/export.
 - [ ] R8: Provide German-language UI for display and user workflows.
 
 ## Non-Goals
@@ -85,7 +85,7 @@ Features are prefixed `F-TS` to distinguish from the Python version's `F` prefix
 | F-TS06c | Import orchestration and matching review GUI | M-TS5 | Planned |
 | F-TS06d | Python GUI parity pass (layout + workflow drift correction) | M-TS5 | Done |
 | F-TS06e | Legacy layout parity page (dev-only) | M-TS5 | Done |
-| F-TS07 | Season data portability (JSON/ZIP export and import) | M-TS6 | Planned |
+| F-TS07 | Season data portability (JSON/ZIP export and import) | M-TS6 | Done |
 | F-TS08 | Standings and results export (PDF, Excel) | M-TS6 | Planned |
 | F-TS09 | GitHub Pages deployment and PWA | M-TS7 | Planned |
 | F-TS10 | Legacy frontend API compatibility adapter | M-TS5 | Planned |
@@ -199,6 +199,8 @@ TS version: UI components call domain functions directly. No serialization bound
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-04-14 | Shared matching defaults restored to 50% review baseline | Preserve the legacy frontend's intended fuzzy-default behavior (perfect-only auto acceptance with a 50% review/display threshold) for fresh sessions without requiring persisted browser config |
+| 2026-04-14 | F-TS07 implemented | Added browser-local season archive export/import with manifest + SHA-256 integrity checks, atomic IndexedDB replace/create writes, generic season-name-based conflict handling, and legacy adapter wrappers over browser download/upload |
 | 2026-04-14 | Legacy season entry switched to name-first create/confirm flow | Removed frontend year-first coupling by requiring a non-empty season name for creation, using season name confirmations for reset/delete, and keeping `series_year` aliases internal for compatibility while backend season identity remains label-based |
 | 2026-04-14 | F-TS10 feature plan created | Captured the phased strategy for replacing the legacy pywebview API with a browser-local TS compatibility adapter, including `series_year` aliasing, staged import-review mapping, result reassignment semantics, and event-log timeline synthesis |
 | 2026-04-14 | Legacy frontend mounted in frontend-only mode | Allow immediate reuse of the Python frontend in the TS package while backend API wiring is done incrementally; added browser bridge stub + default legacy mount |

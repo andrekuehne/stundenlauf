@@ -22,6 +22,9 @@ export interface MatchingConfig {
   pair_unsafe_cap: number;
 }
 
+export const DEFAULT_AUTO_MIN = 0.5;
+export const DEFAULT_REVIEW_MIN = 0.5;
+
 export function defaultMatchingConfig(
   overrides?: Partial<MatchingConfig>,
 ): MatchingConfig {
@@ -30,8 +33,8 @@ export function defaultMatchingConfig(
     perfect_match_auto_merge: true,
     strict_normalized_auto_only: false,
 
-    auto_min: 0.5,
-    review_min: 0.5,
+    auto_min: DEFAULT_AUTO_MIN,
+    review_min: DEFAULT_REVIEW_MIN,
 
     yob_match_bonus: 0.1,
     yob_mismatch_penalty: 0.45,

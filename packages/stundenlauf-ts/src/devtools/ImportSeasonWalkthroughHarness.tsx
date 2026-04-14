@@ -12,6 +12,8 @@ import { runMatching } from "@/import/run-matching.ts";
 import { startImport } from "@/import/start-import.ts";
 import type { ImportSession } from "@/import/types.ts";
 import {
+  DEFAULT_AUTO_MIN,
+  DEFAULT_REVIEW_MIN,
   defaultMatchingConfig,
   effectiveAutoMin,
   type MatchingConfig,
@@ -206,8 +208,8 @@ export function ImportSeasonWalkthroughHarness() {
   const [importLog, setImportLog] = useState<ImportLogEntry[]>([]);
   const [selectedReviewDecision, setSelectedReviewDecision] = useState<string>("");
   const [matchingMode, setMatchingMode] = useState<HarnessMatchingMode>("fuzzy_automatik");
-  const [autoThreshold, setAutoThreshold] = useState(0.5);
-  const [reviewThreshold, setReviewThreshold] = useState(0.5);
+  const [autoThreshold, setAutoThreshold] = useState(DEFAULT_AUTO_MIN);
+  const [reviewThreshold, setReviewThreshold] = useState(DEFAULT_REVIEW_MIN);
 
   const matchingConfig = useMemo(
     () => buildMatchingConfig(matchingMode, autoThreshold, reviewThreshold),

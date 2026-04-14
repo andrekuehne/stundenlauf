@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { DomainEvent } from "@/domain/events.ts";
+import type { SeasonDescriptor } from "@/domain/types.ts";
 import {
   createEventStore,
   EventAppendValidationError,
@@ -18,39 +19,75 @@ type EventLogRecord = {
   events: DomainEvent[];
 };
 
+type WorkspaceRecord = {
+  key: "singleton";
+  seasons: Record<string, SeasonDescriptor>;
+};
+
 class InMemoryEventDb {
   readonly eventLogs = new Map<string, EventLogRecord>();
+  workspace: WorkspaceRecord | undefined;
 
-  get(storeName: string, key: string): Promise<EventLogRecord | undefined> {
-    if (storeName !== "event_logs") return Promise.resolve(undefined);
-    return Promise.resolve(this.eventLogs.get(key));
+  get(
+    storeName: string,
+    key: string,
+  ): Promise<EventLogRecord | WorkspaceRecord | undefined> {
+    if (storeName === "event_logs") return Promise.resolve(this.eventLogs.get(key));
+    if (storeName === "workspace" && key === "singleton") return Promise.resolve(this.workspace);
+    return Promise.resolve(undefined);
   }
 
-  put(storeName: string, value: EventLogRecord): Promise<void> {
-    if (storeName !== "event_logs") return Promise.resolve();
-    this.eventLogs.set(value.season_id, {
-      season_id: value.season_id,
-      events: [...value.events],
-    });
+  put(storeName: string, value: EventLogRecord | WorkspaceRecord): Promise<void> {
+    this.putRecord(storeName, value);
     return Promise.resolve();
   }
 
-  transaction(storeName: string, _mode: "readwrite") {
-    if (storeName !== "event_logs") {
-      throw new Error(`Unsupported store: ${storeName}`);
+  private putRecord(storeName: string, value: EventLogRecord | WorkspaceRecord): void {
+    if (storeName === "event_logs") {
+      const record = value as EventLogRecord;
+      this.eventLogs.set(record.season_id, {
+        season_id: record.season_id,
+        events: [...record.events],
+      });
+      return;
     }
-    void _mode;
+    if (storeName === "workspace") {
+      const record = value as WorkspaceRecord;
+      this.workspace = {
+        key: "singleton",
+        seasons: { ...record.seasons },
+      };
+      return;
+    }
+    throw new Error(`Unsupported store: ${storeName}`);
+  }
+
+  private getRecord(storeName: string, key: string): EventLogRecord | WorkspaceRecord | undefined {
+    if (storeName === "event_logs") {
+      return this.eventLogs.get(key);
+    }
+    if (storeName === "workspace" && key === "singleton") {
+      return this.workspace;
+    }
+    return undefined;
+  }
+
+  transaction(storeNames: string | string[], mode: "readwrite") {
+    void mode;
+    const allowed = new Set(Array.isArray(storeNames) ? storeNames : [storeNames]);
     return {
-      objectStore: () => ({
-        get: (key: string) => Promise.resolve(this.eventLogs.get(key)),
-        put: (value: EventLogRecord) => {
-          this.eventLogs.set(value.season_id, {
-            season_id: value.season_id,
-            events: [...value.events],
-          });
-          return Promise.resolve();
-        },
-      }),
+      objectStore: (storeName: string) => {
+        if (!allowed.has(storeName)) {
+          throw new Error(`Unsupported store: ${storeName}`);
+        }
+        return {
+          get: (key: string) => Promise.resolve(this.getRecord(storeName, key)),
+          put: (value: EventLogRecord | WorkspaceRecord) => {
+            this.putRecord(storeName, value);
+            return Promise.resolve();
+          },
+        };
+      },
       done: Promise.resolve(),
     };
   }
@@ -153,5 +190,29 @@ describe("EventStore.appendEvents write barrier", () => {
 
     const persisted = await eventStore.getEventLog(seasonId);
     expect(persisted).toHaveLength(0);
+  });
+});
+
+describe("EventStore atomic workspace import writes", () => {
+  it("persists workspace registry and event log together", async () => {
+    const db = new InMemoryEventDb();
+    const eventStore = createEventStore(db as never);
+    const descriptor: SeasonDescriptor = {
+      season_id: "season-imported",
+      label: "Sommerblock A",
+      created_at: "2026-04-14T18:00:00.000Z",
+    };
+    const events: DomainEvent[] = [importBatchRecorded({ import_batch_id: "batch-import" })];
+
+    await eventStore.saveWorkspaceSeasonsAndEventLog(
+      new Map([[descriptor.season_id, descriptor]]),
+      descriptor.season_id,
+      events,
+    );
+
+    const seasons = await eventStore.getWorkspaceSeasons();
+    const persistedEvents = await eventStore.getEventLog(descriptor.season_id);
+    expect(seasons.get(descriptor.season_id)).toEqual(descriptor);
+    expect(persistedEvents).toEqual(events);
   });
 });

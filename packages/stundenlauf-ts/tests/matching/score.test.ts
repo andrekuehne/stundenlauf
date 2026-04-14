@@ -81,6 +81,7 @@ describe("nameSimilarity", () => {
 
 describe("scorePersonMatch", () => {
   const config = defaultMatchingConfig();
+  const conservativeConfig = defaultMatchingConfig({ auto_min: 0.88, review_min: 0.72 });
 
   it("scores high for exact match with same YOB", () => {
     const inc = parsePersonName("Anna Meyer");
@@ -121,8 +122,8 @@ describe("scorePersonMatch", () => {
       gender: "F",
       club_normalized: "",
     });
-    const [score] = scorePersonMatch(inc, 1990, "", cand, config);
-    expect(score).toBeLessThan(config.auto_min);
+    const [score] = scorePersonMatch(inc, 1990, "", cand, conservativeConfig);
+    expect(score).toBeLessThan(conservativeConfig.auto_min);
   });
 
   it("clamps score between 0 and 1", () => {
@@ -167,7 +168,7 @@ describe("scorePersonMatch", () => {
 });
 
 describe("routeFromScore", () => {
-  const config = defaultMatchingConfig();
+  const config = defaultMatchingConfig({ auto_min: 0.88, review_min: 0.72 });
 
   it("routes auto above auto_min", () => {
     expect(routeFromScore(0.95, config)).toBe("auto");

@@ -24,10 +24,15 @@ import {
   fieldHighlightsForPersonLine,
 } from "@/matching/review-display.ts";
 import { canonicalPersonIdentityFromIncoming, normalizeClub } from "@/matching/normalize.ts";
+import {
+  exportSeason as exportSeasonArchive,
+  importSeason as importSeasonArchive,
+  type ImportSeasonOptions,
+} from "@/portability/index.ts";
 import { applyExclusions, computeStandings, exclusionsForCategory, markExclusions } from "@/ranking/index.ts";
 import { getSeasonRepository, type SeasonRepository } from "@/services/season-repository.ts";
 import { EventAppendValidationError } from "@/storage/event-store.ts";
-import type { LegacyApiErrorResponse, LegacyApiRequest, LegacyApiResponse } from "./types.ts";
+import type { LegacyApiErrorResponse, LegacyApiResponse } from "./types.ts";
 
 const ADAPTER_APP_VERSION = "stundenlauf-ts-legacy-adapter-0.1.0";
 const ALIAS_STORAGE_KEY = "stundenlauf-ts:legacy-season-aliases";
@@ -42,7 +47,12 @@ type SaveRegistryEntry = {
 
 type LegacySeasonAliases = Record<string, number>;
 
-type TimelineItem = Record<string, unknown>;
+interface TimelineItem {
+  timestamp?: string;
+  event_type?: string;
+  race_event_uid?: string;
+  [key: string]: unknown;
+}
 
 interface SeasonSnapshot {
   descriptor: SeasonDescriptor;
@@ -79,7 +89,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function readStorageJson<T>(key: string, fallback: T): T {
   try {
-    const raw = globalThis.localStorage?.getItem(key);
+    const raw = globalThis.localStorage.getItem(key);
     if (!raw) return fallback;
     return JSON.parse(raw) as T;
   } catch {
@@ -89,7 +99,7 @@ function readStorageJson<T>(key: string, fallback: T): T {
 
 function writeStorageJson(key: string, value: unknown): void {
   try {
-    globalThis.localStorage?.setItem(key, JSON.stringify(value));
+    globalThis.localStorage.setItem(key, JSON.stringify(value));
   } catch {
     // ignore persistence failures in compatibility-only storage
   }
@@ -210,9 +220,11 @@ function uniqueAlias(baseYear: number, used: Set<number>): number {
 }
 
 function sortTimeline(items: TimelineItem[]): TimelineItem[] {
-  return items.sort((a, b) =>
-    String(b.timestamp ?? "").localeCompare(String(a.timestamp ?? "")),
-  );
+  return items.sort((a, b) => timelineTimestamp(b).localeCompare(timelineTimestamp(a)));
+}
+
+function timelineTimestamp(item: TimelineItem): string {
+  return item.timestamp ?? "";
 }
 
 function teamMembersForPreview(team: Team, state: SeasonState): LegacyPreviewMember[] {
@@ -220,8 +232,9 @@ function teamMembersForPreview(team: Team, state: SeasonState): LegacyPreviewMem
     .slice(0, 2)
     .map((personId, index) => {
       const person = state.persons.get(personId);
+      const member: LegacyPreviewMember["member"] = index === 0 ? "a" : "b";
       return {
-        member: (index === 0 ? "a" : "b") as "a" | "b",
+        member,
         uid: personId,
         name: person?.display_name ?? personId,
         yob: person?.yob ?? 0,
@@ -327,14 +340,16 @@ function reviewDisplayForCandidate(
   candidatePreview: LegacyEntityPreview,
   candidatePeople: PersonIdentity[],
 ): Record<string, unknown> | null {
+  const incomingDisplayName = incomingPreview.display_name;
+  const incomingYob = typeof incomingPreview.yob === "number" ? incomingPreview.yob : 0;
   if (candidatePreview.kind === "participant") {
     const person = candidatePeople[0];
     if (!person) return null;
     return {
       lines: [
         fieldHighlightsForPersonLine(
-          String(incomingPreview.display_name ?? ""),
-          Number(incomingPreview.yob ?? 0),
+          incomingDisplayName,
+          incomingYob,
           incomingPreview.club ?? null,
           person.display_name,
           person.yob,
@@ -349,7 +364,7 @@ function reviewDisplayForCandidate(
   if (!memberA || !memberB) return null;
   const [, aligned] = alignCoupleMembersForDisplay(
     {
-      display_name: String(incomingPreview.display_name ?? ""),
+      display_name: incomingDisplayName,
       yob: incomingPreview.yob ?? null,
       club: incomingPreview.club ?? null,
     },
@@ -359,7 +374,7 @@ function reviewDisplayForCandidate(
   return {
     lines: buildCoupleLineHighlights(
       {
-        display_name: String(incomingPreview.display_name ?? ""),
+        display_name: incomingDisplayName,
         yob: incomingPreview.yob ?? null,
         club: incomingPreview.club ?? null,
       },
@@ -406,79 +421,87 @@ export class LegacyApiRuntime {
     ...readStorageJson<Partial<MatchingConfig>>(MATCHING_STORAGE_KEY, {}),
   };
 
-  async invoke(request: LegacyApiRequest): Promise<LegacyApiResponse> {
-    if (!request || request.api_version !== "v1" || typeof request.request_id !== "string") {
+  async invoke(request: unknown): Promise<LegacyApiResponse> {
+    if (!isRecord(request)) {
       return errorResponse("legacy_invalid_request", "INVALID_REQUEST", "Ungültige API-Anfrage.");
+    }
+    const requestId = asOptionalString(request.request_id) ?? "legacy_invalid_request";
+    if (request.api_version !== "v1") {
+      return errorResponse(requestId, "INVALID_REQUEST", "Ungültige API-Anfrage.");
     }
     if (typeof request.method !== "string" || !isRecord(request.payload)) {
       return errorResponse(
-        request.request_id,
+        requestId,
         "INVALID_REQUEST",
         "Ungültige API-Anfrage.",
       );
     }
+    const payload = request.payload;
+    const method = request.method;
 
     try {
-      switch (request.method) {
+      switch (method) {
         case "list_series_years":
-          return ok(request.request_id, { items: await this.listSeriesYears() });
+          return ok(requestId, { items: await this.listSeriesYears() });
         case "create_series_year":
-          return ok(request.request_id, await this.createSeriesYear(request.payload));
+          return ok(requestId, await this.createSeriesYear(payload));
         case "open_series_year":
-          return ok(request.request_id, await this.openSeriesYear(request.payload));
+          return ok(requestId, await this.openSeriesYear(payload));
         case "delete_series_year":
-          return ok(request.request_id, await this.deleteSeriesYear(request.payload));
+          return ok(requestId, await this.deleteSeriesYear(payload));
         case "reset_series_year":
-          return ok(request.request_id, await this.resetSeriesYear(request.payload));
+          return ok(requestId, await this.resetSeriesYear(payload));
         case "get_year_overview":
-          return ok(request.request_id, await this.getYearOverview(request.payload));
+          return ok(requestId, await this.getYearOverview(payload));
         case "get_matching_config":
-          return ok(request.request_id, this.matchingConfigPayload());
+          return ok(requestId, this.matchingConfigPayload());
         case "set_matching_config":
-          return ok(request.request_id, this.setMatchingConfig(request.payload));
+          return ok(requestId, this.setMatchingConfig(payload));
         case "get_standings":
-          return ok(request.request_id, await this.getStandings(request.payload));
+          return ok(requestId, await this.getStandings(payload));
         case "get_category_current_results_table":
-          return ok(request.request_id, await this.getCategoryCurrentResultsTable(request.payload));
+          return ok(requestId, await this.getCategoryCurrentResultsTable(payload));
         case "set_ranking_eligibility":
-          return ok(request.request_id, await this.setRankingEligibility(request.payload));
+          return ok(requestId, await this.setRankingEligibility(payload));
         case "update_participant_identity":
-          return ok(request.request_id, await this.updateParticipantIdentity(request.payload));
+          return ok(requestId, await this.updateParticipantIdentity(payload));
         case "merge_standings_entities":
-          return ok(request.request_id, await this.mergeStandingsEntities(request.payload));
+          return ok(requestId, await this.mergeStandingsEntities(payload));
         case "get_year_timeline":
-          return ok(request.request_id, await this.getYearTimeline(request.payload));
+          return ok(requestId, await this.getYearTimeline(payload));
         case "rollback_source_batch":
-          return ok(request.request_id, await this.rollbackSourceBatch(request.payload));
+          return ok(requestId, await this.rollbackSourceBatch(payload));
         case "pick_file":
-          return ok(request.request_id, await this.pickFile(request.payload));
+          return ok(requestId, await this.pickFile(payload));
         case "pick_save_file":
-          return ok(request.request_id, this.pickSaveFile(request.payload));
+          return ok(requestId, this.pickSaveFile(payload));
         case "import_race":
-          return ok(request.request_id, await this.importRace(request.payload));
+          return ok(requestId, await this.importRace(payload));
         case "get_review_queue":
-          return ok(request.request_id, await this.reviewQueuePayload());
+          return ok(requestId, await this.reviewQueuePayload());
         case "apply_match_decision":
-          return ok(request.request_id, await this.applyMatchDecision(request.payload));
+          return ok(requestId, await this.applyMatchDecision(payload));
         case "list_pdf_export_layout_presets":
-          return ok(request.request_id, { presets: [] });
+          return ok(requestId, { presets: [] });
         case "export_series_year":
+          return ok(requestId, await this.exportSeriesYear(payload));
         case "import_series_year":
+          return ok(requestId, await this.importSeriesYear(payload));
         case "export_standings_pdf":
           return errorResponse(
-            request.request_id,
+            requestId,
             "NOT_IMPLEMENTED",
             "Diese Funktion ist im TypeScript-Port noch nicht implementiert.",
           );
         default:
           return errorResponse(
-            request.request_id,
+            requestId,
             "UNKNOWN_METHOD",
-            `Unbekannte Methode: ${request.method}`,
+            `Unbekannte Methode: ${method}`,
           );
       }
     } catch (error) {
-      return this.mapError(request.request_id, error);
+      return this.mapError(requestId, error);
     }
   }
 
@@ -494,10 +517,13 @@ export class LegacyApiRuntime {
     writeStorageJson(ALIAS_STORAGE_KEY, aliases);
   }
 
-  private async ensureAliases(seasons: SeasonDescriptor[]): Promise<LegacySeasonAliases> {
-    const aliases = { ...this.loadAliases() };
+  private ensureAliases(seasons: SeasonDescriptor[]): LegacySeasonAliases {
+    const knownSeasonIds = new Set(seasons.map((season) => season.season_id));
+    const aliases = Object.fromEntries(
+      Object.entries(this.loadAliases()).filter(([seasonId]) => knownSeasonIds.has(seasonId)),
+    ) as LegacySeasonAliases;
     const used = new Set<number>(Object.values(aliases));
-    let changed = false;
+    let changed = Object.keys(aliases).length !== Object.keys(this.loadAliases()).length;
 
     for (const season of seasons) {
       if (aliases[season.season_id] != null) continue;
@@ -506,13 +532,6 @@ export class LegacyApiRuntime {
       aliases[season.season_id] = next;
       used.add(next);
       changed = true;
-    }
-
-    for (const seasonId of Object.keys(aliases)) {
-      if (!seasons.some((season) => season.season_id === seasonId)) {
-        delete aliases[seasonId];
-        changed = true;
-      }
     }
 
     if (changed) {
@@ -524,7 +543,7 @@ export class LegacyApiRuntime {
   private async resolveSeasonId(seriesYear: number): Promise<string> {
     const repo = await this.repository();
     const seasons = await repo.listSeasons();
-    const aliases = await this.ensureAliases(seasons);
+    const aliases = this.ensureAliases(seasons);
     const seasonId = Object.entries(aliases).find(([, year]) => year === seriesYear)?.[0] ?? null;
     if (!seasonId) {
       throw new Error(`Saison ${seriesYear} wurde nicht gefunden.`);
@@ -587,7 +606,7 @@ export class LegacyApiRuntime {
   private async listSeriesYears(): Promise<Record<string, unknown>[]> {
     const repo = await this.repository();
     const seasons = await repo.listSeasons();
-    const aliases = await this.ensureAliases(seasons);
+    const aliases = this.ensureAliases(seasons);
 
     const items = await Promise.all(
       seasons.map(async (season) => {
@@ -598,12 +617,12 @@ export class LegacyApiRuntime {
         );
         const singlesRaceNumbers = [...new Set(
           activeRaces
-            .filter((race) => !String(race.category.division).startsWith("couples_"))
+            .filter((race) => !race.category.division.startsWith("couples_"))
             .map((race) => race.race_no),
         )].sort((a, b) => a - b);
         const couplesRaceNumbers = [...new Set(
           activeRaces
-            .filter((race) => String(race.category.division).startsWith("couples_"))
+            .filter((race) => race.category.division.startsWith("couples_"))
             .map((race) => race.race_no),
         )].sort((a, b) => a - b);
         const maxRaceNo = Math.max(5, ...singlesRaceNumbers, ...couplesRaceNumbers, 0);
@@ -629,9 +648,7 @@ export class LegacyApiRuntime {
       }),
     );
 
-    return items.sort(
-      (a, b) => Number(a.series_year ?? 0) - Number(b.series_year ?? 0),
-    );
+    return items.sort((a, b) => (a.series_year ?? 0) - (b.series_year ?? 0));
   }
 
   private async createSeriesYear(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -645,7 +662,7 @@ export class LegacyApiRuntime {
 
     const repo = await this.repository();
     const seasons = await repo.listSeasons();
-    const aliases = await this.ensureAliases(seasons);
+    const aliases = this.ensureAliases(seasons);
     if (requestedYear != null && Object.values(aliases).includes(requestedYear)) {
       throw new Error(`Saison ${requestedYear} existiert bereits.`);
     }
@@ -654,7 +671,7 @@ export class LegacyApiRuntime {
     const assignedYear =
       requestedYear ??
       (Object.values(aliases).length > 0
-        ? Math.max(...Object.values(aliases).map((value) => Number(value) || 0)) + 1
+        ? Math.max(...Object.values(aliases).map((value) => value || 0)) + 1
         : 1);
     this.saveAliases({
       ...aliases,
@@ -693,8 +710,10 @@ export class LegacyApiRuntime {
     const repo = await this.repository();
     await repo.deleteSeason(seasonId);
     const aliases = this.loadAliases();
-    delete aliases[seasonId];
-    this.saveAliases(aliases);
+    const remainingAliases = Object.fromEntries(
+      Object.entries(aliases).filter(([aliasSeasonId]) => aliasSeasonId !== seasonId),
+    );
+    this.saveAliases(remainingAliases);
     if (this.activeSeasonId === seasonId) {
       this.activeSeasonId = null;
       this.pendingImport = null;
@@ -744,7 +763,7 @@ export class LegacyApiRuntime {
           },
         ];
       }),
-    ).values()].sort((a, b) => String(a.category_label).localeCompare(String(b.category_label), "de"));
+    ).values()].sort((a, b) => a.category_label.localeCompare(b.category_label, "de"));
 
     const raceHistoryGroups = categories.map((category) => ({
       category_key: category.category_key,
@@ -1162,7 +1181,7 @@ export class LegacyApiRuntime {
     );
     const filtered = items.filter((item) => {
       if (item.event_type !== "race_import") return true;
-      return effectiveRaceIds.has(String(item.race_event_uid ?? ""));
+      return typeof item.race_event_uid === "string" && effectiveRaceIds.has(item.race_event_uid);
     });
 
     const limit = asInteger(payload.limit) ?? filtered.length;
@@ -1265,10 +1284,99 @@ export class LegacyApiRuntime {
     return file;
   }
 
+  private resolveSaveTarget(filePath: string): SaveRegistryEntry | null {
+    const match = filePath.match(/^legacy:\/\/save\/([^/]+)\//);
+    const token = match?.[1];
+    if (!token) {
+      return null;
+    }
+    return this.saveTargets.get(token) ?? null;
+  }
+
   seedSelectedFileForTests(file: File): string {
     const token = crypto.randomUUID();
     this.selectedFiles.set(token, file);
     return `legacy://file/${token}/${file.name}`;
+  }
+
+  private async exportSeriesYear(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const requestedYear = asInteger(payload.series_year);
+    if (requestedYear == null) {
+      throw new Error("Bitte eine gültige Saison wählen.");
+    }
+
+    const seasonId = await this.resolveSeasonId(requestedYear);
+    const destinationPath = asString(payload.destination_path).trim();
+    const saveTarget = this.resolveSaveTarget(destinationPath);
+    const repo = await this.repository();
+    const exported = await exportSeasonArchive(repo, seasonId, {
+      filename: saveTarget?.suggestedName,
+    });
+
+    return {
+      series_year: requestedYear,
+      season_id: exported.season_id,
+      display_name: exported.label,
+      export_file: saveTarget?.suggestedName ?? exported.filename,
+      bytes_written: exported.bytes_written,
+      events_total: exported.events_total,
+      sha256_eventlog: exported.sha256_eventlog,
+    };
+  }
+
+  private async importSeriesYear(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const file = this.resolvePickedFile(asString(payload.file_path).trim());
+    const repo = await this.repository();
+    const seasons = await repo.listSeasons();
+    const aliases = this.ensureAliases(seasons);
+    const targetYear = asInteger(payload.target_series_year);
+    const replaceExisting = Boolean(payload.replace_existing);
+    const options: ImportSeasonOptions = {};
+    const displayName = asOptionalString(payload.display_name);
+    if (displayName) {
+      options.targetLabel = displayName;
+    }
+
+    if (targetYear != null) {
+      const existingSeasonId =
+        Object.entries(aliases).find(([, year]) => year === targetYear)?.[0] ?? null;
+      if (existingSeasonId) {
+        if (!replaceExisting) {
+          throw new Error(
+            `Season alias "${targetYear}" already exists. Use replace_existing=true to overwrite.`,
+          );
+        }
+        const confirmYear = asInteger(payload.confirm_replace_series_year);
+        if (confirmYear !== targetYear) {
+          throw new Error("Saison-Ersetzung nicht bestätigt.");
+        }
+        options.targetSeasonId = existingSeasonId;
+        options.replaceExisting = true;
+        options.confirmSeasonId = existingSeasonId;
+      } else {
+        if (replaceExisting) {
+          throw new Error(`Saison ${targetYear} wurde nicht gefunden.`);
+        }
+        options.targetSeasonId = crypto.randomUUID();
+      }
+    }
+
+    const imported = await importSeasonArchive(repo, file, options);
+    const seasonsAfter = await repo.listSeasons();
+    const nextAliases = this.ensureAliases(seasonsAfter);
+    if (targetYear != null) {
+      nextAliases[imported.season_id] = targetYear;
+      this.saveAliases(nextAliases);
+    }
+
+    return {
+      series_year: nextAliases[imported.season_id] ?? targetYear,
+      season_id: imported.season_id,
+      display_name: imported.label,
+      replaced_existing: imported.replaced_existing,
+      events_total: imported.events_imported,
+      source_file: file.name,
+    };
   }
 
   private async importRace(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -1440,7 +1548,7 @@ export class LegacyApiRuntime {
       action = { type: "link_existing", team_id: teamId };
     }
 
-    let session = resolveReviewEntry(this.pendingImport.session, entryUid, action);
+    const session = resolveReviewEntry(this.pendingImport.session, entryUid, action);
     const repo = await this.repository();
     if (session.phase === "committing") {
       const snapshot = await this.getSnapshotBySeasonId(this.pendingImport.seasonId);

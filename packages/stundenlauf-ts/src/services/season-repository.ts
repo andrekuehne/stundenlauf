@@ -6,11 +6,13 @@ import { createEventStore } from "@/storage/event-store.ts";
 
 export interface SeasonRepository {
   listSeasons(): Promise<SeasonDescriptor[]>;
+  getSeason(seasonId: string): Promise<SeasonDescriptor | null>;
   createSeason(label: string): Promise<SeasonDescriptor>;
   deleteSeason(seasonId: string): Promise<void>;
   getEventLog(seasonId: string): Promise<DomainEvent[]>;
   appendEvents(seasonId: string, events: DomainEvent[]): Promise<void>;
   clearEventLog(seasonId: string): Promise<void>;
+  saveImportedSeason(season: SeasonDescriptor, events: DomainEvent[]): Promise<void>;
 }
 
 let singleton: SeasonRepository | null = null;
@@ -23,6 +25,11 @@ async function buildRepository(): Promise<SeasonRepository> {
     async listSeasons() {
       const seasonsMap = await eventStore.getWorkspaceSeasons();
       return [...seasonsMap.values()].sort((a, b) => a.label.localeCompare(b.label, "de"));
+    },
+
+    async getSeason(seasonId) {
+      const seasonsMap = await eventStore.getWorkspaceSeasons();
+      return seasonsMap.get(seasonId) ?? null;
     },
 
     async createSeason(label) {
@@ -54,6 +61,13 @@ async function buildRepository(): Promise<SeasonRepository> {
 
     async clearEventLog(seasonId) {
       await eventStore.writeEventLog(seasonId, "", []);
+    },
+
+    async saveImportedSeason(season, events) {
+      const seasonsMap = await eventStore.getWorkspaceSeasons();
+      const nextSeasons = new Map(seasonsMap);
+      nextSeasons.set(season.season_id, season);
+      await eventStore.saveWorkspaceSeasonsAndEventLog(nextSeasons, season.season_id, events);
     },
   };
 }

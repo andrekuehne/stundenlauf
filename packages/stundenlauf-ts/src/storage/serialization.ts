@@ -23,6 +23,7 @@ export function serializeEventLog(
   seasonId: string,
   label: string,
   events: readonly DomainEvent[],
+  options: { pretty?: boolean } = {},
 ): string {
   const archive: SeasonArchive = {
     format: EXPECTED_FORMAT,
@@ -31,7 +32,7 @@ export function serializeEventLog(
     label,
     events: [...events],
   };
-  return JSON.stringify(archive, null, 2);
+  return JSON.stringify(archive, null, options.pretty === false ? undefined : 2);
 }
 
 export function deserializeEventLog(json: string): SeasonArchive {
