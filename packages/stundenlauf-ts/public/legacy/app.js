@@ -278,7 +278,7 @@
       .map(
         (item) =>
           `<tr>
-            <td>${item.series_year}</td>
+            <td>${escapeHtml(item.display_name || String(item.series_year))}</td>
             <td>${item.review_queue_count}</td>
             <td>${formatSeasonTimestamp(item.latest_imported_at)}</td>
             <td class="season-coverage-col">${renderImportedRunsMatrix(normalizeCoverage(item.race_coverage), { compact: true })}</td>
@@ -286,8 +286,8 @@
               <div class="row">
                 <button class="secondary" data-open-year="${item.series_year}">${se.openSeason}</button>
                 <button class="secondary" data-export-year="${item.series_year}">⇪ ${se.exportSeason}</button>
-                <button class="secondary" data-reset-year="${item.series_year}" title="${se.resetSeasonTitle}">↺ ${se.resetSeason}</button>
-                <button class="danger" data-delete-year="${item.series_year}" title="${se.deleteSeasonTitle}">🗑 ${se.deleteSeason}</button>
+                <button class="secondary" data-reset-year="${item.series_year}" data-season-name="${escapeHtml(item.display_name || String(item.series_year))}" title="${se.resetSeasonTitle}">↺ ${se.resetSeason}</button>
+                <button class="danger" data-delete-year="${item.series_year}" data-season-name="${escapeHtml(item.display_name || String(item.series_year))}" title="${se.deleteSeasonTitle}">🗑 ${se.deleteSeason}</button>
               </div>
             </td>
           </tr>`
@@ -309,10 +309,8 @@
           <h3>${se.newHeading}</h3>
           <p class="hint">${se.newHint}</p>
           <div class="season-entry-form-grid">
-            <label for="newYearInput" class="season-entry-form-label">${se.labelYear}</label>
-            <input id="newYearInput" type="number" placeholder="${se.placeholderYear}" />
-            <label for="newNameInput" class="season-entry-form-label">${se.labelDisplayName}</label>
-            <input id="newNameInput" type="text" placeholder="${se.placeholderDisplayName}" />
+            <label for="newSeasonNameInput" class="season-entry-form-label">${se.labelSeasonName}</label>
+            <input id="newSeasonNameInput" type="text" placeholder="${se.placeholderSeasonName}" />
           </div>
           <div class="row season-entry-form-actions">
             <button id="createSeasonBtn" class="primary">${se.createSeason}</button>
@@ -331,50 +329,52 @@
     for (const button of seasonEntryView.querySelectorAll("button[data-delete-year]")) {
       button.addEventListener("click", async () => {
         const year = Number(button.getAttribute("data-delete-year"));
-        const warningAccepted = window.confirm(se.deleteConfirm(year));
+        const seasonName = String(button.getAttribute("data-season-name") || year);
+        const warningAccepted = window.confirm(se.deleteConfirm(seasonName));
         if (!warningAccepted) {
           return;
         }
-        const typed = window.prompt(se.deletePrompt(year), "");
+        const typed = window.prompt(se.deletePrompt(seasonName), "");
         if (typed === null) {
           return;
         }
-        const confirmedYear = Number(String(typed).trim());
-        if (!Number.isInteger(confirmedYear) || confirmedYear !== year) {
-          setStatus(se.deleteInputMismatch(year), true);
+        const confirmedName = String(typed).trim();
+        if (confirmedName !== seasonName) {
+          setStatus(se.deleteInputMismatch(seasonName), true);
           return;
         }
         const deleted = await api("delete_series_year", {
           series_year: year,
-          confirm_series_year: confirmedYear,
+          confirm_series_year: year,
         });
         if (deleted.status === "error") {
           setStatus(deleted.error.details.message || se.deleteFailed, true);
           return;
         }
-        setStatus(se.deleteDone(year));
+        setStatus(se.deleteDone(seasonName));
         await showSeasonEntry();
       });
     }
     for (const button of seasonEntryView.querySelectorAll("button[data-reset-year]")) {
       button.addEventListener("click", async () => {
         const year = Number(button.getAttribute("data-reset-year"));
-        const warningAccepted = window.confirm(se.resetConfirm(year));
+        const seasonName = String(button.getAttribute("data-season-name") || year);
+        const warningAccepted = window.confirm(se.resetConfirm(seasonName));
         if (!warningAccepted) {
           return;
         }
-        const typed = window.prompt(se.resetPrompt(year), "");
+        const typed = window.prompt(se.resetPrompt(seasonName), "");
         if (typed === null) {
           return;
         }
-        const confirmedYear = Number(String(typed).trim());
-        if (!Number.isInteger(confirmedYear) || confirmedYear !== year) {
-          setStatus(se.resetInputMismatch(year), true);
+        const confirmedName = String(typed).trim();
+        if (confirmedName !== seasonName) {
+          setStatus(se.resetInputMismatch(seasonName), true);
           return;
         }
         const reset = await api("reset_series_year", {
           series_year: year,
-          confirm_series_year: confirmedYear,
+          confirm_series_year: year,
         });
         if (reset.status === "error") {
           setStatus(reset.error.details.message || se.resetFailed, true);
@@ -383,7 +383,7 @@
         if (state.seriesYear === year) {
           resetImportDraft();
         }
-        setStatus(se.resetDone(year));
+        setStatus(se.resetDone(seasonName));
         await showSeasonEntry();
       });
     }
@@ -412,20 +412,24 @@
       });
     }
     document.getElementById("createSeasonBtn").addEventListener("click", async () => {
-      const yearInput = document.getElementById("newYearInput");
-      const nameInput = document.getElementById("newNameInput");
-      const year = Number(yearInput.value);
-      if (!Number.isInteger(year)) {
-        setStatus(se.invalidYear, true);
+      const nameInput = document.getElementById("newSeasonNameInput");
+      const seasonName = String(nameInput.value || "").trim();
+      if (!seasonName) {
+        setStatus(se.invalidSeasonName, true);
         return;
       }
-      const created = await api("create_series_year", { series_year: year, display_name: nameInput.value });
+      const created = await api("create_series_year", { display_name: seasonName });
       if (created.status === "error") {
         setStatus(created.error.details.message || se.createFailed, true);
         return;
       }
-      setStatus(se.createDone);
-      await openSeason(year);
+      const createdYear = Number(created.payload && created.payload.series_year);
+      if (!Number.isInteger(createdYear)) {
+        setStatus(se.openFailed, true);
+        return;
+      }
+      setStatus(se.createDone(seasonName));
+      await openSeason(createdYear);
       switchView("import");
     });
     document.getElementById("importSeasonBtn").addEventListener("click", async () => {

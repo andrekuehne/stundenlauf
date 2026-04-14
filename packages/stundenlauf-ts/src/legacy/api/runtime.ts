@@ -636,26 +636,32 @@ export class LegacyApiRuntime {
 
   private async createSeriesYear(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
     const requestedYear = asInteger(payload.series_year);
-    if (requestedYear == null) {
-      throw new Error("Bitte eine gültige Saisonzahl angeben.");
+    const seasonLabel =
+      asOptionalString(payload.display_name) ??
+      (requestedYear != null ? `Stundenlauf ${requestedYear}` : null);
+    if (!seasonLabel) {
+      throw new Error("Bitte einen Saisonnamen angeben.");
     }
 
     const repo = await this.repository();
     const seasons = await repo.listSeasons();
     const aliases = await this.ensureAliases(seasons);
-    if (Object.values(aliases).includes(requestedYear)) {
+    if (requestedYear != null && Object.values(aliases).includes(requestedYear)) {
       throw new Error(`Saison ${requestedYear} existiert bereits.`);
     }
 
-    const displayName =
-      asOptionalString(payload.display_name) ?? `Stundenlauf ${requestedYear}`;
-    const created = await repo.createSeason(displayName);
+    const created = await repo.createSeason(seasonLabel);
+    const assignedYear =
+      requestedYear ??
+      (Object.values(aliases).length > 0
+        ? Math.max(...Object.values(aliases).map((value) => Number(value) || 0)) + 1
+        : 1);
     this.saveAliases({
       ...aliases,
-      [created.season_id]: requestedYear,
+      [created.season_id]: assignedYear,
     });
     return {
-      series_year: requestedYear,
+      series_year: assignedYear,
       season_id: created.season_id,
       display_name: created.label,
     };

@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - Legacy season UX decoupled from year input
+- Requirement/Milestone: [R8], [M-TS5], [F-TS10]
+- What shipped: Updated the legacy frontend season entry workflow to require a single non-empty season name on create (no separate year/secondary label field), display season names in the list, and require typing that season name for reset/delete confirmation.
+- Evidence: `public/legacy/app.js`, `public/legacy/strings.js`, `src/legacy/api/runtime.ts`, `tests/legacy/runtime.test.ts`
+- Impact: Aligns the reused legacy UI with backend season identity semantics (name-based, not year-coupled) while preserving compatibility aliases for existing legacy API calls.
+- Follow-up: Migrate remaining legacy API surfaces from `series_year` alias-first semantics toward canonical `season_id` where feasible.
+
 ### 2026-04-14 - F-TS10 legacy frontend API adapter plan created
 - Requirement/Milestone: [R1], [R3], [R5], [R6], [R7], [R8], [M-TS5]
 - What shipped: Added a dedicated feature plan for rewiring the copied legacy frontend onto the TS port through a browser-local compatibility adapter, including a complete live API inventory from `public/legacy/app.js`, phased rollout order, `series_year` aliasing over canonical `season_id`, staged import-review mapping, and explicit treatment of result reassignment and event-sourced history differences.

@@ -66,7 +66,7 @@
       newHeading: "Neue Saison anlegen",
       noSeasonsYet: "Noch keine Saison vorhanden.",
       newHint: "Legen Sie eine Saison an und starten Sie mit dem ersten Import.",
-      tableYear: "Jahr",
+      tableYear: "Saison",
       tableRaces: "Läufe",
       tableReview: "Prüfungen offen",
       tableLastImport: "Letzter Import",
@@ -77,10 +77,8 @@
       resetSeasonTitle: "Saisoninhalt zurücksetzen",
       deleteSeason: "Löschen",
       deleteSeasonTitle: "Saison löschen",
-      labelYear: "Jahr",
-      placeholderYear: "Beispiel: 2026",
-      labelDisplayName: "Bezeichnung (optional)",
-      placeholderDisplayName: "z. B. Stundenlauf 2026",
+      labelSeasonName: "Saisonname",
+      placeholderSeasonName: "z. B. Sommerlauf 2026",
       createSeason: "Neue Saison erstellen",
       importSeason: "Saison importieren",
       exportSeason: "Export",
@@ -89,31 +87,32 @@
       listLoadHint: "Bitte starten Sie die Anwendung neu.",
       apiNotReady: "Verbindung zur Desktop-API ist noch nicht bereit.",
       apiNotReadyHint: "Bitte warten Sie kurz oder starten Sie die Anwendung neu.",
-      deleteConfirm: (year) =>
-        `Achtung: Die Saison ${year} wird dauerhaft gelöscht.\n` +
+      deleteConfirm: (seasonName) =>
+        `Achtung: Die Saison "${seasonName}" wird dauerhaft gelöscht.\n` +
         "Alle Läufe, Prüfdaten und Wertungen dieser Saison gehen verloren.\n\n" +
         "Möchten Sie fortfahren?",
-      deletePrompt: (year) =>
-        `Sicherheitsabfrage: Bitte geben Sie ${year} ein, um die Löschung zu bestätigen.`,
-      deleteInputMismatch: (year) =>
-        `Löschung abgebrochen: Die Eingabe muss exakt ${year} sein.`,
+      deletePrompt: (seasonName) =>
+        `Sicherheitsabfrage: Bitte geben Sie "${seasonName}" ein, um die Löschung zu bestätigen.`,
+      deleteInputMismatch: (seasonName) =>
+        `Löschung abgebrochen: Die Eingabe muss exakt "${seasonName}" sein.`,
       deleteFailed: "Saison konnte nicht gelöscht werden.",
-      deleteDone: (year) => `Saison ${year} wurde gelöscht.`,
-      resetConfirm: (year) =>
-        `Achtung: Alle Daten der Saison ${year} werden dauerhaft zurückgesetzt.\n` +
+      deleteDone: (seasonName) => `Saison "${seasonName}" wurde gelöscht.`,
+      resetConfirm: (seasonName) =>
+        `Achtung: Alle Daten der Saison "${seasonName}" werden dauerhaft zurückgesetzt.\n` +
         "Alle Läufe, Prüfdaten, Zuordnungen und Wertungen werden geleert.\n" +
-        "Das Saisonjahr bleibt bestehen.\n\n" +
+        "Die Saison selbst bleibt bestehen.\n\n" +
         "Tipp: Erstellen Sie vorher einen Export als Sicherung.\n\n" +
         "Möchten Sie fortfahren?",
-      resetPrompt: (year) =>
-        `Sicherheitsabfrage: Bitte geben Sie ${year} ein, um das Zurücksetzen zu bestätigen.`,
-      resetInputMismatch: (year) =>
-        `Zurücksetzen abgebrochen: Die Eingabe muss exakt ${year} sein.`,
+      resetPrompt: (seasonName) =>
+        `Sicherheitsabfrage: Bitte geben Sie "${seasonName}" ein, um das Zurücksetzen zu bestätigen.`,
+      resetInputMismatch: (seasonName) =>
+        `Zurücksetzen abgebrochen: Die Eingabe muss exakt "${seasonName}" sein.`,
       resetFailed: "Saison konnte nicht zurückgesetzt werden.",
-      resetDone: (year) => `Saison ${year} wurde zurückgesetzt.`,
+      resetDone: (seasonName) => `Saison "${seasonName}" wurde zurückgesetzt.`,
+      invalidSeasonName: "Bitte einen Saisonnamen eingeben.",
       invalidYear: "Bitte geben Sie ein gültiges Jahr ein.",
       createFailed: "Saison konnte nicht angelegt werden.",
-      createDone: "Saison wurde angelegt. Sie können jetzt den ersten Lauf importieren.",
+      createDone: (seasonName) => `Saison "${seasonName}" wurde angelegt. Sie können jetzt den ersten Lauf importieren.`,
       openFailed: "Saison konnte nicht geöffnet werden.",
       exportPickFailed: "Zielpfad für den Export konnte nicht gewählt werden.",
       exportFailed: "Saison konnte nicht exportiert werden.",

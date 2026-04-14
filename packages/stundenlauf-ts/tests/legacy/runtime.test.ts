@@ -154,6 +154,23 @@ describe("LegacyApiRuntime season and overview flows", () => {
     expect(overview.race_history_groups).toEqual([]);
     expect((overview.totals as Record<string, unknown>).review_queue).toBe(0);
   });
+
+  it("creates seasons with display name only", async () => {
+    const runtime = new LegacyApiRuntime();
+
+    const created = expectOk(
+      await invoke(runtime, "create_series_year", {
+        display_name: "Sommerlauf-Block A",
+      }),
+    );
+    expect(created.series_year).toBe(1);
+    expect(created.display_name).toBe("Sommerlauf-Block A");
+
+    const listed = expectOk(await invoke(runtime, "list_series_years"));
+    const items = listed.items as Array<Record<string, unknown>>;
+    expect(items).toHaveLength(1);
+    expect(items[0]?.display_name).toBe("Sommerlauf-Block A");
+  });
 });
 
 describe("LegacyApiRuntime standings, correction, reassignment, and timeline flows", () => {

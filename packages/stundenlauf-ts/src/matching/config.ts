@@ -27,11 +27,11 @@ export function defaultMatchingConfig(
 ): MatchingConfig {
   return {
     auto_merge_enabled: false,
-    perfect_match_auto_merge: false,
+    perfect_match_auto_merge: true,
     strict_normalized_auto_only: false,
 
-    auto_min: 0.88,
-    review_min: 0.72,
+    auto_min: 0.5,
+    review_min: 0.5,
 
     yob_match_bonus: 0.1,
     yob_mismatch_penalty: 0.45,

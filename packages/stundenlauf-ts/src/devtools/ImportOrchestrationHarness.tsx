@@ -92,8 +92,8 @@ function buildHarnessMatchingConfig(
   return {
     ...cfg,
     strict_normalized_auto_only: false,
-    auto_merge_enabled: true,
-    perfect_match_auto_merge: false,
+    auto_merge_enabled: false,
+    perfect_match_auto_merge: true,
   };
 }
 
@@ -216,8 +216,8 @@ export function ImportOrchestrationHarness() {
     emptySeasonState(HARNESS_SEASON_ID),
   );
   const [matchingMode, setMatchingMode] = useState<HarnessMatchingMode>("fuzzy_automatik");
-  const [autoThreshold, setAutoThreshold] = useState(0.88);
-  const [reviewThreshold, setReviewThreshold] = useState(0.72);
+  const [autoThreshold, setAutoThreshold] = useState(0.5);
+  const [reviewThreshold, setReviewThreshold] = useState(0.5);
   const matchingConfig = useMemo(
     () => buildHarnessMatchingConfig(matchingMode, autoThreshold, reviewThreshold),
     [matchingMode, autoThreshold, reviewThreshold],

@@ -199,6 +199,7 @@ TS version: UI components call domain functions directly. No serialization bound
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-04-14 | Legacy season entry switched to name-first create/confirm flow | Removed frontend year-first coupling by requiring a non-empty season name for creation, using season name confirmations for reset/delete, and keeping `series_year` aliases internal for compatibility while backend season identity remains label-based |
 | 2026-04-14 | F-TS10 feature plan created | Captured the phased strategy for replacing the legacy pywebview API with a browser-local TS compatibility adapter, including `series_year` aliasing, staged import-review mapping, result reassignment semantics, and event-log timeline synthesis |
 | 2026-04-14 | Legacy frontend mounted in frontend-only mode | Allow immediate reuse of the Python frontend in the TS package while backend API wiring is done incrementally; added browser bridge stub + default legacy mount |
 | 2026-04-14 | TS frontend reset to harness-only baseline | Strategic pivot to reuse Python frontend and wire it to the TS backend incrementally; removed production TS UI surface while preserving dev harnesses for backend validation |

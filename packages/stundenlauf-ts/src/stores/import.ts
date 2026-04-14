@@ -85,8 +85,8 @@ function modeToConfig(mode: MatchingMode, auto: number, review: number): Matchin
     ...base,
     review_min: Math.min(clampThreshold(review), autoMin),
     strict_normalized_auto_only: false,
-    auto_merge_enabled: true,
-    perfect_match_auto_merge: false,
+    auto_merge_enabled: false,
+    perfect_match_auto_merge: true,
   };
 }
 
@@ -108,8 +108,8 @@ export const useImportStore = create<ImportStoreState>((set, get) => ({
   sourceType: "singles",
   raceNo: null,
   matchingMode: "fuzzy_automatik",
-  autoThreshold: 0.88,
-  reviewThreshold: 0.72,
+  autoThreshold: 0.5,
+  reviewThreshold: 0.5,
   settingsExpanded: true,
   busy: false,
   error: null,
@@ -279,8 +279,8 @@ export const useImportStore = create<ImportStoreState>((set, get) => ({
       sourceType: "singles",
       raceNo: null,
       matchingMode: "fuzzy_automatik",
-      autoThreshold: 0.88,
-      reviewThreshold: 0.72,
+      autoThreshold: 0.5,
+      reviewThreshold: 0.5,
       settingsExpanded: true,
       error: null,
     });
