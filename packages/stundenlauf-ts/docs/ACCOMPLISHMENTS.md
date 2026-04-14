@@ -17,6 +17,20 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - H-TS02 hardening seed for validation write barrier
+- Requirement/Milestone: [R1], [R3], [R5], [R7], [M-TS1]
+- What shipped: Added a second hardening plan (`H-TS02`) for a central event validation write barrier so invalid event batches are rejected before persistence/projection, and registered it in the project hardening inventory.
+- Evidence: `PROJECT_PLAN.md`, `docs/hardening/H-TS02-central-event-validation-write-barrier.md`
+- Impact: Establishes defense-in-depth beyond producer-side fixes by ensuring semantic event integrity is enforced at the storage boundary.
+- Follow-up: Implement sequential batch validation in the canonical append path and add atomic-failure regression tests.
+
+### 2026-04-14 - Hardening planning lane (`H-TSxx`) introduced
+- Requirement/Milestone: [R3], [R4], [R6], [M-TS3]
+- What shipped: Added a dedicated hardening planning track (`H-TSxx`) to separate cross-cutting architecture/reliability work from user-facing features, updated `PROJECT_PLAN.md` with a hardening inventory and working agreement, and created `docs/hardening/H-TS01-team-first-matching-identity-unification.md`.
+- Evidence: `PROJECT_PLAN.md`, `docs/hardening/H-TS01-team-first-matching-identity-unification.md`
+- Impact: Bug-class elimination and architecture-alignment work can now be tracked explicitly without overloading feature scope, improving planning clarity and execution discipline for emergent reliability improvements.
+- Follow-up: Execute H-TS01 implementation steps and add regression coverage for singles/couples team-identity consistency in matching and review flows.
+
 ### 2026-04-14 - Full-season import walkthrough harness added
 - Requirement/Milestone: [R1], [R3], [R4], [R6], [M-TS2]
 - What shipped: Added a second dev harness (`/?harness=import-season`) for practical season-by-season import validation: sequential file loading, review queue decisions via simple radio buttons, cumulative season state projection across imports, and an accumulated points-descending ranking table.

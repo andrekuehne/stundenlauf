@@ -84,6 +84,15 @@ Features are prefixed `F-TS` to distinguish from the Python version's `F` prefix
 | F-TS08 | Standings and results export (PDF, Excel) | M-TS6 | Planned |
 | F-TS09 | GitHub Pages deployment and PWA | M-TS7 | Planned |
 
+## Hardening Inventory
+
+Hardening work is prefixed `H-TS` and tracks cross-cutting reliability, architecture-alignment, and bug-class elimination work that is not primarily a new user-visible feature.
+
+| Hardening | Description | Supports | Status |
+|---|---|---|---|
+| H-TS01 | Team-first matching identity unification (single + couple review candidates always carry `team_id`) | R3, R4, R6 | Planned |
+| H-TS02 | Central event validation write barrier (reject invalid events before persistence/projection) | R1, R3, R5, R7 | Planned |
+
 ## Mapping from Python Features
 
 The following maps Python features to their TS-port equivalents or notes on approach changes:
@@ -175,6 +184,7 @@ TS version: UI components call domain functions directly. No serialization bound
 
 - Every feature must map to at least one requirement or milestone.
 - Each feature requires a plan document in `docs/features/`.
+- Hardening work that spans multiple features should use `H-TSxx` and a plan doc in `docs/hardening/`.
 - "Done" means code + tests + docs + accomplishments entry.
 - All end-user UI text is German; internal identifiers stay English.
 - Domain logic must be framework-agnostic (pure TS functions, no UI imports).
@@ -197,3 +207,5 @@ TS version: UI components call domain functions directly. No serialization bound
 | 2026-04-13 | F-TS05 implemented | Import orchestration: phased pipeline (parse→validate→match→review→finalize), progressive state enrichment, review resolution, atomic event batch construction, 55 new tests (464 total); M-TS1–M-TS4 marked Done |
 | 2026-04-14 | F-TS05 manual harness added | Dev-only interactive MW1→MW2 orchestration harness with row-level matching diagnostics for pre-GUI validation on real XLSX files |
 | 2026-04-14 | Canonical display identity consistency (person+club) | Extended F-TS01 contracts with canonical `display_name` + `name_normalized`, enforced dual-write invariants in validation/projection, aligned import/matching/review consumers, and added replay-compat coverage for legacy person events |
+| 2026-04-14 | Added `H-TSxx` hardening planning lane | Separate architecture/reliability enhancements from user-facing features; seeded H-TS01 for team-first matching identity unification |
+| 2026-04-14 | Added H-TS02 hardening plan seed | Captured the need for a central validation write barrier so invalid event batches are rejected before persistence/projection |
