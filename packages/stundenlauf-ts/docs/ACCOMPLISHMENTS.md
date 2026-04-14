@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - TS frontend reset to harness-only baseline
+- Requirement/Milestone: [M-TS5], migration strategy pivot
+- What shipped: Removed the production TS UI shell/views/components and related UI tests, and switched `App.tsx` to a harness-only launcher that preserves only the dev harness entry points (`?harness=import`, `?harness=import-season`, `?harness=legacy-layout`).
+- Evidence: `src/App.tsx`, `src/devtools/`, removed `src/components/` view/component files, removed `tests/ui/` shell/view tests, removed UI adapter tests in `tests/history/` and `tests/standings/`
+- Impact: Creates a clean, low-risk baseline for reusing the Python frontend and incrementally wiring it onto the TS backend/domain stack without carrying forward partial TS UI implementations.
+- Follow-up: Copy the Python frontend into the TS package and add a staged integration layer that binds existing frontend actions to TS backend APIs.
+
 ### 2026-04-14 - F-TS06e dev-only legacy layout parity page implemented
 - Requirement/Milestone: [R8], [M-TS5]
 - What shipped: Added a dedicated dev harness page (`/?harness=legacy-layout`) that mirrors the legacy Python shell/container layout with static placeholders and namespaced parity CSS, including header context, tab affordances, status placement, and season/standings/import/history container scaffolding.

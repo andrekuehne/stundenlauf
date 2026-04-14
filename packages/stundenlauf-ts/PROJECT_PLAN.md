@@ -198,6 +198,7 @@ TS version: UI components call domain functions directly. No serialization bound
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-04-14 | TS frontend reset to harness-only baseline | Strategic pivot to reuse Python frontend and wire it to the TS backend incrementally; removed production TS UI surface while preserving dev harnesses for backend validation |
 | 2026-04-12 | Initial project plan scaffold | Begin TS port planning |
 | 2026-04-12 | Self-consistency review fixes | Terminology (command→event), added F-TS05 import orchestrator, fixed cross-doc type inconsistencies |
 | 2026-04-12 | F-TS05 feature plan created | Detailed import orchestration workflow: phased API, eager resolution, review staging, event batch construction |
