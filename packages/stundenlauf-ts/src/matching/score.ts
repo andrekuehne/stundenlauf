@@ -22,18 +22,9 @@ function ratio(a: string, b: string): number {
  * Equivalent to Python's person_parsed() in score.py.
  */
 export function personParsed(person: PersonIdentity): ParsedName {
-  const g = person.given_name.trim();
-  const f = person.family_name.trim();
-  if (g || f) {
-    const gTokens = g ? g.split(/\s+/) : [];
-    const fTokens = f ? f.split(/\s+/) : [];
-    const tokenList = [...gTokens, ...fTokens].filter((t) => t !== "");
-    const tokens = [...new Set(tokenList)].sort();
-    const displayCompact = [g, f].filter((s) => s !== "").join(" ");
-    return { given: g, family: f, tokens, display_compact: displayCompact };
-  }
   const displayName =
-    [person.given_name, person.family_name].filter(Boolean).join(" ") ||
+    person.display_name.trim() ||
+    [person.given_name, person.family_name].filter(Boolean).join(" ").trim() ||
     person.person_id;
   return parsePersonName(displayName);
 }

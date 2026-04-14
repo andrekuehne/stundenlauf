@@ -11,7 +11,11 @@ import type { Division, Gender, PersonIdentity, SeasonState, Team } from "@/doma
 import { buildPersonBlockIndex, gatherCandidates } from "./candidates.ts";
 import type { MatchingConfig } from "./config.ts";
 import { identityFingerprint, teamFingerprint } from "./fingerprint.ts";
-import { normalizeClub, parsePersonName } from "./normalize.ts";
+import {
+  canonicalPersonIdentityFromIncoming,
+  normalizeClub,
+  parsePersonName,
+} from "./normalize.ts";
 import {
   routeFromScore,
   scorePersonMatch,
@@ -355,6 +359,7 @@ export async function resolvePerson(opts: {
   if (metaRoute === "new_identity" || top == null) {
     const personId = crypto.randomUUID();
     const teamId = crypto.randomUUID();
+    const canonicalName = canonicalPersonIdentityFromIncoming(rawName);
     stats.new_identities += 1;
     return {
       team_id: teamId,
@@ -369,8 +374,10 @@ export async function resolvePerson(opts: {
       new_persons: [
         {
           person_id: personId,
-          given_name: parsed.given,
-          family_name: parsed.family,
+          given_name: canonicalName.given_name,
+          family_name: canonicalName.family_name,
+          display_name: canonicalName.display_name,
+          name_normalized: canonicalName.name_normalized,
           yob,
           gender,
           club: clubRaw,
@@ -589,6 +596,8 @@ export async function resolveTeamRow(opts: {
     const personIdA = crypto.randomUUID();
     const personIdB = crypto.randomUUID();
     const teamId = crypto.randomUUID();
+    const canonicalNameA = canonicalPersonIdentityFromIncoming(row.name_a);
+    const canonicalNameB = canonicalPersonIdentityFromIncoming(row.name_b);
     stats.new_identities += 1;
     return {
       team_id: teamId,
@@ -603,8 +612,10 @@ export async function resolveTeamRow(opts: {
       new_persons: [
         {
           person_id: personIdA,
-          given_name: parsedA.given,
-          family_name: parsedA.family,
+          given_name: canonicalNameA.given_name,
+          family_name: canonicalNameA.family_name,
+          display_name: canonicalNameA.display_name,
+          name_normalized: canonicalNameA.name_normalized,
           yob: row.yob_a,
           gender: genderA,
           club: row.club_a,
@@ -612,8 +623,10 @@ export async function resolveTeamRow(opts: {
         },
         {
           person_id: personIdB,
-          given_name: parsedB.given,
-          family_name: parsedB.family,
+          given_name: canonicalNameB.given_name,
+          family_name: canonicalNameB.family_name,
+          display_name: canonicalNameB.display_name,
+          name_normalized: canonicalNameB.name_normalized,
           yob: row.yob_b,
           gender: genderB,
           club: row.club_b,

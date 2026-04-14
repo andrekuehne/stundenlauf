@@ -124,6 +124,36 @@ describe("deserializeEventLog", () => {
     expect(person.family_name).toBe("Großmann");
     expect(person.club).toBe("Süddeutsche Läufer");
   });
+
+  it("keeps replay compatibility with legacy person events", () => {
+    const legacyEvent = {
+      event_id: "evt-legacy-person",
+      seq: 0,
+      recorded_at: "2026-01-01T00:00:00.000Z",
+      type: "person.registered",
+      schema_version: 1,
+      payload: {
+        person_id: "p-legacy",
+        given_name: "Anna",
+        family_name: "Schmidt",
+        yob: 1985,
+        gender: "F",
+        club: "TV Freiburg",
+        club_normalized: "legacy",
+      },
+      metadata: { app_version: "0.0.0-test" },
+    } satisfies DomainEvent;
+
+    const json = serializeEventLog("s1", "Legacy", [legacyEvent]);
+    const archive = deserializeEventLog(json);
+    const state = projectState("s1", archive.events);
+    const person = state.persons.get("p-legacy");
+
+    expect(person).toBeDefined();
+    expect(person!.display_name).toBe("Anna Schmidt");
+    expect(person!.name_normalized).toBe("anna|schmidt");
+    expect(person!.club_normalized).toBe("tv freiburg");
+  });
 });
 
 describe("deserializeEventLog error cases", () => {

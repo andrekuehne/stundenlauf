@@ -132,6 +132,34 @@ describe("validate person.registered", () => {
       expect(result.errors[0]).toContain("Duplicate person_id");
     }
   });
+
+  it("rejects inconsistent display_name vs split name fields", () => {
+    const event = personRegistered({
+      person_id: "p1",
+      given_name: "Anna",
+      family_name: "Schmidt",
+      display_name: "Max Müller",
+      name_normalized: "anna|schmidt",
+    });
+    const result = validateEvent(emptySeasonState("s1"), event);
+    expect(result.valid).toBe(false);
+    if (!result.valid) {
+      expect(result.errors.some((e) => e.includes("display_name"))).toBe(true);
+    }
+  });
+
+  it("rejects inconsistent club_normalized", () => {
+    const event = personRegistered({
+      person_id: "p1",
+      club: "TV Freiburg",
+      club_normalized: "broken",
+    });
+    const result = validateEvent(emptySeasonState("s1"), event);
+    expect(result.valid).toBe(false);
+    if (!result.valid) {
+      expect(result.errors.some((e) => e.includes("club_normalized"))).toBe(true);
+    }
+  });
 });
 
 // --- person.corrected ---
@@ -163,6 +191,19 @@ describe("validate person.corrected", () => {
     expect(result.valid).toBe(false);
     if (!result.valid) {
       expect(result.errors[0]).toContain("club_normalized");
+    }
+  });
+
+  it("rejects correction causing name/display mismatch", () => {
+    const state = buildState([personRegistered({ person_id: "p1" })]);
+    const event = personCorrected({
+      person_id: "p1",
+      updated_fields: { display_name: "Inconsistent Name", name_normalized: "max|muller" },
+    });
+    const result = validateEvent(state, event);
+    expect(result.valid).toBe(false);
+    if (!result.valid) {
+      expect(result.errors.some((e) => e.includes("display_name"))).toBe(true);
     }
   });
 });

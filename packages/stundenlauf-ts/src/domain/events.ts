@@ -41,6 +41,8 @@ export interface PersonRegisteredPayload {
   person_id: string;
   given_name: string;
   family_name: string;
+  display_name?: string;
+  name_normalized?: string;
   yob: number;
   gender: "M" | "F" | "X";
   club: string | null;
@@ -52,6 +54,8 @@ export interface PersonCorrectedPayload {
   updated_fields: {
     given_name?: string;
     family_name?: string;
+    display_name?: string;
+    name_normalized?: string;
     yob?: number;
     club?: string | null;
     club_normalized?: string;

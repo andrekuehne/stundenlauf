@@ -17,6 +17,12 @@ const KNOWN_TITLE_BASES = new Set([
   "med",
 ]);
 
+function nameKeyFromParsed(parsed: ParsedName): string {
+  return parsed.tokens.length > 0
+    ? [...parsed.tokens].sort().join("|")
+    : parsed.display_compact;
+}
+
 export function stripDiacritics(value: string): string {
   return value.normalize("NFD").replace(/\p{M}/gu, "");
 }
@@ -54,6 +60,60 @@ function stripLeadingTitles(tokens: string[]): string[] {
     break;
   }
   return out;
+}
+
+function titleWordBase(word: string): string {
+  return word.toLowerCase().replace(/\.$/, "");
+}
+
+function isTitleWord(word: string): boolean {
+  return KNOWN_TITLE_BASES.has(titleWordBase(word));
+}
+
+export function splitDisplayNameParts(raw: string): [string, string] {
+  const rawClean = normalizeWhitespace(raw);
+  if (!rawClean) return ["", ""];
+
+  if (rawClean.includes(",")) {
+    const parts = rawClean.split(",", 2);
+    const leftPart = parts[0] ?? "";
+    const rightPart = parts[1] ?? "";
+    const familyDisplay = leftPart.trim();
+    const words = rightPart.trim().split(/\s+/);
+    while (words.length > 0) {
+      const first = words[0];
+      if (first === undefined || !isTitleWord(first)) break;
+      words.shift();
+    }
+    return [words.join(" "), familyDisplay];
+  }
+
+  const words = rawClean.split(/\s+/);
+  while (words.length > 0) {
+    const first = words[0];
+    if (first === undefined || !isTitleWord(first)) break;
+    words.shift();
+  }
+  if (words.length === 0) return ["", ""];
+  if (words.length === 1) return ["", words[0] ?? ""];
+  return [words.slice(0, -1).join(" "), words.at(-1) ?? ""];
+}
+
+export function canonicalPersonIdentityFromIncoming(raw: string): {
+  given_name: string;
+  family_name: string;
+  display_name: string;
+  name_normalized: string;
+} {
+  const display = normalizeWhitespace(raw);
+  const [given, family] = splitDisplayNameParts(display);
+  const parsed = parsePersonName(display);
+  return {
+    given_name: given,
+    family_name: family,
+    display_name: display,
+    name_normalized: nameKeyFromParsed(parsed),
+  };
 }
 
 export function parsePersonName(raw: string): ParsedName {

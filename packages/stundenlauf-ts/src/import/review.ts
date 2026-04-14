@@ -9,7 +9,10 @@ import type {
   PersonRegisteredPayload,
   TeamRegisteredPayload,
 } from "@/domain/events.ts";
-import { normalizeClub, parsePersonName } from "@/matching/normalize.ts";
+import {
+  canonicalPersonIdentityFromIncoming,
+  normalizeClub,
+} from "@/matching/normalize.ts";
 import { genderForDivision, memberGendersForCouples } from "@/matching/resolve.ts";
 import { assertPhase } from "./session.ts";
 import type {
@@ -215,15 +218,17 @@ function createSoloIdentity(
   personPayloads: PersonRegisteredPayload[];
   teamPayload: TeamRegisteredPayload;
 } {
-  const parsed = parsePersonName(staged.incoming.display_name);
+  const canonicalName = canonicalPersonIdentityFromIncoming(staged.incoming.display_name);
   const gender = genderForDivision(section.context.division);
   const personId = crypto.randomUUID();
   const teamId = crypto.randomUUID();
 
   const personPayload: PersonRegisteredPayload = {
     person_id: personId,
-    given_name: parsed.given,
-    family_name: parsed.family,
+    given_name: canonicalName.given_name,
+    family_name: canonicalName.family_name,
+    display_name: canonicalName.display_name,
+    name_normalized: canonicalName.name_normalized,
     yob: staged.incoming.yob ?? 0,
     gender,
     club: staged.incoming.club,
@@ -261,14 +266,16 @@ function createCoupleIdentity(
   const personIdB = crypto.randomUUID();
   const teamId = crypto.randomUUID();
 
-  const parsedA = parsePersonName(names[0] ?? "");
-  const parsedB = parsePersonName(names[1] ?? "");
+  const canonicalNameA = canonicalPersonIdentityFromIncoming(names[0] ?? "");
+  const canonicalNameB = canonicalPersonIdentityFromIncoming(names[1] ?? "");
 
   const personPayloads: PersonRegisteredPayload[] = [
     {
       person_id: personIdA,
-      given_name: parsedA.given,
-      family_name: parsedA.family,
+      given_name: canonicalNameA.given_name,
+      family_name: canonicalNameA.family_name,
+      display_name: canonicalNameA.display_name,
+      name_normalized: canonicalNameA.name_normalized,
       yob: yobs[0] ?? 0,
       gender: genderA,
       club: clubs[0] ?? null,
@@ -276,8 +283,10 @@ function createCoupleIdentity(
     },
     {
       person_id: personIdB,
-      given_name: parsedB.given,
-      family_name: parsedB.family,
+      given_name: canonicalNameB.given_name,
+      family_name: canonicalNameB.family_name,
+      display_name: canonicalNameB.display_name,
+      name_normalized: canonicalNameB.name_normalized,
       yob: yobs[1] ?? 0,
       gender: genderB,
       club: clubs[1] ?? null,

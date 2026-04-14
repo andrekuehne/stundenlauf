@@ -9,50 +9,18 @@
 import type { PersonIdentity } from "@/domain/types.ts";
 import type { MatchingConfig } from "./config.ts";
 import { defaultMatchingConfig } from "./config.ts";
-import { normalizeClub, normalizeWhitespace, parsePersonName } from "./normalize.ts";
+import {
+  normalizeClub,
+  normalizeWhitespace,
+  parsePersonName,
+  splitDisplayNameParts,
+} from "./normalize.ts";
 import { scorePersonMatch } from "./score.ts";
+
+export { splitDisplayNameParts };
 
 const DISPLAY_CONFIG: MatchingConfig = defaultMatchingConfig();
 const COMPOSITE_SEP = " / ";
-
-function titleWordBase(word: string): string {
-  return word.toLowerCase().replace(/\.$/, "");
-}
-
-const KNOWN_TITLE_BASES = new Set(["dr", "prof", "dipl", "ing", "med"]);
-
-function isTitleWord(word: string): boolean {
-  return KNOWN_TITLE_BASES.has(titleWordBase(word));
-}
-
-export function splitDisplayNameParts(raw: string): [string, string] {
-  const rawClean = normalizeWhitespace(raw);
-  if (!rawClean) return ["", ""];
-
-  if (rawClean.includes(",")) {
-    const parts = rawClean.split(",", 2);
-    const leftPart = parts[0] ?? "";
-    const rightPart = parts[1] ?? "";
-    const familyDisplay = leftPart.trim();
-    const words = rightPart.trim().split(/\s+/);
-    while (words.length > 0) {
-      const w = words[0];
-      if (w === undefined || !isTitleWord(w)) break;
-      words.shift();
-    }
-    return [words.join(" "), familyDisplay];
-  }
-
-  const words = rawClean.split(/\s+/);
-  while (words.length > 0) {
-    const w = words[0];
-    if (w === undefined || !isTitleWord(w)) break;
-    words.shift();
-  }
-  if (words.length === 0) return ["", ""];
-  if (words.length === 1) return ["", words[0] ?? ""];
-  return [words.slice(0, -1).join(" "), words.at(-1) ?? ""];
-}
 
 function parseYobToken(token: string): number {
   const cleaned = token.trim();
@@ -229,7 +197,7 @@ export function buildCoupleLineHighlights(
     );
     const mem = members[idx];
     if (!mem) continue;
-    const memberName = [mem.given_name, mem.family_name].filter(Boolean).join(" ");
+    const memberName = mem.display_name;
     lines.push(
       fieldHighlightsForPersonLine(
         incName,

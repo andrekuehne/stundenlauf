@@ -7,6 +7,11 @@
 import type { Division, SeasonState, TeamKind } from "./types.ts";
 import type { DomainEvent, EventEnvelope } from "./events.ts";
 import { categoryKey, isEffectiveRace } from "./projection.ts";
+import {
+  canonicalizePersonNames,
+  validatePersonNameConsistency,
+} from "./person-identity.ts";
+import { normalizeClub } from "@/lib/normalization.ts";
 
 // --- Result type ---
 
@@ -146,6 +151,20 @@ function validatePersonRegistered(
   if (state.persons.has(person_id)) {
     return fail(`Duplicate person_id: "${person_id}"`);
   }
+  const canonicalNames = canonicalizePersonNames(event.payload);
+  const club = event.payload.club == null ? null : event.payload.club.trim();
+  const clubNormalized = (event.payload.club_normalized ?? "").trim();
+  const nameErrors = validatePersonNameConsistency(canonicalNames);
+  const expectedClubNormalized = normalizeClub(club);
+  const clubErrors =
+    expectedClubNormalized === clubNormalized
+      ? []
+      : [
+          `Person club fields are inconsistent: club_normalized must equal normalizeClub(club), expected "${expectedClubNormalized}"`,
+        ];
+  if (nameErrors.length > 0 || clubErrors.length > 0) {
+    return fail(...nameErrors, ...clubErrors);
+  }
   return ok();
 }
 
@@ -154,11 +173,31 @@ function validatePersonCorrected(
   event: Extract<DomainEvent, { type: "person.corrected" }>,
 ): ValidationResult {
   const { person_id, updated_fields } = event.payload;
-  if (!state.persons.has(person_id)) {
+  const existing = state.persons.get(person_id);
+  if (!existing) {
     return fail(`Person "${person_id}" does not exist`);
   }
-  if (updated_fields.club === null && updated_fields.club_normalized !== "") {
-    return fail(`When club is set to null, club_normalized must be ""`);
+  const canonicalNames = canonicalizePersonNames({
+    given_name: updated_fields.given_name ?? existing.given_name,
+    family_name: updated_fields.family_name ?? existing.family_name,
+    display_name: updated_fields.display_name ?? existing.display_name,
+    name_normalized: updated_fields.name_normalized ?? existing.name_normalized,
+  });
+  const mergedClub = updated_fields.club !== undefined ? updated_fields.club : existing.club;
+  const mergedClubNormalized =
+    updated_fields.club_normalized !== undefined
+      ? updated_fields.club_normalized
+      : existing.club_normalized;
+  const nameErrors = validatePersonNameConsistency(canonicalNames);
+  const expectedClubNormalized = normalizeClub(mergedClub == null ? null : mergedClub.trim());
+  const clubErrors =
+    expectedClubNormalized === mergedClubNormalized.trim()
+      ? []
+      : [
+          `Person club fields are inconsistent: club_normalized must equal normalizeClub(club), expected "${expectedClubNormalized}"`,
+        ];
+  if (nameErrors.length > 0 || clubErrors.length > 0) {
+    return fail(...nameErrors, ...clubErrors);
   }
   return ok();
 }

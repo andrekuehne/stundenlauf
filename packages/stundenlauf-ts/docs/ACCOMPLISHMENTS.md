@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - Canonical person/club display invariants added
+- Requirement/Milestone: [R3], [R4], [R8], [M-TS1]
+- What shipped: Extended person identity contracts with canonical display name fields (`display_name`, `name_normalized`), enforced dual-write consistency (split name, display name, normalized key, and club pair) in event validation/projection, and aligned import/review/matching consumers to use canonical display values.
+- Evidence: `src/domain/types.ts`, `src/domain/events.ts`, `src/domain/person-identity.ts`, `src/domain/projection.ts`, `src/domain/validation.ts`, `src/matching/normalize.ts`, `src/matching/workflow.ts`, `src/import/review.ts`, `src/import/run-matching.ts`, `tests/domain/projection.test.ts`, `tests/domain/validation.test.ts`, `tests/storage/serialization.test.ts`, `tests/matching/*`
+- Impact: Names and clubs now have a robust human-display representation attached to every person while preserving normalization-consistent identity behavior and replay determinism (including legacy payload compatibility).
+- Follow-up: Thread canonical person display through F-TS06 standings/race UIs as they are built.
+
 ### 2026-04-14 - F-TS05 manual MW1→MW2 harness added
 - Requirement/Milestone: [R1], [R3], [R4], [R6], [M-TS2]
 - What shipped: Added a dev-only import orchestration harness (`/?harness=import`) that runs a real two-file cycle (MW1 then MW2), projects season state between files, and exposes row-level matching diagnostics (pool snapshot, route, candidates, scores, flags, placement).

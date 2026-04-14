@@ -173,6 +173,7 @@ type ReviewState = {
 ### 4. Review Queue
 
 The review queue is a flat list of entries across all sections that the matching engine routed to `review`. Each entry carries candidate information for the UI to display.
+Candidate `display_label` values come from canonical identity display fields (`PersonIdentity.display_name` and canonical club display) rather than ad-hoc joins, so review UI labels stay aligned with event-sourced identity corrections.
 
 ```typescript
 interface ReviewEntry {
@@ -242,6 +243,8 @@ When all entries are resolved, the orchestrator constructs the event batch in th
 
 - For singles: `display_name` = raw name, `yob` = parsed yob, `yob_text` = null, `club` = raw club, `row_kind` = "solo".
 - For couples: `display_name` = "NameA / NameB", `yob` = null, `yob_text` = "yobA / yobB", `club` = raw clubs joined, `row_kind` = "team".
+
+`IncomingRowData` remains immutable source audit data ("as imported"). Canonical identity display fields are maintained separately on `PersonIdentity` and can diverge from incoming raw text while staying normalization-consistent.
 - Source location fields (`sheet_name`, `section_name`, `row_index`) carried through from the parser output.
 
 ### 7. Import Blocking

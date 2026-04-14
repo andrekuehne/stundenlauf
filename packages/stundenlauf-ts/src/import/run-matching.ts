@@ -14,6 +14,7 @@ import type {
   TeamRegisteredPayload,
 } from "@/domain/events.ts";
 import type { IncomingRowData, PersonIdentity, SeasonState, Team } from "@/domain/types.ts";
+import { canonicalizeClub, canonicalizePersonNames } from "@/domain/person-identity.ts";
 import type { MatchingConfig } from "@/matching/config.ts";
 import type {
   ResolvedEntry,
@@ -42,14 +43,18 @@ function enrichState(
 ): SeasonState {
   const persons = new Map(state.persons);
   for (const p of personPayloads) {
+    const names = canonicalizePersonNames(p);
+    const club = canonicalizeClub(p);
     const identity: PersonIdentity = {
       person_id: p.person_id,
-      given_name: p.given_name,
-      family_name: p.family_name,
+      given_name: names.given_name,
+      family_name: names.family_name,
+      display_name: names.display_name,
+      name_normalized: names.name_normalized,
       yob: p.yob,
       gender: p.gender,
-      club: p.club,
-      club_normalized: p.club_normalized,
+      club: club.club,
+      club_normalized: club.club_normalized,
     };
     persons.set(p.person_id, identity);
   }

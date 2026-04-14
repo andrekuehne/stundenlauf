@@ -40,7 +40,7 @@ function buildReviewItemForSingles(
       if (team.team_kind === "solo" && team.member_person_ids.includes(uid)) {
         const person = persons.get(uid);
         if (person) {
-          displayName = [person.given_name, person.family_name].filter(Boolean).join(" ");
+          displayName = person.display_name;
           candYob = person.yob;
           candClub = person.club;
         }
@@ -50,7 +50,7 @@ function buildReviewItemForSingles(
     // Also try direct person lookup (uid might be person_id)
     const person = persons.get(uid);
     if (person) {
-      displayName = [person.given_name, person.family_name].filter(Boolean).join(" ");
+      displayName = person.display_name;
       candYob = person.yob;
       candClub = person.club;
     }
@@ -174,6 +174,19 @@ export async function processCouplesSection(
   const reviewItems: ReviewItem[] = [];
   const newPersonPayloads: SectionMatchResult["new_person_payloads"] = [];
   const newTeamPayloads: SectionMatchResult["new_team_payloads"] = [];
+  const displayNameByTeamId = new Map<string, { display_name: string; yob: number; club: string | null }>();
+
+  for (const team of state.teams.values()) {
+    if (team.team_kind !== "couple") continue;
+    const memberA = state.persons.get(team.member_person_ids[0] ?? "");
+    const memberB = state.persons.get(team.member_person_ids[1] ?? "");
+    if (!memberA || !memberB) continue;
+    displayNameByTeamId.set(team.team_id, {
+      display_name: `${memberA.display_name} / ${memberB.display_name}`,
+      yob: 0,
+      club: [memberA.club, memberB.club].filter(Boolean).join(" / ") || null,
+    });
+  }
 
   for (const row of section.rows) {
     const entryId = crypto.randomUUID();
@@ -205,12 +218,10 @@ export async function processCouplesSection(
         route: "review",
         confidence: result.confidence,
         candidates: result.candidate_uids.map((uid, i) => ({
+          ...(displayNameByTeamId.get(uid) ?? { display_name: uid, yob: 0, club: null }),
           team_id: uid,
           score: result.candidate_confidences[i] ?? 0,
           features: result.features,
-          display_name: uid,
-          yob: 0,
-          club: null,
         })),
         conflict_flags: result.conflict_flags,
         gender: genderA,

@@ -8,6 +8,7 @@ import type {
   RaceDuration,
   SeasonState,
 } from "@/domain/types.ts";
+import { canonicalizeClub, canonicalizePersonNames } from "@/domain/person-identity.ts";
 import type {
   ParsedSectionCouples,
   ParsedSectionSingles,
@@ -73,7 +74,7 @@ export interface HarnessSectionTrace {
 }
 
 function personDisplayName(person: PersonIdentity): string {
-  return `${person.given_name} ${person.family_name}`.trim();
+  return person.display_name;
 }
 
 function summarizePool(state: SeasonState): PoolSnapshot {
@@ -108,14 +109,18 @@ function enrichState(
 ): SeasonState {
   const persons = new Map(state.persons);
   for (const payload of personPayloads) {
+    const names = canonicalizePersonNames(payload);
+    const club = canonicalizeClub(payload);
     persons.set(payload.person_id, {
       person_id: payload.person_id,
-      given_name: payload.given_name,
-      family_name: payload.family_name,
+      given_name: names.given_name,
+      family_name: names.family_name,
+      display_name: names.display_name,
+      name_normalized: names.name_normalized,
       yob: payload.yob,
       gender: payload.gender,
-      club: payload.club,
-      club_normalized: payload.club_normalized,
+      club: club.club,
+      club_normalized: club.club_normalized,
     });
   }
 
