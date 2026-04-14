@@ -5,7 +5,7 @@
 - Hardening ID: H-TS02
 - Hardening name: Central event validation write barrier
 - Owner: TBD
-- Status: Planned
+- Status: Done
 - Related requirement(s): R1, R3, R5, R7
 - Related milestone(s): M-TS1
 - Related feature(s): F-TS01, F-TS05
@@ -14,6 +14,8 @@
 ## Problem Statement
 
 Event validation logic exists (`validateEvent` and per-event validators), but the current write path does not enforce it as a mandatory gate before appending and replaying event batches. This allows producer-side bugs to persist invalid events and only surface later in derived views.
+
+H-TS01 removed a major producer-side source of invalid team references in matching/review flows, but H-TS01 intentionally did not add a storage-boundary write barrier. H-TS02 closes that remaining gap by enforcing validation at append time for all producers.
 
 ## Scope
 
@@ -39,11 +41,11 @@ Event validation logic exists (`validateEvent` and per-event validators), but th
 
 ## Acceptance Criteria
 
-- [ ] Event append APIs enforce domain validation before writing to storage.
-- [ ] Invalid `race.registered` with unknown `team_id` is rejected before persistence.
-- [ ] Multi-event batch append fails atomically if any event is invalid.
-- [ ] Error payloads identify event type/seq and validation reason.
-- [ ] Existing valid import pipelines remain compatible and passing.
+- [x] Event append APIs enforce domain validation before writing to storage.
+- [x] Invalid `race.registered` with unknown `team_id` is rejected before persistence.
+- [x] Multi-event batch append fails atomically if any event is invalid.
+- [x] Error payloads identify event type/seq and validation reason.
+- [x] Existing valid import pipelines remain compatible and passing.
 
 ## Technical Plan
 
@@ -64,9 +66,9 @@ Event validation logic exists (`validateEvent` and per-event validators), but th
 ## Mapping from Current TS Implementation
 
 - Current approach:
-  - `validateEvent` exists but append path (`event-store`) mainly enforces seq continuity and duplicate batch IDs.
+  - `validateEvent` exists and append path (`event-store`) now enforces seq continuity plus sequential semantic validation.
 - Target approach:
-  - Append path enforces full semantic validation for every new event in sequence.
+  - Append path enforces full semantic validation for every new event in sequence against transient post-apply state.
 - Reusable logic:
   - Keep current per-event validators and projection apply functions; integrate them centrally.
 
@@ -101,12 +103,12 @@ Event validation logic exists (`validateEvent` and per-event validators), but th
 
 ## Definition of Done
 
-- [ ] Code implemented in TypeScript
-- [ ] Tests added/updated and passing (Vitest)
-- [ ] Types are strict (no `any` escapes without justification)
-- [ ] Docs updated
-- [ ] Entry added to `packages/stundenlauf-ts/docs/ACCOMPLISHMENTS.md`
-- [ ] Requirement/milestone status updated in `packages/stundenlauf-ts/PROJECT_PLAN.md` where applicable
+- [x] Code implemented in TypeScript
+- [x] Tests added/updated and passing (Vitest)
+- [x] Types are strict (no `any` escapes without justification)
+- [x] Docs updated
+- [x] Entry added to `packages/stundenlauf-ts/docs/ACCOMPLISHMENTS.md`
+- [x] Requirement/milestone status updated in `packages/stundenlauf-ts/PROJECT_PLAN.md` where applicable
 
 ## Links
 
@@ -114,5 +116,7 @@ Event validation logic exists (`validateEvent` and per-event validators), but th
   - `packages/stundenlauf-ts/src/domain/validation.ts`
 - Current append path:
   - `packages/stundenlauf-ts/src/storage/event-store.ts`
+- New storage-boundary regression coverage:
+  - `packages/stundenlauf-ts/tests/storage/event-store.test.ts`
 - Related hardening:
   - `packages/stundenlauf-ts/docs/hardening/H-TS01-team-first-matching-identity-unification.md`

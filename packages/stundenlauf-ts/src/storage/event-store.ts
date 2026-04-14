@@ -7,7 +7,35 @@
 import type { IDBPDatabase } from "idb";
 import type { StundenlaufDB } from "./db.ts";
 import type { DomainEvent } from "@/domain/events.ts";
+import { applyEvent, projectState } from "@/domain/projection.ts";
+import { validateEvent } from "@/domain/validation.ts";
 import type { SeasonDescriptor } from "@/domain/types.ts";
+
+export class EventAppendValidationError extends Error {
+  readonly season_id: string;
+  readonly batch_index: number;
+  readonly event_seq: number;
+  readonly event_type: DomainEvent["type"];
+  readonly reasons: string[];
+
+  constructor(params: {
+    season_id: string;
+    batch_index: number;
+    event_seq: number;
+    event_type: DomainEvent["type"];
+    reasons: string[];
+  }) {
+    super(
+      `Event append validation failed (season="${params.season_id}", index=${params.batch_index}, seq=${params.event_seq}, type="${params.event_type}"): ${params.reasons.join("; ")}`,
+    );
+    this.name = "EventAppendValidationError";
+    this.season_id = params.season_id;
+    this.batch_index = params.batch_index;
+    this.event_seq = params.event_seq;
+    this.event_type = params.event_type;
+    this.reasons = [...params.reasons];
+  }
+}
 
 export interface EventStore {
   getEventLog(seasonId: string): Promise<DomainEvent[]>;
@@ -45,23 +73,32 @@ export function createEventStore(db: IDBPDatabase<StundenlaufDB>): EventStore {
         );
       }
 
-      const batchIds = new Set<string>();
-      for (const evt of currentEvents) {
-        if (evt.metadata.import_batch_id) {
-          batchIds.add(evt.metadata.import_batch_id);
-        }
-      }
-      for (const evt of events) {
-        if (
-          evt.type === "import_batch.recorded" &&
-          batchIds.has(
-            (evt.payload as { import_batch_id: string }).import_batch_id,
-          )
-        ) {
+      for (let i = 0; i < events.length; i++) {
+        const expectedSeq = firstNewSeq + i;
+        const evt = events[i];
+        if (!evt) continue;
+        if (evt.seq !== expectedSeq) {
           throw new Error(
-            `Duplicate import_batch_id "${(evt.payload as { import_batch_id: string }).import_batch_id}" in event log`,
+            `Seq discontinuity within append batch at index=${i}: expected seq=${expectedSeq}, got seq=${evt.seq}`,
           );
         }
+      }
+
+      let transientState = projectState(seasonId, currentEvents);
+      for (let i = 0; i < events.length; i++) {
+        const evt = events[i];
+        if (!evt) continue;
+        const validation = validateEvent(transientState, evt);
+        if (!validation.valid) {
+          throw new EventAppendValidationError({
+            season_id: seasonId,
+            batch_index: i,
+            event_seq: evt.seq,
+            event_type: evt.type,
+            reasons: validation.errors,
+          });
+        }
+        transientState = applyEvent(transientState, evt);
       }
 
       await store.put({

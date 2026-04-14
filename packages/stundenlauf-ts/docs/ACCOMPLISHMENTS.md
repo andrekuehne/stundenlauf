@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - H-TS02 central write barrier validation implemented
+- Requirement/Milestone: [R1], [R3], [R5], [R7], [M-TS1]
+- What shipped: Implemented a canonical append-time write barrier in the event store that validates each incoming event with `validateEvent` against transient post-apply state, rejects invalid batches atomically before persistence, and surfaces structured failure details (`season_id`, batch index, `seq`, event type, reasons).
+- Evidence: `src/storage/event-store.ts`, `tests/storage/event-store.test.ts`, `tests/import/pipeline.test.ts`, `docs/hardening/H-TS02-central-event-validation-write-barrier.md`
+- Impact: Prevents producer regressions from silently persisting invalid events, including unknown team references in race entries, and establishes one central semantic enforcement boundary independent of specific import/matching code paths.
+- Follow-up: Optional: add equivalent semantic validation to any future non-append event-log ingestion path if introduced.
+
 ### 2026-04-14 - H-TS01 team-first matching identity unification implemented
 - Requirement/Milestone: [R3], [R4], [R6], [M-TS3]
 - What shipped: Completed H-TS01 by making the singles matching/review path team-centric end-to-end (`team_id` for candidate lists, top-candidate identity, conflict tracking, and staged resolution), removing the person-id fallback seam, and adding review guardrails that reject `link_existing` targets outside the candidate set.
