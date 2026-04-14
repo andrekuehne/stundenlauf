@@ -5,7 +5,7 @@
 - Feature ID: F-TS08
 - Feature name: Client-side PDF and Excel export for standings and results
 - Owner: —
-- Status: In progress (PDF path implemented; Excel pending)
+- Status: Done
 - Related requirement(s): R5 (rankings as durable artifacts), R7 (portable data — export without cloud)
 - Related milestone(s): M-TS6
 - Python predecessor(s): F20 (standings multi-format export), `backend/export/` package (spec, projection, pdf_renderer, csv_renderer, gui_pdf_spec, gui_dual_pdf_export, registry)
@@ -54,15 +54,15 @@ The TS port replaces ReportLab with a client-side PDF library and replaces CSV w
 - [x] PDF export produces a downloadable `.pdf` file from the current season's standings.
 - [x] Laufübersicht PDF layout matches Python version's structure: 3-row merged header, per-race Str./Pkt. columns, Gesamt columns, first-page intro notice, section titles, footers.
 - [x] Flat PDF layout produces a simple table with configurable columns (minimal, official_board, debug_uid presets).
-- [ ] Excel export produces a downloadable `.xlsx` file with one worksheet per category section.
-- [ ] Excel worksheets have: bold header row(s), auto-fitted column widths, German decimal comma formatting for distances, zebra-banded rows.
+- [x] Excel export produces a downloadable `.xlsx` file as a single workbook with the worksheets `Gesamtwertung_Einzel` and `Gesamtwertung_Paare`.
+- [x] Excel worksheets have: numbered section titles, bold header row(s), explicit column widths, German decimal comma formatting for distances, and zebra-banded rows.
 - [x] Layout presets `default` and `compact` produce visually distinct output matching their Python equivalents in intent (exact pixel parity is not required).
 - [x] Dual PDF export (Einzel + Paare) triggers two separate downloads with continuous section numbering.
 - [x] Category sort order matches Python: Halbstundenlauf W, M → Stundenlauf W, M → Paare W, M, Mixed per duration.
 - [x] German headers: Platz, Name, Verein, Laufstr., Wertung, (km), (Punkte), Gesamt.
 - [x] Em-dash (—) for missing race results; decimal comma for distances; bold points values in PDF.
 - [x] Team/couple rows render correctly in PDF: two rows per team with merged Platz and numeric columns.
-- [ ] Excel duplicates numeric values per partner row instead of vertical merges.
+- [x] Excel pair sections render one row per couple with side-by-side member identity columns and shared race/gesamt values.
 - [x] Podium rows (places 1–3) get a light-blue tint in PDF.
 - [x] Footer renders on every PDF page: organizer, season year, category, export timestamp.
 - [x] Eligibility filtering works: `eligible_only` (default) excludes außer Wertung participants; `full_grid` includes all.
@@ -298,10 +298,12 @@ The Excel renderer uses ExcelJS to produce `.xlsx` files. The goal is clean, usa
 
 #### 6.1 Workbook Structure
 
-- One worksheet per category section, named with the category label (e.g. "Halbstundenlauf - Frauen").
-- If multiple categories share the same label (shouldn't happen, but defensive), append a numeric suffix.
+- One workbook with exactly two worksheets: `Gesamtwertung_Einzel` and `Gesamtwertung_Paare`.
+- Each worksheet concatenates all matching category sections in export order instead of creating one worksheet per category.
+- Section numbering is continuous across the whole workbook: Einzel starts at `1`, Paare continues at `n + 1`.
+- Excel omits the PDF-only `Hinweis` cover block entirely.
 
-#### 6.2 Laufübersicht Worksheet
+#### 6.2 Laufübersicht Worksheets
 
 **Header rows (3 rows, matching PDF):**
 - Row 1: "Platz", "Name", "Verein", then merged cells for each race ("1. Lauf" spanning 2 columns), "Gesamt" spanning 2 columns.
@@ -309,13 +311,14 @@ The Excel renderer uses ExcelJS to produce `.xlsx` files. The goal is clean, usa
 - Row 3: empty, empty, empty, then "(km)" / "(Punkte)" alternating.
 - All header rows: bold, pale green fill (`#E8F5E9`), centered for race/Gesamt columns.
 - Row 1 race labels: red font (`#C62828`).
-- Freeze panes below header row 3 and after Verein column for scrollable navigation.
+- No frozen panes; the workbook should scroll normally.
 
 **Body rows:**
-- Team partners: two rows, with `excelRows` data (both rows carry duplicated numeric values — matches the CSV behavior from the Python version, which is more practical in a spreadsheet than merged cells across rows).
+- Einzel sections use one row per athlete with `Vorname/Name`, `Jg.`, and `Verein` split into separate columns before the race/gesamt values.
+- Paar sections use one row per couple with side-by-side identity columns for member A and member B (`Vorname/Name`, `Jg.`, `Verein`, then repeated once), followed by the race and Gesamt columns.
 - Podium rows (1–3): light-blue fill.
 - Zebra banding for remaining rows.
-- Distance cells: formatted with 3 decimal places and comma separator (Excel custom format `#,##0.000` with German locale, or explicit string with comma).
+- Distance cells: emitted with 3 decimal places and comma separator.
 - Points cells: bold.
 
 **Column widths:**
@@ -325,20 +328,12 @@ The Excel renderer uses ExcelJS to produce `.xlsx` files. The goal is clean, usa
 - Per-race Str./Pkt.: narrow (~8 characters each).
 - Gesamt Str./Pkt.: narrow (~8 characters each).
 
-#### 6.3 Flat Worksheet
+#### 6.3 Workbook Notes
 
-- Single header row, bold, with column names from the preset.
-- Body rows with basic formatting (right-aligned numbers, left-aligned text).
-- Zebra banding.
-- Auto-filter on the header row.
-
-#### 6.4 Sheet Metadata
-
-Each worksheet gets a small metadata block in a separate "Info" worksheet (or as a header above the table):
-- Season label.
-- Category.
-- Export timestamp.
-- Eligibility filter applied.
+- Title rows are rendered above each stacked section (e.g. `1. Halbstundenlauf - Frauen`).
+- Header merges are preserved for the 3-row Laufübersicht header.
+- Paar titles follow the screenshot-style wording (`Halbstundenpaarlauf` / `Stundenpaarlauf`) while preserving the PDF numbering sequence.
+- No extra metadata worksheet or `Hinweis` header is emitted for Excel.
 
 ### 7. GUI Export Functions (port of `gui_pdf_spec.py` + `gui_dual_pdf_export.py`)
 
@@ -367,12 +362,11 @@ async function exportLaufuebersichtDualPdfs(
   return result;
 }
 
-async function exportStandingsExcel(
+async function exportGesamtwertungWorkbook(
   state: SeasonState,
-  categories: string[],
-  options?: { eligibility?: RowEligibility; tableLayout?: TableLayout },
-): Promise<Blob> {
-  // Build spec, project sections, render to .xlsx blob
+  options: { seasonYear: number; filenameBase?: string },
+): Promise<{ filename: string; blob: Blob }> {
+  // Build numbered Einzel + Paare sections and render one .xlsx workbook
 }
 ```
 
@@ -548,12 +542,10 @@ These pure functions port with minimal adaptation:
 4. **Port projection layer** — `buildExportSections` for both flat and Laufübersicht layouts. Unit-test with fixture standings data (construct minimal `SeasonState` → verify `ExportSection` structure, header rows, body rows, spans, banding).
 5. **Implement PDF renderer (flat layout)** — simple table with grid, zebra banding, configurable columns. Verify with snapshot test (generate PDF → check text extraction or byte-stable output).
 6. **Implement PDF renderer (Laufübersicht layout)** — first-page intro block, 3-row merged header, per-cell styling, vertical rules, footer. Test with multi-page fixture.
-7. **Implement Excel renderer (flat layout)** — single worksheet per category, bold header, zebra banding, auto-filter. Verify generated `.xlsx` opens correctly.
-8. **Implement Excel renderer (Laufübersicht layout)** — 3-row header with merged cells, freeze panes, team two-row layout, podium tinting.
-9. **Port GUI spec functions** — `buildLaufuebersichtGuiSpec`, `exportLaufuebersichtDualPdfs`. Unit-test spec construction.
-10. **Implement download helper** — `downloadBlob` utility. Manual browser test.
-11. **Integration testing** — end-to-end: construct season state → export PDF and Excel → verify files are non-empty and structurally valid.
-12. **Visual validation** — open generated PDFs and Excel files side-by-side with Python output; document any intentional differences.
+7. **Implement Excel renderer** — create a two-sheet workbook (`Gesamtwertung_Einzel`, `Gesamtwertung_Paare`) with stacked Laufübersicht sections, merged headers, screenshot-style pair rows, and no frozen panes.
+8. **Port GUI/runtime export functions** — add the Excel workbook entry point next to the existing PDF flow and expose it through the legacy adapter/UI.
+9. **Integration testing** — end-to-end: construct season state → export PDF and Excel → verify files are non-empty and structurally valid.
+10. **Visual validation** — open generated PDFs and Excel files side-by-side with Python output and organizer screenshots; document any intentional differences.
 
 ## Test Plan
 
@@ -570,16 +562,16 @@ These pure functions port with minimal adaptation:
 
 ## Definition of Done
 
-- [ ] PDF export produces correct Laufübersicht and flat layouts for fixture data.
-- [ ] Excel export produces correct `.xlsx` with formatted tables for fixture data.
-- [ ] Layout presets (`default`, `compact`) produce distinct output.
-- [ ] Dual Einzel/Paare PDF export works with continuous section numbering.
-- [ ] All formatting utilities tested (German numbers, category labels, sorting).
-- [ ] Projection layer tested for both flat and Laufübersicht layouts.
-- [ ] No UI framework imports in any export module.
-- [ ] All tests pass (Vitest).
-- [ ] Entry added to `packages/stundenlauf-ts/docs/ACCOMPLISHMENTS.md`.
-- [ ] Requirement/milestone status updated in `packages/stundenlauf-ts/PROJECT_PLAN.md`.
+- [x] PDF export produces correct Laufübersicht and flat layouts for fixture data.
+- [x] Excel export produces the requested `.xlsx` Gesamtwertung workbook with formatted Einzel/Paare tables for fixture data.
+- [x] Layout presets (`default`, `compact`) produce distinct PDF output.
+- [x] Dual Einzel/Paare PDF export works with continuous section numbering.
+- [x] All formatting utilities tested (German numbers, category labels, sorting).
+- [x] Projection layer tested for both flat and Laufübersicht layouts.
+- [x] No UI framework imports in any export module.
+- [x] All tests pass (Vitest).
+- [x] Entry added to `packages/stundenlauf-ts/docs/ACCOMPLISHMENTS.md`.
+- [x] Requirement/milestone status updated in `packages/stundenlauf-ts/PROJECT_PLAN.md`.
 
 ## Links
 

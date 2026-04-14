@@ -847,6 +847,37 @@
     }
   }
 
+  function wireStandingsExcelExport() {
+    const st = STR.standings;
+    const buttons = standingsView.querySelectorAll("button[data-export-standings-excel]");
+    if (!buttons.length) {
+      return;
+    }
+    const onClick = async () => {
+      const year = state.seriesYear;
+      const suggestedName = `stundenlauf-${year}-ergebnisse.xlsx`;
+      const picked = await api("pick_save_file", { suggested_name: suggestedName, dialog_kind: "excel" });
+      if (picked.status !== "ok") {
+        setStatus(st.exportExcelPickFailed, true);
+        return;
+      }
+      const destinationPath = (picked.payload && picked.payload.file_path ? picked.payload.file_path : "").trim();
+      if (!destinationPath) {
+        return;
+      }
+      const exported = await api("export_standings_excel", { destination_path: destinationPath });
+      if (exported.status === "error") {
+        setStatus(getApiErrorMessage(exported.error, st.exportExcelFailed), true);
+        return;
+      }
+      const paths = (exported.payload && exported.payload.export_files) || [];
+      setStatus(st.exportExcelDone(paths), false);
+    };
+    for (const btn of buttons) {
+      btn.addEventListener("click", onClick);
+    }
+  }
+
   async function renderStandingsView(options = {}) {
     const preserveStandingsScroll = Boolean(options.preserveStandingsScroll);
     const st = STR.standings;
@@ -911,6 +942,7 @@
         });
       }
       wireStandingsPdfExport();
+      wireStandingsExcelExport();
       return;
     }
 
@@ -1116,6 +1148,7 @@
       });
     }
     wireStandingsPdfExport();
+    wireStandingsExcelExport();
 
     if (preserveStandingsScroll) {
       const applyScrollRestore = () => {
@@ -1145,9 +1178,10 @@
 
   function renderPdfExportSidebarBlock(st) {
     const presets = state.pdfExportLayoutPresets;
-    const button = `<button type="button" class="secondary sidebar-top-action" data-export-standings-pdf title="${escapeHtml(st.exportPdfSaveHint)}">${st.exportPdfButton}</button>`;
+    const pdfButton = `<button type="button" class="secondary sidebar-top-action" data-export-standings-pdf title="${escapeHtml(st.exportPdfSaveHint)}">${st.exportPdfButton}</button>`;
+    const excelButton = `<button type="button" class="secondary sidebar-top-action" data-export-standings-excel title="${escapeHtml(st.exportExcelSaveHint)}">${st.exportExcelButton}</button>`;
     if (!presets || !presets.length) {
-      return `<h3>${st.exportSectionTitle}</h3>${button}`;
+      return `<h3>${st.exportSectionTitle}</h3>${pdfButton}${excelButton}`;
     }
     const selId = state.pdfExportLayoutPresetId || "default";
     const opts = presets
@@ -1165,7 +1199,8 @@
         <span class="pdf-export-layout-label">${label}</span>
         <select class="pdf-layout-preset-select" aria-label="${aria}">${opts}</select>
       </div>
-      ${button}`;
+      ${pdfButton}
+      ${excelButton}`;
   }
 
   function identityYobBounds() {

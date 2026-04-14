@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - F-TS08 Excel Gesamtwertung export implemented
+- Requirement/Milestone: [R5], [R7], [M-TS6], [F-TS08], [F-TS10]
+- What shipped: Added a browser-side ExcelJS export that reuses the shared Laufübersicht projection to generate one workbook with `Gesamtwertung_Einzel` and `Gesamtwertung_Paare`, continuous section numbering, duplicated partner numerics, and legacy-frontend download wiring.
+- Evidence: `src/export/excel.ts`, `src/export/index.ts`, `src/legacy/api/runtime.ts`, `frontend/app.js`, `frontend/strings.js`, `tests/export/excel-export.test.ts`, `tests/legacy/runtime.test.ts`, `docs/features/F-TS08-standings-results-export.md`, `PROJECT_PLAN.md`
+- Impact: Organizers can now download the requested Gesamtwertung workbook directly from the TS app with PDF-matching section titles and practical spreadsheet semantics for pair rows, completing the export feature set for M-TS6.
+- Follow-up: Compare one or two real organizer workbooks visually against the screenshot reference and tune widths/fills only if users spot parity gaps.
+
 ### 2026-04-14 - F-TS08 PDF first-page notice layout corrected
 - Requirement/Milestone: [R5], [R8], [M-TS6], [F-TS08]
 - What shipped: Moved the Laufübersicht `Hinweis:` content from a dedicated cover page onto the first content page above the first table and removed the manual underline stroke that could render as a solid black block in generated PDFs.

@@ -517,6 +517,100 @@ describe("LegacyApiRuntime season portability compatibility flows", () => {
     }
   });
 
+  it("exports the Excel Gesamtwertung workbook through the save-target wrapper", async () => {
+    const runtime = new LegacyApiRuntime();
+    expectOk(await invoke(runtime, "create_series_year", { series_year: 2029 }));
+    expectOk(await invoke(runtime, "open_series_year", { series_year: 2029 }));
+
+    const repo = await getSeasonRepository();
+    const seasons = await repo.listSeasons();
+    const seasonId = seasons[0]?.season_id;
+    if (!seasonId) {
+      throw new Error("season expected");
+    }
+    await repo.appendEvents(seasonId, [
+      personRegistered({
+        person_id: "person-x",
+        given_name: "Anna",
+        family_name: "Alpha",
+        display_name: "Anna Alpha",
+        name_normalized: "anna alpha",
+        club: "Club A",
+        club_normalized: "club a",
+      }),
+      teamRegistered({
+        team_id: "team-x",
+        member_person_ids: ["person-x"],
+        team_kind: "solo",
+      }),
+      importBatchRecorded({
+        import_batch_id: "batch-export-xlsx",
+        source_file: "lauf-1.xlsx",
+        source_sha256: "sha-export-xlsx",
+      }),
+      raceRegistered({
+        race_event_id: "race-export-xlsx",
+        import_batch_id: "batch-export-xlsx",
+        category: { duration: "hour", division: "men" },
+        race_no: 1,
+        entries: [
+          defaultEntry({
+            entry_id: "entry-export-xlsx",
+            team_id: "team-x",
+            distance_m: 7000,
+            points: 12,
+          }),
+        ],
+      }),
+    ]);
+
+    if (!("createObjectURL" in URL)) {
+      Object.defineProperty(URL, "createObjectURL", {
+        value: () => "blob:xlsx-export-test",
+        configurable: true,
+        writable: true,
+      });
+    }
+    if (!("revokeObjectURL" in URL)) {
+      Object.defineProperty(URL, "revokeObjectURL", {
+        value: () => undefined,
+        configurable: true,
+        writable: true,
+      });
+    }
+    const createObjectUrl = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:xlsx-export-test");
+    const revokeObjectUrl = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function noop(this: HTMLAnchorElement) {
+        void this;
+      });
+
+    try {
+      const picked = expectOk(
+        await invoke(runtime, "pick_save_file", {
+          suggested_name: "stundenlauf-2029-ergebnisse.xlsx",
+          dialog_kind: "excel",
+        }),
+      );
+      const exported = expectOk(
+        await invoke(runtime, "export_standings_excel", {
+          destination_path: picked.file_path,
+        }),
+      );
+
+      expect(exported.series_year).toBe(2029);
+      expect(exported.export_files).toEqual(["stundenlauf-2029-ergebnisse.xlsx"]);
+      expect((exported.bytes_written as number) > 0).toBe(true);
+      expect(clickSpy).toHaveBeenCalledTimes(1);
+      expect(createObjectUrl).toHaveBeenCalledTimes(1);
+    } finally {
+      clickSpy.mockRestore();
+      revokeObjectUrl.mockRestore();
+      createObjectUrl.mockRestore();
+    }
+  });
+
   it("imports a generic named season while treating the requested year as an alias only", async () => {
     const runtime = new LegacyApiRuntime();
     const sourceRepo = new InMemorySeasonRepository();

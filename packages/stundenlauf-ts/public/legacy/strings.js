@@ -159,6 +159,15 @@
       sidebarSingles: "Einzel",
       sidebarCouples: "Paare",
       exportSectionTitle: "Export",
+      exportExcelButton: "Gesamtwertung als Excel speichern",
+      exportExcelSaveHint:
+        "Es wird eine Arbeitsmappe mit den Blättern „Gesamtwertung_Einzel“ und „Gesamtwertung_Paare“ erzeugt.",
+      exportExcelPickFailed: "Zielpfad für den Excel-Export konnte nicht gewählt werden.",
+      exportExcelFailed: "Excel konnte nicht exportiert werden.",
+      exportExcelDone: (paths) =>
+        Array.isArray(paths) && paths.length
+          ? `Excel gespeichert: ${paths.join(", ")}`
+          : "Excel gespeichert.",
       exportPdfLayoutLabel: "PDF-Layout",
       exportPdfLayoutAria: "Layout für den PDF-Export wählen",
       exportPdfButton: "Wertungen als PDF speichern",

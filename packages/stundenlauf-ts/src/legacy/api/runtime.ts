@@ -34,7 +34,11 @@ import { triggerDownload } from "@/portability/download.ts";
 import { applyExclusions, computeStandings, exclusionsForCategory, markExclusions } from "@/ranking/index.ts";
 import { getSeasonRepository, type SeasonRepository } from "@/services/season-repository.ts";
 import { EventAppendValidationError } from "@/storage/event-store.ts";
-import { exportLaufuebersichtDualPdfs, pdfLayoutPresetCatalog } from "@/export/index.ts";
+import {
+  exportGesamtwertungWorkbook,
+  exportLaufuebersichtDualPdfs,
+  pdfLayoutPresetCatalog,
+} from "@/export/index.ts";
 import type { LegacyApiErrorResponse, LegacyApiResponse } from "./types.ts";
 
 const ADAPTER_APP_VERSION = "stundenlauf-ts-legacy-adapter-0.1.0";
@@ -513,6 +517,8 @@ export class LegacyApiRuntime {
           return ok(requestId, await this.importSeriesYear(payload));
         case "export_standings_pdf":
           return ok(requestId, await this.exportStandingsPdf(payload));
+        case "export_standings_excel":
+          return ok(requestId, await this.exportStandingsExcel(payload));
         default:
           return errorResponse(
             requestId,
@@ -1385,6 +1391,39 @@ export class LegacyApiRuntime {
       series_year: seasonYear,
       export_files: artifacts.map((artifact) => artifact.filename),
       bytes_written: artifacts.reduce((sum, artifact) => sum + artifact.blob.size, 0),
+    };
+  }
+
+  private async exportStandingsExcel(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const destinationPath = asString(payload.destination_path).trim();
+    if (!destinationPath) {
+      throw new Error("Bitte einen Speicherort für den Excel-Export wählen.");
+    }
+
+    const snapshot = await this.getSnapshotFromPayload(payload);
+    const repo = await this.repository();
+    const seasons = await repo.listSeasons();
+    const aliases = this.ensureAliases(seasons);
+    const seasonYear =
+      asInteger(payload.series_year) ??
+      aliases[snapshot.descriptor.season_id] ??
+      extractYearCandidate(snapshot.descriptor.label, snapshot.descriptor.created_at);
+    const saveTarget = this.resolveSaveTarget(destinationPath);
+    const baseName = (saveTarget?.suggestedName ?? `stundenlauf-${seasonYear}-ergebnisse`).replace(
+      /\.xlsx$/i,
+      "",
+    );
+
+    const artifact = await exportGesamtwertungWorkbook(snapshot.seasonState, {
+      seasonYear,
+      filenameBase: baseName,
+    });
+    triggerDownload(artifact.blob, artifact.filename);
+
+    return {
+      series_year: seasonYear,
+      export_files: [artifact.filename],
+      bytes_written: artifact.blob.size,
     };
   }
 

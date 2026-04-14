@@ -4,6 +4,11 @@ export {
   type PdfExportArtifact,
 } from "./pdf.ts";
 export {
+  renderExcelBlob,
+  exportGesamtwertungWorkbook,
+  type ExcelExportArtifact,
+} from "./excel.ts";
+export {
   buildGuiLaufuebersichtDualSpecs,
   buildLaufuebersichtGuiSpec,
 } from "./gui-pdf-spec.ts";
