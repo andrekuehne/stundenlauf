@@ -4,7 +4,7 @@
 
 - Feature ID: F-TS06a
 - Parent feature: F-TS06
-- Status: Planned
+- Status: Done
 - Related requirement(s): R8
 - Related milestone(s): M-TS5
 
@@ -47,13 +47,29 @@ Deliver the UI foundation layer: app shell, typed German copy/format helpers, an
 
 ## Acceptance criteria
 
-- [ ] Shell renders with all planned tabs and status area in German.
-- [ ] Switching tabs changes active view region without full page reload.
-- [ ] All foundation-level UI text comes from typed catalog constants.
-- [ ] Removed dead/obsolete strings (`bridgeUnavailable`, `desktopApiUnavailable`, dead `tableRaces`).
-- [ ] Shared `ConfirmModal` supports title/body/confirm/cancel and keyboard-close behavior.
-- [ ] `prefers-reduced-motion` handling is active in baseline styles.
-- [ ] Unit tests cover formatting/string helper behavior.
+- [x] Shell renders with all planned tabs and status area in German.
+- [x] Switching tabs changes active view region without full page reload.
+- [x] All foundation-level UI text comes from typed catalog constants.
+- [x] Removed dead/obsolete strings (`bridgeUnavailable`, `desktopApiUnavailable`, dead `tableRaces`).
+- [x] Shared `ConfirmModal` supports title/body/confirm/cancel and keyboard-close behavior.
+- [x] `prefers-reduced-motion` handling is active in baseline styles.
+- [x] Unit tests cover formatting/string helper behavior.
+
+## Implementation notes
+
+- `App.tsx` now renders the production shell with tab state, view switching, and global `StatusBar`, while preserving existing dev harness query-param entry points.
+- Foundation modules were implemented and wired:
+  - typed catalog: `src/strings.ts`
+  - format helpers: `src/format.ts`
+  - status primitives: `src/stores/status.ts`, `src/components/shared/StatusBar.tsx`
+  - modal primitive: `src/components/shared/ConfirmModal.tsx`
+  - placeholder roots for 06b/06c: `src/components/{standings,import,history,season}/*.tsx`
+  - baseline shell/styles + reduced motion: `src/theme.css`
+- Added UI foundation tests:
+  - `tests/format.test.ts`
+  - `tests/ui/app-shell.test.tsx`
+  - `tests/ui/status-bar.test.tsx`
+  - `tests/ui/confirm-modal.test.tsx`
 
 ## Risks and assumptions
 
@@ -82,6 +98,6 @@ Deliver the UI foundation layer: app shell, typed German copy/format helpers, an
 
 ## Definition of done
 
-- [ ] Shell + strings + baseline primitives merged and test-covered.
-- [ ] No hardcoded German text in shell/primitives.
-- [ ] 06b and 06c can implement against stable shell contracts.
+- [x] Shell + strings + baseline primitives merged and test-covered.
+- [x] No hardcoded German text in shell/primitives.
+- [x] 06b and 06c can implement against stable shell contracts.

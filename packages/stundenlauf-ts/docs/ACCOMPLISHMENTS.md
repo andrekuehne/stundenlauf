@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - F-TS06a UI foundation implemented
+- Requirement/Milestone: [R8], [M-TS5]
+- What shipped: Implemented F-TS06a end-to-end with a production `App.tsx` shell (German tab navigation + status surface), typed string catalog and format helpers, reusable `StatusBar`/`ConfirmModal` primitives, placeholder view roots for 06b/06c, and reduced-motion baseline styling.
+- Evidence: `src/App.tsx`, `src/strings.ts`, `src/format.ts`, `src/stores/status.ts`, `src/components/shared/StatusBar.tsx`, `src/components/shared/ConfirmModal.tsx`, `src/components/standings/StandingsView.tsx`, `src/components/import/ImportView.tsx`, `src/components/history/HistoryView.tsx`, `src/components/season/SeasonEntryView.tsx`, `src/theme.css`, `tests/format.test.ts`, `tests/ui/app-shell.test.tsx`, `tests/ui/status-bar.test.tsx`, `tests/ui/confirm-modal.test.tsx`
+- Impact: Establishes a stable German UI foundation contract for F-TS06b and F-TS06c while removing shell-level placeholders and browser-native confirm/prompt dependencies from the baseline architecture.
+- Follow-up: Implement F-TS06b workflows (season/standings/history) directly against the new shell and shared primitives.
+
 ### 2026-04-14 - F-TS06 UI plan split into focused subplans
 - Requirement/Milestone: [R1], [R2], [R5], [R6], [R8], [M-TS5]
 - What shipped: Replaced the oversized monolithic `F-TS06` feature plan with an umbrella plus three implementation-sized subplans: `F-TS06a` (shell + strings foundation), `F-TS06b` (season/standings/history workflows), and `F-TS06c` (import orchestration + matching review GUI).
