@@ -365,7 +365,7 @@ th {
   align-self: start;
   max-height: 100%;
   overflow-y: auto;
-  padding-right: 4px;
+  padding-right: calc((var(--space) * 1.2) + 4px);
 }
 
 .sidebar-top-action {
@@ -649,7 +649,7 @@ th {
   grid-template-columns: minmax(0, 1fr);
   max-height: 100%;
   overflow-y: auto;
-  padding-right: 4px;
+  padding-right: calc((var(--space) * 1.2) + 4px);
 }
 
 .import-file-row {

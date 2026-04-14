@@ -225,7 +225,7 @@ textarea {
   align-self: start;
   max-height: 100%;
   overflow-y: auto;
-  padding-right: 4px;
+  padding-right: calc(var(--spacing-lg) + 4px);
   display: grid;
   gap: var(--spacing-md);
 }
@@ -271,7 +271,7 @@ textarea {
   top: 0;
   max-height: 100%;
   overflow-y: auto;
-  padding-right: 4px;
+  padding-right: calc(var(--spacing-lg) + 4px);
 }
 
 .import-view__right {
