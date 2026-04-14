@@ -345,4 +345,22 @@ describe("resolveReviewEntry — errors", () => {
       }),
     ).toThrow("phase");
   });
+
+  it("throws when link_existing team is not in candidate list", () => {
+    const staged = makeStaged();
+    const review = makeReviewEntry(staged, 0, 0);
+    const section: OrchestratedSection = {
+      context: { race_no: 1, duration: "hour", division: "men", event_date: null },
+      staged_entries: [staged],
+      all_resolved: false,
+    };
+    const session = makeReviewingSession([section], [review]);
+
+    expect(() =>
+      resolveReviewEntry(session, "entry-1", {
+        type: "link_existing",
+        team_id: "team-not-a-candidate",
+      }),
+    ).toThrow("not a candidate");
+  });
 });

@@ -27,6 +27,7 @@ import type {
   EntryCorrectedPayload,
   RankingEligibilitySetPayload,
 } from "./events.ts";
+import { canonicalizeClub, canonicalizePersonNames } from "./person-identity.ts";
 
 // --- Helpers ---
 
@@ -150,14 +151,18 @@ function applyPersonRegistered(
   event: EventEnvelope<"person.registered", PersonRegisteredPayload>,
 ): SeasonState {
   const p = event.payload;
+  const names = canonicalizePersonNames(p);
+  const club = canonicalizeClub(p);
   const person: PersonIdentity = {
     person_id: p.person_id,
-    given_name: p.given_name,
-    family_name: p.family_name,
+    given_name: names.given_name,
+    family_name: names.family_name,
+    display_name: names.display_name,
+    name_normalized: names.name_normalized,
     yob: p.yob,
     gender: p.gender,
-    club: p.club,
-    club_normalized: p.club_normalized,
+    club: club.club,
+    club_normalized: club.club_normalized,
   };
   const persons = new Map(state.persons);
   persons.set(p.person_id, person);
@@ -172,7 +177,25 @@ function applyPersonCorrected(
   const existing = state.persons.get(person_id);
   if (!existing) return state;
 
-  const updated: PersonIdentity = { ...existing, ...updated_fields };
+  const mergedNames = canonicalizePersonNames({
+    given_name: updated_fields.given_name ?? existing.given_name,
+    family_name: updated_fields.family_name ?? existing.family_name,
+    display_name: updated_fields.display_name ?? existing.display_name,
+    name_normalized: updated_fields.name_normalized ?? existing.name_normalized,
+  });
+  const mergedClub = canonicalizeClub({
+    club: updated_fields.club !== undefined ? updated_fields.club : existing.club,
+    club_normalized:
+      updated_fields.club_normalized !== undefined
+        ? updated_fields.club_normalized
+        : existing.club_normalized,
+  });
+  const updated: PersonIdentity = {
+    ...existing,
+    ...updated_fields,
+    ...mergedNames,
+    ...mergedClub,
+  };
   const persons = new Map(state.persons);
   persons.set(person_id, updated);
   return { ...state, persons };

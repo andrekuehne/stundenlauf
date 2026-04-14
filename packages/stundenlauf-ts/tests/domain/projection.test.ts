@@ -127,6 +127,27 @@ describe("applyEvent: person.registered", () => {
     expect(person!.club).toBe("TV Freiburg");
     expect(person!.club_normalized).toBe("tv freiburg");
   });
+
+  it("derives canonical display fields for legacy payloads", () => {
+    const event = personRegistered({
+      person_id: "p-legacy",
+      given_name: "Anna",
+      family_name: "Schmidt",
+      display_name: undefined,
+      name_normalized: undefined,
+      yob: 1985,
+      gender: "F",
+      club: "TV Freiburg",
+      club_normalized: "incorrect legacy value",
+    });
+    const state = applyEvent(emptySeasonState("s1"), event);
+
+    const person = state.persons.get("p-legacy");
+    expect(person).toBeDefined();
+    expect(person!.display_name).toBe("Anna Schmidt");
+    expect(person!.name_normalized).toBe("anna|schmidt");
+    expect(person!.club_normalized).toBe("tv freiburg");
+  });
 });
 
 describe("applyEvent: person.corrected", () => {

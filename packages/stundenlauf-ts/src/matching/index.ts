@@ -21,10 +21,12 @@ export type { MatchingConfig } from "./config.ts";
 export { defaultMatchingConfig, effectiveAutoMin } from "./config.ts";
 
 export {
+  canonicalPersonIdentityFromIncoming,
   normalizeClub,
   normalizeToken,
   normalizeWhitespace,
   parsePersonName,
+  splitDisplayNameParts,
   stripDiacritics,
 } from "./normalize.ts";
 
@@ -89,7 +91,6 @@ export {
   alignCoupleMembersForDisplay,
   buildCoupleLineHighlights,
   fieldHighlightsForPersonLine,
-  splitDisplayNameParts,
 } from "./review-display.ts";
 export type {
   FieldHighlight,

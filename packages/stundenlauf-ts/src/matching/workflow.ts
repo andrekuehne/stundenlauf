@@ -11,6 +11,7 @@ import type { PersonIdentity, SeasonState, Team } from "@/domain/types.ts";
 import type { ParsedSectionCouples, ParsedSectionSingles } from "@/ingestion/types.ts";
 import type { MatchingConfig } from "./config.ts";
 import {
+  buildSoloTeamIdByPersonId,
   buildFingerprintReplayIndex,
   emptyRunStats,
   genderForDivision,
@@ -31,31 +32,24 @@ function buildReviewItemForSingles(
   teams: ReadonlyMap<string, Team>,
 ): ReviewItem | null {
   if (entry.route !== "review") return null;
-  const candidates = entry.candidate_uids.map((uid, i) => {
-    // Find person from teams or persons map
-    let displayName = uid;
+  const candidates = entry.candidate_uids.map((teamId, i) => {
+    let displayName = teamId;
     let candYob = 0;
     let candClub: string | null = null;
-    for (const team of teams.values()) {
-      if (team.team_kind === "solo" && team.member_person_ids.includes(uid)) {
-        const person = persons.get(uid);
+    const team = teams.get(teamId);
+    if (team?.team_kind === "solo") {
+      const personId = team.member_person_ids[0];
+      if (personId) {
+        const person = persons.get(personId);
         if (person) {
-          displayName = [person.given_name, person.family_name].filter(Boolean).join(" ");
+          displayName = person.display_name;
           candYob = person.yob;
           candClub = person.club;
         }
-        break;
       }
     }
-    // Also try direct person lookup (uid might be person_id)
-    const person = persons.get(uid);
-    if (person) {
-      displayName = [person.given_name, person.family_name].filter(Boolean).join(" ");
-      candYob = person.yob;
-      candClub = person.club;
-    }
     return {
-      team_id: uid,
+      team_id: teamId,
       score: entry.candidate_confidences[i] ?? 0,
       features: entry.features,
       display_name: displayName,
@@ -84,7 +78,7 @@ export async function processSinglesSection(
 ): Promise<SectionMatchResult> {
   const replayIndex = await buildFingerprintReplayIndex(state);
   const stats = emptyRunStats();
-  const usedCandidateUids = new Map<string, string>();
+  const usedTeamIds = new Map<string, string>();
 
   const gender = genderForDivision(section.context.division);
 
@@ -107,7 +101,10 @@ export async function processSinglesSection(
     }
   }
 
-  const candidatePeople = [...state.persons.values()];
+  const soloTeamIdByPersonId = buildSoloTeamIdByPersonId(state.teams);
+  const candidatePeople = [...soloTeamIdByPersonId.keys()]
+    .map((personId) => state.persons.get(personId))
+    .filter((person): person is PersonIdentity => person != null);
   const resolvedEntries: SectionMatchResult["resolved_entries"] = [];
   const reviewItems: ReviewItem[] = [];
   const newPersonPayloads: SectionMatchResult["new_person_payloads"] = [];
@@ -122,11 +119,10 @@ export async function processSinglesSection(
       gender,
       candidatePeople,
       replayIndex,
-      usedCandidateUids,
+      usedTeamIds,
       config,
       entryId,
       stats,
-      persons: state.persons,
       teams: state.teams,
     });
 
@@ -174,6 +170,19 @@ export async function processCouplesSection(
   const reviewItems: ReviewItem[] = [];
   const newPersonPayloads: SectionMatchResult["new_person_payloads"] = [];
   const newTeamPayloads: SectionMatchResult["new_team_payloads"] = [];
+  const displayNameByTeamId = new Map<string, { display_name: string; yob: number; club: string | null }>();
+
+  for (const team of state.teams.values()) {
+    if (team.team_kind !== "couple") continue;
+    const memberA = state.persons.get(team.member_person_ids[0] ?? "");
+    const memberB = state.persons.get(team.member_person_ids[1] ?? "");
+    if (!memberA || !memberB) continue;
+    displayNameByTeamId.set(team.team_id, {
+      display_name: `${memberA.display_name} / ${memberB.display_name}`,
+      yob: 0,
+      club: [memberA.club, memberB.club].filter(Boolean).join(" / ") || null,
+    });
+  }
 
   for (const row of section.rows) {
     const entryId = crypto.randomUUID();
@@ -205,12 +214,10 @@ export async function processCouplesSection(
         route: "review",
         confidence: result.confidence,
         candidates: result.candidate_uids.map((uid, i) => ({
+          ...(displayNameByTeamId.get(uid) ?? { display_name: uid, yob: 0, club: null }),
           team_id: uid,
           score: result.candidate_confidences[i] ?? 0,
           features: result.features,
-          display_name: uid,
-          yob: 0,
-          club: null,
         })),
         conflict_flags: result.conflict_flags,
         gender: genderA,

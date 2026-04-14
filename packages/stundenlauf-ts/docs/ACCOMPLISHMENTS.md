@@ -17,6 +17,62 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - H-TS02 central write barrier validation implemented
+- Requirement/Milestone: [R1], [R3], [R5], [R7], [M-TS1]
+- What shipped: Implemented a canonical append-time write barrier in the event store that validates each incoming event with `validateEvent` against transient post-apply state, rejects invalid batches atomically before persistence, and surfaces structured failure details (`season_id`, batch index, `seq`, event type, reasons).
+- Evidence: `src/storage/event-store.ts`, `tests/storage/event-store.test.ts`, `tests/import/pipeline.test.ts`, `docs/hardening/H-TS02-central-event-validation-write-barrier.md`
+- Impact: Prevents producer regressions from silently persisting invalid events, including unknown team references in race entries, and establishes one central semantic enforcement boundary independent of specific import/matching code paths.
+- Follow-up: Optional: add equivalent semantic validation to any future non-append event-log ingestion path if introduced.
+
+### 2026-04-14 - H-TS01 team-first matching identity unification implemented
+- Requirement/Milestone: [R3], [R4], [R6], [M-TS3]
+- What shipped: Completed H-TS01 by making the singles matching/review path team-centric end-to-end (`team_id` for candidate lists, top-candidate identity, conflict tracking, and staged resolution), removing the person-id fallback seam, and adding review guardrails that reject `link_existing` targets outside the candidate set.
+- Evidence: `src/matching/resolve.ts`, `src/matching/workflow.ts`, `src/import/review.ts`, `tests/matching/resolve.test.ts`, `tests/matching/workflow.test.ts`, `tests/import/review.test.ts`, `tests/import/pipeline.test.ts`
+- Impact: Eliminates the UUID-row bug class caused by leaking `person_id` into team-linking fields, strengthens referential integrity before finalize/commit, and aligns runtime behavior with the universal team-domain model.
+- Follow-up: Implement H-TS02 central write-barrier validation to enforce semantic event integrity at append time.
+
+### 2026-04-14 - H-TS02 hardening seed for validation write barrier
+- Requirement/Milestone: [R1], [R3], [R5], [R7], [M-TS1]
+- What shipped: Added a second hardening plan (`H-TS02`) for a central event validation write barrier so invalid event batches are rejected before persistence/projection, and registered it in the project hardening inventory.
+- Evidence: `PROJECT_PLAN.md`, `docs/hardening/H-TS02-central-event-validation-write-barrier.md`
+- Impact: Establishes defense-in-depth beyond producer-side fixes by ensuring semantic event integrity is enforced at the storage boundary.
+- Follow-up: Implement sequential batch validation in the canonical append path and add atomic-failure regression tests.
+
+### 2026-04-14 - Hardening planning lane (`H-TSxx`) introduced
+- Requirement/Milestone: [R3], [R4], [R6], [M-TS3]
+- What shipped: Added a dedicated hardening planning track (`H-TSxx`) to separate cross-cutting architecture/reliability work from user-facing features, updated `PROJECT_PLAN.md` with a hardening inventory and working agreement, and created `docs/hardening/H-TS01-team-first-matching-identity-unification.md`.
+- Evidence: `PROJECT_PLAN.md`, `docs/hardening/H-TS01-team-first-matching-identity-unification.md`
+- Impact: Bug-class elimination and architecture-alignment work can now be tracked explicitly without overloading feature scope, improving planning clarity and execution discipline for emergent reliability improvements.
+- Follow-up: Execute H-TS01 implementation steps and add regression coverage for singles/couples team-identity consistency in matching and review flows.
+
+### 2026-04-14 - Full-season import walkthrough harness added
+- Requirement/Milestone: [R1], [R3], [R4], [R6], [M-TS2]
+- What shipped: Added a second dev harness (`/?harness=import-season`) for practical season-by-season import validation: sequential file loading, review queue decisions via simple radio buttons, cumulative season state projection across imports, and an accumulated points-descending ranking table.
+- Evidence: `src/App.tsx`, `src/devtools/ImportSeasonWalkthroughHarness.tsx`, `docs/features/F-TS05-import-orchestration-workflow.md`
+- Impact: Enables direct end-to-end manual comparison against the Python import workflow over many race files without needing the future full GUI.
+- Follow-up: Add optional export/import of harness session state for long parity runs across multiple days.
+
+### 2026-04-14 - Harness matching modes and thresholds exposed
+- Requirement/Milestone: [R4], [R6], [M-TS2]
+- What shipped: Extended the F-TS05 manual import harness with Python-comparable matching controls (Strikt / Fuzzy-Automatik / Manuell) plus live auto/review threshold sliders, and wired these settings into both trace generation and orchestration matching runs.
+- Evidence: `src/devtools/ImportOrchestrationHarness.tsx`, `docs/features/F-TS05-import-orchestration-workflow.md`
+- Impact: Enables direct, repeatable manual parity comparisons against the current Python GUI matching behavior during MW1→MW2 harness sessions.
+- Follow-up: Add a compact per-cycle diff view to compare route changes when only thresholds/mode change.
+
+### 2026-04-14 - Canonical person/club display invariants added
+- Requirement/Milestone: [R3], [R4], [R8], [M-TS1]
+- What shipped: Extended person identity contracts with canonical display name fields (`display_name`, `name_normalized`), enforced dual-write consistency (split name, display name, normalized key, and club pair) in event validation/projection, and aligned import/review/matching consumers to use canonical display values.
+- Evidence: `src/domain/types.ts`, `src/domain/events.ts`, `src/domain/person-identity.ts`, `src/domain/projection.ts`, `src/domain/validation.ts`, `src/matching/normalize.ts`, `src/matching/workflow.ts`, `src/import/review.ts`, `src/import/run-matching.ts`, `tests/domain/projection.test.ts`, `tests/domain/validation.test.ts`, `tests/storage/serialization.test.ts`, `tests/matching/*`
+- Impact: Names and clubs now have a robust human-display representation attached to every person while preserving normalization-consistent identity behavior and replay determinism (including legacy payload compatibility).
+- Follow-up: Thread canonical person display through F-TS06 standings/race UIs as they are built.
+
+### 2026-04-14 - F-TS05 manual MW1→MW2 harness added
+- Requirement/Milestone: [R1], [R3], [R4], [R6], [M-TS2]
+- What shipped: Added a dev-only import orchestration harness (`/?harness=import`) that runs a real two-file cycle (MW1 then MW2), projects season state between files, and exposes row-level matching diagnostics (pool snapshot, route, candidates, scores, flags, placement).
+- Evidence: `src/App.tsx`, `src/devtools/ImportOrchestrationHarness.tsx`, `src/devtools/import-harness-trace.ts`, `tests/import/import-harness-trace.test.ts`, `docs/features/F-TS05-import-orchestration-workflow.md`
+- Impact: Enables high-confidence manual validation/debugging of orchestration behavior on real organizer XLSX files without waiting for the full F-TS06 GUI workflow.
+- Follow-up: If needed, extend the harness with configurable matching thresholds for side-by-side tuning sessions.
+
 ### 2026-04-12 - Project plan scaffold and F-TS01 feature spec created
 - Requirement/Milestone: [M-TS1]
 - What shipped: Created `packages/stundenlauf-ts/` planning directory with project plan, feature template, accomplishments log, and detailed F-TS01 event-sourced architecture feature plan derived from analysis of the Python backend.

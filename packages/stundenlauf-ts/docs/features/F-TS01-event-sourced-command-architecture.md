@@ -72,10 +72,12 @@ PersonIdentity {
   person_id: string           // uuid
   given_name: string          // parsed canonical
   family_name: string         // parsed canonical
+  display_name: string        // canonical display form (non-normalized)
+  name_normalized: string     // normalized name key used for matching consistency
   yob: number
   gender: "M" | "F" | "X"
   club: string | null         // current club affiliation (can change)
-  club_normalized: string     // normalized for matching/display
+  club_normalized: string     // normalized for matching consistency
 }
 
 Team {
@@ -86,6 +88,7 @@ Team {
 ```
 
 When `club` is non-null, `club_normalized` must contain the normalization of `club` under the current normalization rules. When `club` is null, `club_normalized` must be the empty string.
+`display_name`, `given_name`/`family_name`, and `name_normalized` form a dual-write consistency group: all three representations must normalize to the same name key after each `person.registered`/`person.corrected` replay step.
 
 In v1, `Team` is intentionally named broadly to support future 1..n-person scoring units. However, the current implementation validates `member_person_ids.length` to **1 or 2 only**, and `team_kind` is currently limited to **`"solo" | "couple"`**. Larger teams are a future extension and are not part of this feature.
 
@@ -191,6 +194,8 @@ Below is the complete event catalog.
   person_id: string
   given_name: string
   family_name: string
+  display_name?: string
+  name_normalized?: string
   yob: number
   gender: "M" | "F" | "X"
   club: string | null
@@ -205,6 +210,8 @@ Below is the complete event catalog.
   updated_fields: {
     given_name?: string
     family_name?: string
+    display_name?: string
+    name_normalized?: string
     yob?: number
     club?: string | null
     club_normalized?: string
@@ -624,6 +631,8 @@ interface PersonIdentity {
   person_id: string;
   given_name: string;
   family_name: string;
+  display_name: string;
+  name_normalized: string;
   yob: number;
   gender: Gender;
   club: string | null;

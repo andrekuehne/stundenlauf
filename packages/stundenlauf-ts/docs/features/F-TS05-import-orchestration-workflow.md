@@ -173,6 +173,7 @@ type ReviewState = {
 ### 4. Review Queue
 
 The review queue is a flat list of entries across all sections that the matching engine routed to `review`. Each entry carries candidate information for the UI to display.
+Candidate `display_label` values come from canonical identity display fields (`PersonIdentity.display_name` and canonical club display) rather than ad-hoc joins, so review UI labels stay aligned with event-sourced identity corrections.
 
 ```typescript
 interface ReviewEntry {
@@ -242,6 +243,8 @@ When all entries are resolved, the orchestrator constructs the event batch in th
 
 - For singles: `display_name` = raw name, `yob` = parsed yob, `yob_text` = null, `club` = raw club, `row_kind` = "solo".
 - For couples: `display_name` = "NameA / NameB", `yob` = null, `yob_text` = "yobA / yobB", `club` = raw clubs joined, `row_kind` = "team".
+
+`IncomingRowData` remains immutable source audit data ("as imported"). Canonical identity display fields are maintained separately on `PersonIdentity` and can diverge from incoming raw text while staying normalization-consistent.
 - Source location fields (`sheet_name`, `section_name`, `row_index`) carried through from the parser output.
 
 ### 7. Import Blocking
@@ -440,6 +443,35 @@ All exports are pure functions (except `startImport` which is async due to file 
   - Import with zero rows after parsing (all rows skipped) → `no_rows` error from parser.
   - Import into empty season (no prior state) → no conflict checks fire, all new identities.
   - Re-import after full rollback of prior batch → allowed, produces fresh batch.
+
+## Manual Orchestration Harness (Dev)
+
+A minimal, dev-only interactive harness is available for manual MW1 → MW2 validation
+before the full GUI workflow.
+
+- **Entry:** run `npm run dev` and open `/?harness=import`.
+- **Season walkthrough harness:** run `npm run dev` and open `/?harness=import-season`
+  for a pragmatic full-season loop (file-by-file import with manual review radio picks and
+  accumulated ranking view).
+- **Input mode:** file picker (local `.xlsx` files, no fixture hosting required).
+- **Matching controls:** choose `Strikt`, `Fuzzy-Automatik`, or `Manuell` and tune the
+  auto/review threshold sliders before each import cycle for direct parity checks
+  against the Python app behavior.
+- **Cycle:** load MW1 (empty season baseline) then load MW2 (state projected from MW1 events).
+- **Displayed debug context:**
+  - participant/team pool snapshot before each section,
+  - currently parsed row details,
+  - matching route (`auto` / `review` / `new_identity`),
+  - candidate IDs + scores, conflict flags, feature scores,
+  - final placement (existing link vs new identity IDs).
+- **Review behavior:** the harness auto-resolves pending review entries by taking the top
+  candidate; if no candidate exists, it creates a new identity so finalization can proceed.
+
+Implementation files:
+- `src/devtools/ImportOrchestrationHarness.tsx`
+- `src/devtools/ImportSeasonWalkthroughHarness.tsx`
+- `src/devtools/import-harness-trace.ts`
+- `tests/import/import-harness-trace.test.ts`
 
 ## Definition of Done
 

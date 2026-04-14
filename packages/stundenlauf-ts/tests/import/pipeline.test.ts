@@ -6,8 +6,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { emptySeasonState, projectState } from "@/domain/projection.ts";
+import { applyEvent, emptySeasonState, projectState } from "@/domain/projection.ts";
 import type { DomainEvent } from "@/domain/events.ts";
+import { validateEvent } from "@/domain/validation.ts";
 import { defaultMatchingConfig } from "@/matching/config.ts";
 import type { ParsedWorkbook } from "@/ingestion/types.ts";
 import { createSession } from "@/import/session.ts";
@@ -108,6 +109,15 @@ describe("all-auto import into empty season", () => {
 
     for (let i = 0; i < events.length; i++) {
       expect(events[i]!.seq).toBe(i);
+    }
+
+    // Event batches emitted by finalizeImport must be append-compatible with
+    // the central write barrier (sequential validate + apply).
+    let transient = emptySeasonState("s1");
+    for (const event of events) {
+      const validation = validateEvent(transient, event);
+      expect(validation.valid).toBe(true);
+      transient = applyEvent(transient, event);
     }
   });
 
@@ -256,6 +266,8 @@ describe("import with review", () => {
     if (matched.phase === "reviewing") {
       const queue = getReviewQueue(matched);
       expect(queue.length).toBeGreaterThan(0);
+      expect(queue[0]!.review_item.candidates[0]!.team_id).toBe(teamId);
+      expect(queue[0]!.review_item.candidates[0]!.team_id).not.toBe(personId);
 
       let resolved = matched;
       for (const entry of queue) {

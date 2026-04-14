@@ -14,6 +14,8 @@ function makePerson(
   return {
     given_name: "Test",
     family_name: "Person",
+    display_name: "",
+    name_normalized: "",
     yob: 1990,
     gender: "M",
     club: null,

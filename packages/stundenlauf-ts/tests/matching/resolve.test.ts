@@ -10,6 +10,8 @@ function makePerson(
   return {
     given_name: "",
     family_name: "",
+    display_name: "",
+    name_normalized: "",
     yob: 0,
     gender: "M",
     club: null,
@@ -48,11 +50,10 @@ describe("resolvePerson", () => {
       gender: "M",
       candidatePeople: [],
       replayIndex: new Map(),
-      usedCandidateUids: new Map(),
+      usedTeamIds: new Map(),
       config,
       entryId: "e1",
       stats,
-      persons: new Map(),
       teams: new Map(),
     });
     expect(result.route).toBe("new_identity");
@@ -72,11 +73,10 @@ describe("resolvePerson", () => {
       gender: "F",
       candidatePeople: [anna],
       replayIndex: new Map(),
-      usedCandidateUids: new Map(),
+      usedTeamIds: new Map(),
       config,
       entryId: "e1",
       stats,
-      persons,
       teams,
     });
     expect(result.route).toBe("auto");
@@ -96,15 +96,16 @@ describe("resolvePerson", () => {
       gender: "F",
       candidatePeople: [anna],
       replayIndex: new Map(),
-      usedCandidateUids: new Map(),
+      usedTeamIds: new Map(),
       config,
       entryId: "e1",
       stats,
-      persons,
       teams,
     });
     expect(result.route).toBe("review");
     expect(stats.review_queue).toBe(1);
+    expect(result.top_candidate_uid).toBe("t-anna");
+    expect(result.candidate_uids[0]).toBe("t-anna");
   });
 
   it("uses replay when fingerprint matches", async () => {
@@ -124,11 +125,10 @@ describe("resolvePerson", () => {
       gender: "F",
       candidatePeople: [anna],
       replayIndex,
-      usedCandidateUids: new Map(),
+      usedTeamIds: new Map(),
       config,
       entryId: "e1",
       stats,
-      persons,
       teams,
     });
     expect(result.route).toBe("auto");
@@ -140,7 +140,7 @@ describe("resolvePerson", () => {
   it("detects same-race candidate reuse conflict", async () => {
     const config = defaultMatchingConfig();
     const stats = emptyRunStats();
-    const usedUids = new Map([["p-anna", "e-previous"]]);
+    const usedUids = new Map([["t-anna", "e-previous"]]);
     const result = await resolvePerson({
       rawName: "Anna Schmidt",
       yob: 1988,
@@ -148,11 +148,10 @@ describe("resolvePerson", () => {
       gender: "F",
       candidatePeople: [anna],
       replayIndex: new Map(),
-      usedCandidateUids: usedUids,
+      usedTeamIds: usedUids,
       config,
       entryId: "e2",
       stats,
-      persons,
       teams,
     });
     expect(result.route).toBe("review");
@@ -170,11 +169,10 @@ describe("resolvePerson", () => {
       gender: "F",
       candidatePeople: [anna],
       replayIndex: new Map(),
-      usedCandidateUids: new Map(),
+      usedTeamIds: new Map(),
       config,
       entryId: "e1",
       stats,
-      persons,
       teams,
     });
     expect(result.route).toBe("review");
@@ -190,11 +188,10 @@ describe("resolvePerson", () => {
       gender: "F",
       candidatePeople: [anna],
       replayIndex: new Map(),
-      usedCandidateUids: new Map(),
+      usedTeamIds: new Map(),
       config,
       entryId: "e1",
       stats,
-      persons,
       teams,
     });
     expect(result.route).toBe("auto");
@@ -211,14 +208,33 @@ describe("resolvePerson", () => {
       gender: "F",
       candidatePeople: [anna],
       replayIndex: new Map(),
-      usedCandidateUids: new Map(),
+      usedTeamIds: new Map(),
       config,
       entryId: "e1",
       stats,
-      persons,
       teams,
     });
     expect(result.route).toBe("review");
+  });
+
+  it("throws when matched single has no solo team", async () => {
+    const config = defaultMatchingConfig({ strict_normalized_auto_only: true });
+    const stats = emptyRunStats();
+    await expect(
+      resolvePerson({
+        rawName: "Anna Schmidt",
+        yob: 1988,
+        clubRaw: "TSV",
+        gender: "F",
+        candidatePeople: [anna],
+        replayIndex: new Map(),
+        usedTeamIds: new Map(),
+        config,
+        entryId: "e1",
+        stats,
+        teams: new Map(),
+      }),
+    ).rejects.toThrow(/solo team/i);
   });
 });
 

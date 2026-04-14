@@ -30,6 +30,8 @@ export interface PersonIdentity {
   person_id: string;
   given_name: string;
   family_name: string;
+  display_name: string;
+  name_normalized: string;
   yob: number;
   gender: Gender;
   club: string | null;

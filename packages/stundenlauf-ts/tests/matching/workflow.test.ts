@@ -22,6 +22,8 @@ function makePerson(
   return {
     given_name: "",
     family_name: "",
+    display_name: "",
+    name_normalized: "",
     yob: 0,
     gender: "M",
     club: null,
@@ -54,6 +56,8 @@ describe("processSinglesSection", () => {
       person_id: "p-anna",
       given_name: "anna",
       family_name: "schmidt",
+      display_name: "Anna Schmidt",
+      name_normalized: "anna schmidt",
       yob: 1988,
       gender: "F",
       club: "TSV",
@@ -186,6 +190,40 @@ describe("processSinglesSection", () => {
     const config = defaultMatchingConfig({ auto_min: 1.01 });
     const result = await processSinglesSection(state, section, config);
     expect(result.resolved_entries[0]!.route).toBe("review");
+  });
+
+  it("uses team_id for singles review candidates", async () => {
+    const anna = makePerson({
+      person_id: "p-anna",
+      given_name: "anna",
+      family_name: "schmidt",
+      display_name: "Anna Schmidt",
+      name_normalized: "anna|schmidt",
+      yob: 1988,
+      gender: "F",
+      club: "TSV",
+      club_normalized: "tsv",
+    });
+    const annaTeam: Team = {
+      team_id: "t-anna",
+      member_person_ids: ["p-anna"],
+      team_kind: "solo",
+    };
+    const state = emptyState({
+      persons: new Map([["p-anna", anna]]),
+      teams: new Map([["t-anna", annaTeam]]),
+    });
+    const section: ParsedSectionSingles = {
+      context: { race_no: 1, duration: "hour", division: "women", event_date: null },
+      rows: [
+        { startnr: "1", name: "Anna Schmidt", yob: 1988, club: "TSV", distance_km: 10, points: 1 },
+      ],
+    };
+    const config = defaultMatchingConfig({ auto_min: 1.01 });
+    const result = await processSinglesSection(state, section, config);
+    expect(result.review_items).toHaveLength(1);
+    expect(result.review_items[0]!.candidates[0]!.team_id).toBe("t-anna");
+    expect(result.review_items[0]!.candidates[0]!.display_name).toBe("Anna Schmidt");
   });
 });
 

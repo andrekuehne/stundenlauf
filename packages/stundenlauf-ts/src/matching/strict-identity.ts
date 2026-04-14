@@ -17,6 +17,8 @@ function personClubNorm(person: PersonIdentity): string {
 }
 
 function storedPersonNameKey(person: PersonIdentity): string {
+  const stored = person.name_normalized.trim();
+  if (stored) return stored;
   const parsed = personParsed(person);
   return nameKey(parsed);
 }

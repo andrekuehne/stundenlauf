@@ -21,6 +21,7 @@ import type {
   RankingEligibilitySetPayload,
 } from "@/domain/events.ts";
 import type { RaceCategory, RaceEntryInput, IncomingRowData, ResolutionInfo } from "@/domain/types.ts";
+import { canonicalPersonIdentityFromIncoming } from "@/matching/normalize.ts";
 
 let seqCounter = 0;
 
@@ -138,10 +139,13 @@ export function personRegistered(
   overrides?: Partial<PersonRegisteredPayload>,
   envelopeOverrides?: EnvelopeFields,
 ): PersonRegisteredEvent {
+  const canonicalName = canonicalPersonIdentityFromIncoming("Max Müller");
   const payload: PersonRegisteredPayload = {
     person_id: `person-${crypto.randomUUID().slice(0, 8)}`,
-    given_name: "Max",
-    family_name: "Müller",
+    given_name: canonicalName.given_name,
+    family_name: canonicalName.family_name,
+    display_name: canonicalName.display_name,
+    name_normalized: canonicalName.name_normalized,
     yob: 1990,
     gender: "M",
     club: "LG Test",
