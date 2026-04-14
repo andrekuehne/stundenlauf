@@ -28,6 +28,7 @@ interface SeasonStoreState {
   correctPersonIdentity: (input: PersonCorrectionInput) => Promise<void>;
   mergeTeams: (survivorTeamId: string, absorbedTeamId: string) => Promise<void>;
   rollbackBatch: (importBatchId: string, reason: string) => Promise<void>;
+  appendImportEvents: (events: DomainEvent[]) => Promise<void>;
 }
 
 const APP_VERSION = "stundenlauf-ts-0.1.0";
@@ -295,6 +296,21 @@ export const useSeasonStore = create<SeasonStoreState>((set, get) => ({
       }),
     );
 
+    set({ loading: true, error: null });
+    try {
+      const repo = await getSeasonRepository();
+      await repo.appendEvents(state.activeSeasonId, events);
+      await reloadWorkspaceAndSeason(get, set, state.activeSeasonId);
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : String(error) });
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  appendImportEvents: async (events) => {
+    const state = get();
+    if (!state.activeSeasonId || events.length === 0) return;
     set({ loading: true, error: null });
     try {
       const repo = await getSeasonRepository();

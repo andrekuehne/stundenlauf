@@ -45,7 +45,7 @@ export function SeasonEntryView({ seasonLabel, reviewLabel }: FoundationViewProp
             void createSeason(newSeasonLabel).then(() => {
               if (!newSeasonLabel.trim()) return;
               setStatus({
-                message: `Saison "${newSeasonLabel.trim()}" angelegt.`,
+                message: STR.views.season.createdDone(newSeasonLabel.trim()),
                 severity: "success",
                 source: "season-entry",
               });
@@ -129,7 +129,7 @@ export function SeasonEntryView({ seasonLabel, reviewLabel }: FoundationViewProp
           if (!deleteCandidate) return;
           void deleteSeason(deleteCandidate).then(() => {
             setStatus({
-              message: "Saison gelöscht.",
+              message: STR.views.season.deletedDone,
               severity: "warn",
               source: "season-entry",
             });
@@ -149,7 +149,7 @@ export function SeasonEntryView({ seasonLabel, reviewLabel }: FoundationViewProp
           if (!resetCandidate) return;
           void resetSeason(resetCandidate).then(() => {
             setStatus({
-              message: "Saison wurde zurückgesetzt.",
+              message: STR.views.season.resetDone,
               severity: "warn",
               source: "season-entry",
             });

@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - F-TS06d Python GUI parity pass implemented
+- Requirement/Milestone: [R1], [R2], [R3], [R4], [R5], [R6], [R8], [M-TS5]
+- What shipped: Delivered a cross-referenced Python-vs-TS parity pass with shell/header alignment (season + open-review context and switch-season tab affordance), production import orchestration/review workflow in the main app (replacing placeholder import tab), targeted standings/season/history drift fixes, and centralized remaining user-facing copy in the TS string catalog.
+- Evidence: `docs/features/F-TS06d-python-gui-parity-pass.md`, `src/App.tsx`, `src/stores/import.ts`, `src/components/import/{ImportView.tsx,ImportControls.tsx,MatchingSettings.tsx,ReviewPanel.tsx,ReviewTable.tsx}`, `src/components/standings/{adapters.ts,StandingsView.tsx}`, `src/components/season/SeasonEntryView.tsx`, `src/components/history/HistoryView.tsx`, `src/components/shared/ImportedRunsMatrix.tsx`, `src/strings.ts`, `src/theme.css`, `tests/ui/{app-shell.test.tsx,import-view.test.tsx}`
+- Impact: Reduces early workflow/usability drift from the hand-tuned Python GUI while keeping TS architecture/local-first event-log semantics intact and making M-TS5 behavior more production-realistic for day-to-day use.
+- Follow-up: Decide whether F-TS06c should now be closed or split remaining enhancements into a narrower import UX polish slice.
+
 ### 2026-04-14 - F-TS06b season/standings/history workflows implemented
 - Requirement/Milestone: [R2], [R5], [R8], [M-TS5]
 - What shipped: Implemented F-TS06b end-to-end with IndexedDB-backed season lifecycle management (list/create/open/reset/delete), live standings surfaces (category quick-select, imported-run matrix, Gesamtwertung and Laufübersicht), correction and duplicate-merge modal flows, and history/audit screens with per-batch rollback confirmations.

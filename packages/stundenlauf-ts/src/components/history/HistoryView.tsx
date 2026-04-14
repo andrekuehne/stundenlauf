@@ -21,6 +21,7 @@ export function HistoryView({ seasonLabel, reviewLabel }: FoundationViewProps) {
 
   const importRows = useMemo(() => buildImportBatchRows(seasonState), [seasonState]);
   const auditRows = useMemo(() => buildAuditRows(eventLog), [eventLog]);
+  const rollbackCount = importRows.find((row) => row.import_batch_id === rollbackCandidate)?.races_count ?? 0;
 
   return (
     <section className="foundation-view" aria-label={STR.views.history.title}>
@@ -44,7 +45,7 @@ export function HistoryView({ seasonLabel, reviewLabel }: FoundationViewProps) {
       <ConfirmModal
         isOpen={rollbackCandidate != null}
         title={STR.views.history.rollbackConfirmTitle}
-        body={STR.views.history.rollbackConfirmBody}
+        body={STR.views.history.rollbackConfirmBodyWithCount(rollbackCount)}
         onCancel={() => {
           setRollbackCandidate(null);
         }}
@@ -52,7 +53,7 @@ export function HistoryView({ seasonLabel, reviewLabel }: FoundationViewProps) {
           if (!rollbackCandidate) return;
           void rollbackBatch(rollbackCandidate, "Rollback über Historie").then(() => {
             setStatus({
-              message: "Import wurde zurückgerollt.",
+              message: STR.views.history.rollbackDone(rollbackCount),
               severity: "warn",
               source: "history",
             });

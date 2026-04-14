@@ -40,6 +40,24 @@ export interface RaceOverviewModel {
   }>;
 }
 
+const LEGACY_CATEGORY_ORDER = [
+  "half_hour:women",
+  "half_hour:men",
+  "hour:women",
+  "hour:men",
+  "half_hour:couples_women",
+  "half_hour:couples_men",
+  "half_hour:couples_mixed",
+  "hour:couples_women",
+  "hour:couples_men",
+  "hour:couples_mixed",
+] as const;
+
+function categorySortRank(key: string): number {
+  const idx = LEGACY_CATEGORY_ORDER.indexOf(key as (typeof LEGACY_CATEGORY_ORDER)[number]);
+  return idx >= 0 ? idx : Number.MAX_SAFE_INTEGER;
+}
+
 function categoryLabel(category: string): string {
   return STR.category[category] ?? category;
 }
@@ -61,10 +79,15 @@ export function teamLabel(state: SeasonState, teamId: string): string {
 
 export function buildCategoryOptions(state: SeasonState): CategoryOption[] {
   const standings = computeStandings(state);
-  return standings.category_tables.map((table) => ({
-    key: table.category_key,
-    label: categoryLabel(table.category_key),
-  }));
+  return standings.category_tables
+    .map((table) => ({
+      key: table.category_key,
+      label: categoryLabel(table.category_key),
+    }))
+    .sort(
+      (a, b) =>
+        categorySortRank(a.key) - categorySortRank(b.key) || a.label.localeCompare(b.label, "de"),
+    );
 }
 
 export function buildImportedRunsRows(state: SeasonState): ImportedRunRow[] {

@@ -6,6 +6,7 @@ import { HistoryView } from "@/components/history/HistoryView.tsx";
 import { SeasonEntryView } from "@/components/season/SeasonEntryView.tsx";
 import { StandingsView } from "@/components/standings/StandingsView.tsx";
 import { StatusBar } from "@/components/shared/StatusBar.tsx";
+import { useImportStore } from "@/stores/import.ts";
 import { useSeasonStore } from "@/stores/season.ts";
 import { useStatusStore } from "@/stores/status.ts";
 import { ImportOrchestrationHarness } from "./devtools/ImportOrchestrationHarness.tsx";
@@ -26,8 +27,10 @@ function shouldShowImportSeasonHarness(): boolean {
 export function App() {
   const [activeTab, setActiveTab] = useState<ShellTab>("standings");
   const bootstrapWorkspace = useSeasonStore((state) => state.bootstrapWorkspace);
+  const seasons = useSeasonStore((state) => state.seasons);
   const activeSeasonId = useSeasonStore((state) => state.activeSeasonId);
   const seasonError = useSeasonStore((state) => state.error);
+  const reviewCount = useImportStore((state) => state.openReviewCount);
   const setStatus = useStatusStore((state) => state.setStatus);
   const showImportSeasonHarness = shouldShowImportSeasonHarness();
   const showImportHarness = shouldShowImportHarness();
@@ -47,10 +50,12 @@ export function App() {
 
   const viewProps = useMemo(
     () => ({
-      seasonLabel: seasonLabel(activeSeasonId ?? "-"),
-      reviewLabel: reviewOpenCount(0),
+      seasonLabel: seasonLabel(
+        activeSeasonId ? (seasons.find((entry) => entry.season_id === activeSeasonId)?.label ?? activeSeasonId) : "-",
+      ),
+      reviewLabel: reviewOpenCount(reviewCount),
     }),
-    [activeSeasonId],
+    [activeSeasonId, reviewCount, seasons],
   );
 
   if (showImportSeasonHarness) {
@@ -79,6 +84,10 @@ export function App() {
     <div id="app" className="app-shell">
       <header className="app-shell__header">
         <h1>{STR.shell.appTitle}</h1>
+        <div className="header-context">
+          <span>{viewProps.seasonLabel}</span>
+          <span>{viewProps.reviewLabel}</span>
+        </div>
       </header>
 
       <nav className="app-shell__tabs" role="tablist" aria-label={STR.shell.appTitle}>
@@ -90,7 +99,9 @@ export function App() {
             type="button"
             aria-selected={activeTab === tab}
             aria-controls={`panel-${tab}`}
-            className={`button button--tab ${activeTab === tab ? "is-active" : ""}`}
+            className={`button button--tab ${tab === "season" ? "button--tab-subtle" : ""} ${
+              activeTab === tab ? "is-active" : ""
+            }`}
             onClick={() => {
               setActiveTab(tab);
             }}

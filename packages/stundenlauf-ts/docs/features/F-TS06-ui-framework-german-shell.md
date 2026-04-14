@@ -48,6 +48,15 @@ Focus:
 - Review queue rendering, candidate selection, and merge-correct affordances.
 - Scope and acceptance criteria are grounded in the existing dev harness `?harness=import-season`.
 
+### F-TS06d — Python GUI parity pass (layout + workflow)
+
+File: `packages/stundenlauf-ts/docs/features/F-TS06d-python-gui-parity-pass.md`
+
+Focus:
+- Cross-check production TS GUI behavior against `frontend/` legacy behavior.
+- Correct shell/layout/workflow drift with explicit `MATCH` / `DRIFT` / `DEFER` mapping.
+- Land parity-sensitive tests and outcome tracking updates after implementation.
+
 ## Shared constraints across 06a/06b/06c
 
 - Keep all user-facing text in German (R8).

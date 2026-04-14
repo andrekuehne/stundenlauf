@@ -83,6 +83,7 @@ Features are prefixed `F-TS` to distinguish from the Python version's `F` prefix
 | F-TS06a | UI foundation: shell layout and German strings | M-TS5 | Done |
 | F-TS06b | Season, standings, and history workflows | M-TS5 | Done |
 | F-TS06c | Import orchestration and matching review GUI | M-TS5 | Planned |
+| F-TS06d | Python GUI parity pass (layout + workflow drift correction) | M-TS5 | Done |
 | F-TS07 | Season data portability (JSON/ZIP export and import) | M-TS6 | Planned |
 | F-TS08 | Standings and results export (PDF, Excel) | M-TS6 | Planned |
 | F-TS09 | GitHub Pages deployment and PWA | M-TS7 | Planned |
@@ -217,3 +218,4 @@ TS version: UI components call domain functions directly. No serialization bound
 | 2026-04-14 | Split F-TS06 into F-TS06a/b/c subplans | Reduced UI planning scope per work package: shell+strings foundation, season/standings/history workflows, and import orchestration/matching review GUI (aligned to existing `?harness=import-season` prototype) |
 | 2026-04-14 | F-TS06a implemented | Delivered production app shell with German tab navigation, typed string/format foundation, reusable status+confirm primitives, reduced-motion baseline styling, and dedicated UI foundation tests; marked F-TS06a Done while F-TS06b/06c remain planned |
 | 2026-04-14 | F-TS06b implemented | Delivered season lifecycle workflows, live standings/history screens, correction/merge/rollback UI actions over event-log persistence, and TS06b adapter/component test coverage; marked F-TS06b Done while F-TS06c remains planned |
+| 2026-04-14 | F-TS06d parity pass implemented | Added Python-vs-TS parity checklist, aligned shell header context and tab affordances, implemented production import orchestration/review UI in `ImportView`, standardized remaining standings/season/history status copy via string catalog, and added parity-focused UI tests |

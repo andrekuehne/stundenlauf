@@ -14,11 +14,11 @@ export function ImportedRunsMatrix({ rows }: ImportedRunsMatrixProps) {
     <table className="ui-table">
       <thead>
         <tr>
-          <th>{STR.views.standings.races}</th>
-          <th>Kategorie</th>
-          <th>Datum</th>
-          <th>Datei</th>
-          <th>Einträge</th>
+          <th>{STR.views.standings.importedRunsRaceCol}</th>
+          <th>{STR.views.standings.importedRunsCategoryCol}</th>
+          <th>{STR.views.standings.importedRunsDateCol}</th>
+          <th>{STR.views.standings.importedRunsFileCol}</th>
+          <th>{STR.views.standings.importedRunsEntriesCol}</th>
         </tr>
       </thead>
       <tbody>

@@ -61,6 +61,17 @@ describe("App shell", () => {
     );
 
     fireEvent.click(screen.getByRole("tab", { name: STR.shell.tabs.import }));
-    expect(screen.getByText(STR.views.import.placeholder)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: STR.views.import.importRace })).toBeInTheDocument();
+  });
+
+  it("renders header context labels from season and review state", () => {
+    useSeasonStore.setState({
+      seasons: [{ season_id: "s1", label: "2026", created_at: new Date().toISOString() }],
+      activeSeasonId: "s1",
+    });
+    render(<App />);
+
+    expect(screen.getAllByText("Saison: 2026").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Prüfungen offen: 0").length).toBeGreaterThan(0);
   });
 });

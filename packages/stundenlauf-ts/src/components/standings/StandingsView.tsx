@@ -70,123 +70,129 @@ export function StandingsView({ seasonLabel, reviewLabel }: FoundationViewProps)
   return (
     <section className="foundation-view" aria-label={STR.views.standings.title}>
       <h2>{STR.views.standings.title}</h2>
-      <div className="standings-view__toolbar">
-        <CategoryGrid
-          options={categoryOptions}
-          selectedKey={selectedCategoryKey}
-          onSelect={selectCategory}
-        />
-        <div className="standings-view__modes">
-          <button
-            type="button"
-            className="button"
-            onClick={() => {
-              setMode("overview");
-            }}
-          >
-            {STR.views.standings.modeOverview}
-          </button>
-          <button
-            type="button"
-            className="button"
-            onClick={() => {
-              setMode("correct_identity");
-            }}
-          >
-            {STR.views.standings.modeCorrectIdentity}
-          </button>
-          <button
-            type="button"
-            className="button"
-            onClick={() => {
-              setMode("merge_duplicates");
-            }}
-          >
-            {STR.views.standings.modeMergeDuplicates}
-          </button>
-          <button type="button" className="button" disabled>
-            {STR.views.standings.exportPdf}
-          </button>
-          <button type="button" className="button" disabled>
-            {STR.views.standings.exportExcel}
-          </button>
-        </div>
-      </div>
+      <div className="standings-layout">
+        <aside className="standings-sidebar">
+          <h3>{STR.views.standings.importedRunsTitle}</h3>
+          <ImportedRunsMatrix rows={importedRuns} />
 
-      <h3>{STR.views.standings.importedRunsTitle}</h3>
-      <ImportedRunsMatrix rows={importedRuns} />
+          <h3>{STR.views.standings.title}</h3>
+          <CategoryGrid
+            options={categoryOptions}
+            selectedKey={selectedCategoryKey}
+            onSelect={selectCategory}
+          />
 
-      <h3>{STR.views.standings.overallTitle}</h3>
-      <StandingsTable rows={standingsRows} />
-
-      {mode === "correct_identity" ? (
-        <div className="standings-view__mode-panel">
-          <label>
-            Person auswählen
-            <select
-              value={selectedPersonId ?? ""}
-              onChange={(event) => {
-                setSelectedPerson(event.target.value || null);
+          <div className="standings-view__modes standings-view__modes--sidebar">
+            <button
+              type="button"
+              className="button"
+              onClick={() => {
+                setMode("overview");
               }}
             >
-              <option value="">-</option>
-              {[...seasonState.persons.values()].map((person) => (
-                <option key={person.person_id} value={person.person_id}>
-                  {person.display_name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            className="button"
-            disabled={!selectedPerson}
-            onClick={() => {
-              if (!selectedPerson) return;
-              setSelectedPerson(selectedPerson.person_id);
-            }}
-          >
-            {STR.views.standings.modeCorrectIdentity}
-          </button>
-        </div>
-      ) : null}
+              {STR.views.standings.modeOverview}
+            </button>
+            <button
+              type="button"
+              className="button"
+              onClick={() => {
+                setMode("correct_identity");
+              }}
+            >
+              {STR.views.standings.modeCorrectIdentity}
+            </button>
+            <button
+              type="button"
+              className="button"
+              onClick={() => {
+                setMode("merge_duplicates");
+              }}
+            >
+              {STR.views.standings.modeMergeDuplicates}
+            </button>
+            <button type="button" className="button" disabled>
+              {STR.views.standings.exportPdf}
+            </button>
+            <button type="button" className="button" disabled>
+              {STR.views.standings.exportExcel}
+            </button>
+          </div>
+        </aside>
 
-      <h3>
-        {STR.views.standings.raceOverviewTitle} - {selectedCategoryDisplay}
-      </h3>
-      <table className="ui-table">
-        <thead>
-          <tr>
-            <th>{STR.views.standings.team}</th>
-            {raceOverview.raceColumns.map((column) => (
-              <th key={column}>{column.slice(0, 8)}</th>
-            ))}
-            <th>{STR.views.standings.points}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {raceOverview.rows.length > 0 ? (
-            raceOverview.rows.map((row) => (
-              <tr key={row.team_id}>
-                <td>{row.team_label}</td>
+        <div className="standings-content">
+          <h3>{STR.views.standings.overallTitle}</h3>
+          <StandingsTable rows={standingsRows} />
+
+          {mode === "correct_identity" ? (
+            <div className="standings-view__mode-panel">
+              <label>
+                {STR.views.standings.selectPerson}
+                <select
+                  value={selectedPersonId ?? ""}
+                  onChange={(event) => {
+                    setSelectedPerson(event.target.value || null);
+                  }}
+                >
+                  <option value="">-</option>
+                  {[...seasonState.persons.values()].map((person) => (
+                    <option key={person.person_id} value={person.person_id}>
+                      {person.display_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                className="button"
+                disabled={!selectedPerson}
+                onClick={() => {
+                  if (!selectedPerson) return;
+                  setSelectedPerson(selectedPerson.person_id);
+                }}
+              >
+                {STR.views.standings.modeCorrectIdentity}
+              </button>
+            </div>
+          ) : null}
+
+          <h3>
+            {STR.views.standings.raceOverviewTitle} - {selectedCategoryDisplay}
+          </h3>
+          <table className="ui-table">
+            <thead>
+              <tr>
+                <th>{STR.views.standings.team}</th>
                 {raceOverview.raceColumns.map((column) => (
-                  <td key={`${row.team_id}-${column}`}>{row.race_values[column] ?? "—"}</td>
+                  <th key={column}>{column.slice(0, 8)}</th>
                 ))}
-                <td>{row.total_points}</td>
+                <th>{STR.views.standings.points}</th>
               </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan={raceOverview.raceColumns.length + 2}>{STR.views.standings.noRows}</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+            </thead>
+            <tbody>
+              {raceOverview.rows.length > 0 ? (
+                raceOverview.rows.map((row) => (
+                  <tr key={row.team_id}>
+                    <td>{row.team_label}</td>
+                    {raceOverview.raceColumns.map((column) => (
+                      <td key={`${row.team_id}-${column}`}>{row.race_values[column] ?? "—"}</td>
+                    ))}
+                    <td>{row.total_points}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={raceOverview.raceColumns.length + 2}>{STR.views.standings.noRows}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
 
-      <p className="foundation-view__meta">
-        <span>{seasonLabel}</span>
-        <span>{reviewLabel}</span>
-      </p>
+          <p className="foundation-view__meta">
+            <span>{seasonLabel}</span>
+            <span>{reviewLabel}</span>
+          </p>
+        </div>
+      </div>
 
       <IdentityModal
         isOpen={mode === "correct_identity" && selectedPerson != null}
@@ -198,7 +204,7 @@ export function StandingsView({ seasonLabel, reviewLabel }: FoundationViewProps)
         onSave={(payload) => {
           void correctPersonIdentity(payload).then(() => {
             setStatus({
-              message: "Identität gespeichert.",
+              message: STR.views.standings.identitySaved,
               severity: "success",
               source: "standings",
             });
@@ -221,7 +227,7 @@ export function StandingsView({ seasonLabel, reviewLabel }: FoundationViewProps)
           if (!mergeSurvivorTeamId || !mergeAbsorbedTeamId) return;
           void mergeTeams(mergeSurvivorTeamId, mergeAbsorbedTeamId).then(() => {
             setStatus({
-              message: "Duplikate zusammengeführt.",
+              message: STR.views.standings.mergeSaved,
               severity: "success",
               source: "standings",
             });
