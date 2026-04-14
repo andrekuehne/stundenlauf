@@ -17,6 +17,13 @@ Copy this block for each notable accomplishment:
 
 ## Entries
 
+### 2026-04-14 - F-TS06 UI plan split into focused subplans
+- Requirement/Milestone: [R1], [R2], [R5], [R6], [R8], [M-TS5]
+- What shipped: Replaced the oversized monolithic `F-TS06` feature plan with an umbrella plus three implementation-sized subplans: `F-TS06a` (shell + strings foundation), `F-TS06b` (season/standings/history workflows), and `F-TS06c` (import orchestration + matching review GUI).
+- Evidence: `PROJECT_PLAN.md`, `docs/features/F-TS06-ui-framework-german-shell.md`, `docs/features/F-TS06a-ui-shell-layout-and-strings.md`, `docs/features/F-TS06b-season-standings-history-workflows.md`, `docs/features/F-TS06c-import-orchestration-matching-workflow.md`
+- Impact: Reduces planning and implementation scope per work package to fit a single context window and explicitly anchors import/review behavior to the existing `?harness=import-season` prototype.
+- Follow-up: Build concrete implementation plans and execute 06a, then 06b and 06c in sequence.
+
 ### 2026-04-14 - H-TS02 central write barrier validation implemented
 - Requirement/Milestone: [R1], [R3], [R5], [R7], [M-TS1]
 - What shipped: Implemented a canonical append-time write barrier in the event store that validates each incoming event with `validateEvent` against transient post-apply state, rejects invalid batches atomically before persistence, and surfaces structured failure details (`season_id`, batch index, `seq`, event type, reasons).

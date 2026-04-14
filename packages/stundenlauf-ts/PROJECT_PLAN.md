@@ -79,7 +79,10 @@ Features are prefixed `F-TS` to distinguish from the Python version's `F` prefix
 | F-TS03 | Fuzzy matching engine and review workflow | M-TS3 | Done |
 | F-TS04 | Ranking engine and standings computation | M-TS4 | Done |
 | F-TS05 | Import orchestration workflow (parse → validate → match → review → emit) | M-TS2 | Done |
-| F-TS06 | UI framework and German UI shell | M-TS5 | Planned |
+| F-TS06 | UI framework and German UI shell (umbrella) | M-TS5 | Planned |
+| F-TS06a | UI foundation: shell layout and German strings | M-TS5 | Planned |
+| F-TS06b | Season, standings, and history workflows | M-TS5 | Planned |
+| F-TS06c | Import orchestration and matching review GUI | M-TS5 | Planned |
 | F-TS07 | Season data portability (JSON/ZIP export and import) | M-TS6 | Planned |
 | F-TS08 | Standings and results export (PDF, Excel) | M-TS6 | Planned |
 | F-TS09 | GitHub Pages deployment and PWA | M-TS7 | Planned |
@@ -103,7 +106,7 @@ The following maps Python features to their TS-port equivalents or notes on appr
 | F02 Excel ingestion | F-TS02: client-side xlsx parsing; F-TS05: import orchestration (parse → match → emit) |
 | F03 Matching engine | F-TS03: port scoring/normalization/modes to TS; same fingerprint + scoring approach |
 | F04 Ranking engine | F-TS04: port as `stundenlauf_v1` ruleset; pure derived view over SeasonState |
-| F05 German UI | F-TS06: UI framework selection, app shell, German copy catalog, core workflow screens |
+| F05 German UI | F-TS06 umbrella split into F-TS06a (shell/strings), F-TS06b (season+standings+history), F-TS06c (import orchestration/review) |
 | F06 Fixture HITL import script | Not ported – developer tooling; replaced by Vitest fixture-based tests |
 | F07 Gesamtwertung ground-truth comparison | Not ported – developer tooling; replaced by Vitest fixture-based tests |
 | F08 API layer | Eliminated – UI calls domain directly (no pywebview bridge) |
@@ -211,3 +214,4 @@ TS version: UI components call domain functions directly. No serialization bound
 | 2026-04-14 | Added H-TS02 hardening plan seed | Captured the need for a central validation write barrier so invalid event batches are rejected before persistence/projection |
 | 2026-04-14 | H-TS01 implemented | Unified singles matching/review identity flow to team-first semantics (`team_id` only), removed person-id fallback seams, added review linking guardrails, and expanded regression coverage; hardening inventory status updated to Done |
 | 2026-04-14 | H-TS02 implemented | Added central append-time semantic validation barrier in event store (`validateEvent` + transient apply), structured append validation errors, and storage-level atomic failure regression coverage; hardening inventory status updated to Done |
+| 2026-04-14 | Split F-TS06 into F-TS06a/b/c subplans | Reduced UI planning scope per work package: shell+strings foundation, season/standings/history workflows, and import orchestration/matching review GUI (aligned to existing `?harness=import-season` prototype) |
